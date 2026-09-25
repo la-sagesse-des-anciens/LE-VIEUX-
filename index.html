@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0f0d0a">
+<title>Le Vieux — Sagesse Ancestrale</title>
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    :root {
+        --bg: #0f0d0a; --panel: #1a1611; --panel-2: #221d16; --border: #3a3025;
+        --ink: #f0e6d2; --ink-dim: #a89878; --ink-faint: #6b5f48;
+        --gold: #c9a961; --gold-bright: #e8c87a; --success: #6ba368; --error: #c0564a;
+    }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Georgia', serif;
+        background: var(--bg); color: var(--ink); min-height: 100vh;
+        font-size: 15px; line-height: 1.6;
+        max-width: 720px; margin: 0 auto;
+        background-image: radial-gradient(ellipse at top, rgba(201,169,97,0.08), transparent 60%);
+        padding-bottom: 5rem;
+    }
+
+    /* HEADER */
+    .app-header {
+        padding: 1rem 1rem 0.5rem; text-align: center;
+        position: sticky; top: 0; z-index: 50;
+        background: linear-gradient(180deg, var(--bg) 70%, transparent);
+    }
+    .elder-avatar {
+        width: 70px; height: 70px; margin: 0 auto 0.5rem;
+        border-radius: 50%; border: 2px solid var(--gold);
+        background: linear-gradient(135deg, #2a1f15, #1a1611);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 2.2rem; box-shadow: 0 0 30px rgba(201,169,97,0.2);
+    }
+    .app-header h1 { font-size: 1.3rem; color: var(--gold-bright); font-weight: 500; }
+    .app-header .badge-user {
+        font-size: 0.7rem; color: var(--ink-dim); margin-top: 0.2rem;
+    }
+
+    /* TABS */
+    .tabs {
+        display: flex; gap: 0.3rem; padding: 0.5rem 0.8rem;
+        overflow-x: auto; scrollbar-width: none;
+        position: sticky; top: 0; z-index: 40;
+        background: var(--bg);
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab {
+        flex-shrink: 0; padding: 0.5rem 0.9rem; border-radius: 20px;
+        font-size: 0.75rem; color: var(--ink-dim); cursor: pointer;
+        background: var(--panel); border: 1px solid var(--border);
+        transition: all 0.2s; white-space: nowrap;
+    }
+    .tab.active {
+        background: linear-gradient(135deg, var(--gold), var(--gold-bright));
+        color: #1a1611; border-color: var(--gold); font-weight: 700;
+    }
+
+    /* CONTENU */
+    .content { padding: 0 1rem; }
+    .panel {
+        display: none; animation: fadeIn 0.3s;
+    }
+    .panel.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .card {
+        background: var(--panel); border: 1px solid var(--border);
+        border-radius: 14px; padding: 1.1rem; margin-bottom: 0.9rem;
+    }
+    .card h2 {
+        font-size: 0.85rem; color: var(--gold); font-weight: 600;
+        text-transform: uppercase; letter-spacing: 0.08em;
+        margin-bottom: 0.7rem;
+    }
+    .card .text { font-size: 0.9rem; line-height: 1.65; color: var(--ink); white-space: pre-wrap; }
+    .card .text em { color: var(--gold-bright); }
+
+    .btn-primary {
+        width: 100%; padding: 1rem; border-radius: 12px; border: none;
+        background: linear-gradient(135deg, var(--gold), var(--gold-bright));
+        color: #1a1611; font-weight: 700; font-size: 0.92rem;
+        cursor: pointer; font-family: inherit;
+        transition: transform 0.1s;
+    }
+    .btn-primary:active { transform: scale(0.97); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* CHAT */
+    .chat-container {
+        background: var(--panel); border: 1px solid var(--border);
+        border-radius: 16px; padding: 1rem; margin-bottom: 0.8rem;
+        min-height: 300px; max-height: 55vh; overflow-y: auto;
+    }
+    .message { margin-bottom: 0.9rem; animation: fadeIn 0.3s; }
+    .message.user { text-align: right; }
+    .message.user .bubble {
+        display: inline-block; background: linear-gradient(135deg, var(--gold), var(--gold-bright));
+        color: #1a1611; padding: 0.65rem 0.95rem;
+        border-radius: 16px 16px 4px 16px;
+        max-width: 85%; text-align: left; font-weight: 500; font-size: 0.88rem;
+    }
+    .message.elder .bubble {
+        display: inline-block; background: var(--panel-2);
+        border: 1px solid var(--border); padding: 0.85rem 1.05rem;
+        border-radius: 16px 16px 16px 4px;
+        max-width: 92%; font-style: italic; font-size: 0.88rem;
+        line-height: 1.6;
+    }
+    .message.elder .bubble::before { content: '👴 '; font-style: normal; }
+    .typing-dots span {
+        display: inline-block; width: 7px; height: 7px;
+        background: var(--gold); border-radius: 50%;
+        margin: 0 2px; animation: bounce 1.2s infinite;
+    }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce { 0%,60%,100% { transform: translateY(0); opacity: 0.4; } 30% { transform: translateY(-6px); opacity: 1; } }
+
+    .input-area { display: flex; gap: 0.5rem; }
+    .input-area textarea {
+        flex: 1; padding: 0.85rem 1rem; border-radius: 12px;
+        border: 1px solid var(--border); background: var(--panel);
+        color: var(--ink); font-family: inherit; font-size: 0.9rem;
+        resize: none; min-height: 50px; max-height: 110px; line-height: 1.4;
+    }
+    .input-area textarea:focus { outline: none; border-color: var(--gold); }
+    .input-area button {
+        padding: 0.85rem 1.2rem; border-radius: 12px; border: none;
+        background: linear-gradient(135deg, var(--gold), var(--gold-bright));
+        color: #1a1611; font-weight: 700; font-size: 0.85rem;
+        cursor: pointer; font-family: inherit;
+    }
+
+    /* SUGGESTIONS */
+    .suggestions { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
+    .suggestion {
+        padding: 0.4rem 0.75rem; border-radius: 16px;
+        border: 1px solid var(--border); background: var(--panel);
+        color: var(--ink-dim); font-size: 0.72rem; cursor: pointer;
+    }
+
+    /* JOURNAL */
+    .journal-entry {
+        background: var(--panel); border: 1px solid var(--border);
+        border-radius: 12px; padding: 0.9rem; margin-bottom: 0.6rem;
+        font-size: 0.85rem;
+    }
+    .journal-entry .date { font-size: 0.7rem; color: var(--ink-faint); margin-bottom: 0.3rem; }
+    .journal-entry textarea {
+        width: 100%; background: transparent; border: none;
+        color: var(--ink); font-family: inherit; font-size: 0.88rem;
+        resize: none; line-height: 1.55; min-height: 80px;
+    }
+    .journal-entry textarea:focus { outline: none; }
+
+    /* PROGRESSION */
+    .progress-bar {
+        height: 12px; background: var(--panel-2); border-radius: 6px;
+        overflow: hidden; margin: 0.5rem 0 1rem;
+    }
+    .progress-fill {
+        height: 100%; background: linear-gradient(90deg, var(--gold), var(--gold-bright));
+        width: 0%; transition: width 0.5s;
+    }
+    .level-info { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--ink-dim); }
+    .badge-level {
+        display: inline-block; padding: 0.3rem 0.8rem;
+        background: linear-gradient(135deg, var(--gold), var(--gold-bright));
+        color: #1a1611; border-radius: 20px;
+        font-size: 0.75rem; font-weight: 700;
+    }
+
+    /* PAYWALL */
+    .paywall-overlay {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+        backdrop-filter: blur(10px); z-index: 1000;
+        display: none; align-items: center; justify-content: center;
+        padding: 1rem;
+    }
+    .paywall-overlay.visible { display: flex; }
+    .paywall {
+        background: var(--panel); border: 2px solid var(--gold);
+        border-radius: 20px; padding: 1.8rem 1.4rem;
+        max-width: 420px; width: 100%; text-align: center;
+        box-shadow: 0 20px 60px rgba(201,169,97,0.3);
+    }
+    .paywall h2 { font-size: 1.2rem; color: var(--gold-bright); margin-bottom: 0.6rem; }
+    .paywall p { color: var(--ink-dim); font-size: 0.85rem; line-height: 1.6; margin-bottom: 1rem; }
+    .paywall .price { font-size: 2rem; color: var(--gold-bright); font-weight: 700; font-family: 'Georgia', serif; margin: 1rem 0; }
+    .paywall .price small { font-size: 0.85rem; color: var(--ink-dim); font-weight: 400; }
+    .paywall ul { list-style: none; text-align: left; margin: 1rem auto; max-width: 300px; font-size: 0.83rem; color: var(--ink-dim); }
+    .paywall ul li { padding: 0.3rem 0; }
+    .paywall ul li::before { content: '✓ '; color: var(--success); font-weight: 700; }
+    .paywall .btn-secondary {
+        width: 100%; padding: 0.8rem; border-radius: 12px;
+        border: 1px solid var(--border); background: transparent;
+        color: var(--ink-dim); font-size: 0.85rem; font-family: inherit;
+        margin-top: 0.5rem; cursor: pointer;
+    }
+
+    /* EMAIL MODAL */
+    .email-modal {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+        backdrop-filter: blur(10px); z-index: 1100;
+        display: none; align-items: center; justify-content: center; padding: 1rem;
+    }
+    .email-modal.visible { display: flex; }
+    .email-modal .paywall h2 { margin-bottom: 0.3rem; }
+    .email-modal input {
+        width: 100%; padding: 0.9rem 1rem; border-radius: 12px;
+        border: 1px solid var(--border); background: #0d0b08;
+        color: var(--gold-bright); font-family: inherit; font-size: 0.95rem;
+        text-align: center; margin-bottom: 1rem;
+    }
+    .email-modal input:focus { outline: none; border-color: var(--gold); }
+
+    /* TOAST */
+    .toast {
+        position: fixed; top: 1rem; left: 50%;
+        transform: translateX(-50%) translateY(-100px);
+        background: var(--gold); color: #1a1611;
+        padding: 0.8rem 1.3rem; border-radius: 10px;
+        font-size: 0.83rem; font-weight: 600; z-index: 2000;
+        opacity: 0; transition: all 0.35s; max-width: 90vw; text-align: center;
+    }
+    .toast.visible { transform: translateX(-50%) translateY(0); opacity: 1; }
+    .toast.error { background: var(--error); color: #fff; }
+    .toast.success { background: var(--success); color: #fff; }
+
+    /* LOADING */
+    .loading {
+        text-align: center; padding: 2rem 1rem; color: var(--ink-dim);
+        font-size: 0.85rem; font-style: italic;
+    }
+    .spinner-small {
+        display: inline-block; width: 16px; height: 16px;
+        border: 2px solid rgba(201,169,97,0.3);
+        border-top-color: var(--gold); border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        vertical-align: middle; margin-right: 0.5rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* STATUS BAR */
+    .status-bar {
+        position: fixed; bottom: 0; left: 0; right: 0;
+        background: var(--panel); border-top: 1px solid var(--gold);
+        padding: 0.6rem 1rem; display: flex; justify-content: space-between;
+        align-items: center; font-size: 0.75rem; z-index: 30;
+    }
+    .status-bar .status-text { color: var(--ink-dim); }
+    .status-bar .status-text.active { color: var(--success); }
+    .status-bar .status-text.free { color: var(--gold); }
+    .status-bar button {
+        padding: 0.4rem 0.9rem; border-radius: 8px; border: none;
+        background: var(--gold); color: #1a1611;
+        font-size: 0.72rem; font-weight: 700; font-family: inherit;
+        cursor: pointer;
+    }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="app-header">
+    <div class="elder-avatar">👴</div>
+    <h1>Le Vieux</h1>
+    <div class="badge-user" id="user-badge">Anonyme</div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+    <div class="tab active" data-tab="chat">💬 Chat</div>
+    <div class="tab" data-tab="today">☀️ Aujourd'hui</div>
+    <div class="tab" data-tab="teaching">📜 Enseignement</div>
+    <div class="tab" data-tab="challenge">🏆 Défi</div>
+    <div class="tab" data-tab="journal">📓 Journal</div>
+    <div class="tab" data-tab="library">📚 Bibliothèque</div>
+    <div class="tab" data-tab="progress">⭐ Progression</div>
+</div>
+
+<div class="content">
+
+    <!-- CHAT -->
+    <div class="panel active" data-panel="chat">
+        <div class="chat-container" id="chat-container">
+            <div class="message elder">
+                <div class="bubble">
+                    Approche, mon enfant. Assieds-toi près de moi, à l'ombre de cet arbre.
+                    Pose-moi ta question — sur la vie, la sagesse, l'amour, la peur, ou ce que tu portes dans le cœur.
+                    Je t'écoute.
+                </div>
+            </div>
+        </div>
+        <div class="suggestions">
+            <span class="suggestion">Comment trouver la paix ?</span>
+            <span class="suggestion">Comment pardonner ?</span>
+            <span class="suggestion">Face à la peur ?</span>
+        </div>
+        <div class="input-area">
+            <textarea id="user-input" placeholder="Écris ta question au Vieux…" rows="1"></textarea>
+            <button type="button" id="send-btn">Demander</button>
+        </div>
+    </div>
+
+    <!-- AUJOURD'HUI -->
+    <div class="panel" data-panel="today">
+        <div class="card">
+            <h2>☀️ Proverbe du matin</h2>
+            <div class="text" id="morning-text">
+                <div class="loading"><span class="spinner-small"></span>Chargement…</div>
+            </div>
+        </div>
+        <div class="card">
+            <h2>🌙 Rituel du soir</h2>
+            <div class="text" id="evening-text">
+                <div class="loading"><span class="spinner-small"></span>Chargement…</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ENSEIGNEMENT -->
+    <div class="panel" data-panel="teaching">
+        <div class="card">
+            <h2>📜 Enseignement de la semaine</h2>
+            <div class="text" id="teaching-text">
+                <div class="loading"><span class="spinner-small"></span>Chargement…</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DÉFI -->
+    <div class="panel" data-panel="challenge">
+        <div class="card">
+            <h2>🏆 Défi de 7 jours</h2>
+            <div class="text" id="challenge-text">
+                <div class="loading"><span class="spinner-small"></span>Chargement…</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JOURNAL -->
+    <div class="panel" data-panel="journal">
+        <div class="card">
+            <h2>📓 Mon journal intérieur</h2>
+            <p style="font-size:0.8rem;color:var(--ink-dim);margin-bottom:0.8rem;">
+                Écris ce que tu ressens. Le Vieux lit tes notes et te guide.
+            </p>
+            <div class="journal-entry">
+                <div class="date" id="journal-date"></div>
+                <textarea id="journal-input" placeholder="Aujourd'hui, je ressens…"></textarea>
+            </div>
+            <button type="button" class="btn-primary" id="journal-save-btn">
+                💾 Sauvegarder dans mon journal
+            </button>
+        </div>
+    </div>
+
+    <!-- BIBLIOTHÈQUE -->
+    <div class="panel" data-panel="library">
+        <div class="card">
+            <h2>📚 Conte du jour</h2>
+            <div class="text" id="library-text">
+                <div class="loading"><span class="spinner-small"></span>Chargement…</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PROGRESSION -->
+    <div class="panel" data-panel="progress">
+        <div class="card">
+            <h2>⭐ Ma progression</h2>
+            <div style="text-align:center;margin-bottom:1rem;">
+                <span class="badge-level" id="level-badge">Niveau 1 · Curieux</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="level-info">
+                <span id="points-text">0 points</span>
+                <span id="next-level-text">100 points pour niveau 2</span>
+            </div>
+        </div>
+        <div class="card">
+            <h2>📊 Mes statistiques</h2>
+            <div style="font-size:0.85rem;color:var(--ink-dim);line-height:1.9;">
+                <div>💬 Questions posées : <strong id="stat-questions" style="color:var(--gold-bright);">0</strong></div>
+                <div>☀️ Jours de connexion : <strong id="stat-days" style="color:var(--gold-bright);">0</strong></div>
+                <div>📓 Notes de journal : <strong id="stat-journal" style="color:var(--gold-bright);">0</strong></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- STATUS BAR -->
+<div class="status-bar">
+    <span class="status-text" id="status-text">Découverte</span>
+    <button type="button" id="subscribe-bar-btn">S'abonner</button>
+</div>
+
+<!-- PAYWALL -->
+<div class="paywall-overlay" id="paywall">
+    <div class="paywall">
+        <div style="font-size:3rem;margin-bottom:0.5rem;">🌳</div>
+        <h2>Continue ton chemin</h2>
+        <p>Tes questions offertes sont épuisées. Abonne-toi pour continuer à recevoir la sagesse du Vieux chaque jour.</p>
+        <div class="price">10 000 <small>FCFA / mois</small></div>
+        <ul>
+            <li>Chat illimité avec Le Vieux</li>
+            <li>Proverbe du matin quotidien</li>
+            <li>Rituel du soir quotidien</li>
+            <li>Enseignement hebdomadaire</li>
+            <li>Défi de 7 jours</li>
+            <li>Conte du jour</li>
+        </ul>
+        <button type="button" class="btn-primary" id="paywall-subscribe">S'abonner maintenant</button>
+        <button type="button" class="btn-secondary" id="paywall-check">J'ai déjà payé — Vérifier</button>
+    </div>
+</div>
+
+<!-- EMAIL MODAL -->
+<div class="email-modal" id="email-modal">
+    <div class="paywall">
+        <div style="font-size:3rem;margin-bottom:0.5rem;">📧</div>
+        <h2>Bienvenue, mon enfant</h2>
+        <p>Entre ton email pour que je me souvienne de toi et de tes questions.</p>
+        <input type="email" id="email-input" placeholder="ton@email.com">
+        <button type="button" class="btn-primary" id="email-save-btn">Commencer</button>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">Message</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// ⚠️ CONFIGURATION — REMPLACE CES 2 LIGNES
+// ══════════════════════════════════════════════════════════════════
+const BACKEND_URL = 'https://le-vieux-production.up.railway.app';
+const CHARIOW_URL = 'https://ton-eveil-maintenant.mychariow.shop/prd_6fnskm/checkout';
+
+// Stockage
+const STORAGE_EMAIL = 'levieux_email';
+const STORAGE_HISTORY = 'levieux_history_v2';
+const STORAGE_JOURNAL = 'levieux_journal';
+const STORAGE_STATS = 'levieux_stats';
+
+// ══════════════════════════════════════════════════════════════════
+// ÉTAT
+// ══════════════════════════════════════════════════════════════════
+const state = {
+    email: null,
+    access: null,
+    history: [],
+    journal: [],
+    stats: { questions: 0, days: [], journalCount: 0 },
+    isSending: false,
+    dailyCache: { morning: null, evening: null, date: null },
+    loadedPanels: {}
+};
+
+// ══════════════════════════════════════════════════════════════════
+// UTILITAIRES
+// ══════════════════════════════════════════════════════════════════
+function showToast(msg, type = 'success') {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.className = 'toast visible ' + type;
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(() => toast.classList.remove('visible'), 3000);
+}
+
+function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
+    );
+}
+
+function todayKey() {
+    return new Date().toISOString().split('T')[0];
+}
+
+function saveLocal(key, value) {
+    try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+}
+
+function loadLocal(key, fallback) {
+    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; }
+    catch (e) { return fallback; }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════════════════════════════
+function initTabs() {
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+            tab.classList.add('active');
+            const panelName = tab.dataset.tab;
+            document.querySelector('[data-panel="' + panelName + '"]').classList.add('active');
+            loadPanelContent(panelName);
+        });
+    });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// APPELS BACKEND
+// ══════════════════════════════════════════════════════════════════
+async function checkAccess() {
+    if (!state.email) return;
+    try {
+        const res = await fetch(BACKEND_URL + '/check-access', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: state.email })
+        });
+        state.access = await res.json();
+        updateStatusBar();
+    } catch (e) {
+        console.warn('check-access error', e);
+    }
+}
+
+async function callBackend(endpoint, extra = {}) {
+    if (!state.email) throw new Error('Email requis');
+    const res = await fetch(BACKEND_URL + endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: state.email, ...extra })
+    });
+    if (res.status === 402) {
+        const err = new Error('paywall');
+        err.paywall = true;
+        throw err;
+    }
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CHAT
+// ══════════════════════════════════════════════════════════════════
+function addMessage(role, content, save = true) {
+    const container = document.getElementById('chat-container');
+    const div = document.createElement('div');
+    div.className = 'message ' + role;
+    div.innerHTML = '<div class="bubble">' + esc(content).replace(/\n/g, '<br>') + '</div>';
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    if (save) {
+        state.history.push({ role, content });
+        saveLocal(STORAGE_HISTORY, state.history.slice(-40));
+    }
+}
+
+function addTyping() {
+    const container = document.getElementById('chat-container');
+    const div = document.createElement('div');
+    div.className = 'message elder typing';
+    div.id = 'typing-indicator';
+    div.innerHTML = '<div class="bubble"><span class="typing-dots"><span></span><span></span><span></span></span></div>';
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function removeTyping() {
+    const el = document.getElementById('typing-indicator');
+    if (el) el.remove();
+}
+
+async function sendQuestion() {
+    const input = document.getElementById('user-input');
+    const question = input.value.trim();
+    if (!question || state.isSending) return;
+
+    if (!state.email) {
+        document.getElementById('email-modal').classList.add('visible');
+        return;
+    }
+
+    input.value = '';
+    input.style.height = 'auto';
+    addMessage('user', question);
+    addTyping();
+    state.isSending = true;
+    document.getElementById('send-btn').disabled = true;
+
+    try {
+        const data = await callBackend('/ask', {
+            question: question,
+            history: state.history.slice(-6)
+        });
+        removeTyping();
+        addMessage('elder', data.answer);
+        state.stats.questions++;
+        saveLocal(STORAGE_STATS, state.stats);
+        updateStats();
+        await checkAccess();
+    } catch (e) {
+        removeTyping();
+        if (e.paywall) {
+            document.getElementById('paywall').classList.add('visible');
+            await checkAccess();
+        } else {
+            addMessage('elder', 'Le Vieux est fatigué, mon enfant. Vérifie ta connexion et réessaie.');
+        }
+    } finally {
+        state.isSending = false;
+        document.getElementById('send-btn').disabled = false;
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CONTENU DES PANNEAUX
+// ══════════════════════════════════════════════════════════════════
+async function loadPanelContent(panel) {
+    if (state.loadedPanels[panel]) return;
+    state.loadedPanels[panel] = true;
+
+    const el = document.getElementById(panel + '-text');
+
+    if (panel === 'today') {
+        await loadDaily();
+        return;
+    }
+    if (!el) return;
+
+    if (!state.access || !state.access.active) {
+        el.innerHTML = '<em style="color:var(--ink-faint);">🔒 Réservé aux abonnés. <a href="#" class="subscribe-link" style="color:var(--gold);">S\'abonner</a></em>';
+        bindSubscribeLinks();
+        return;
+    }
+
+    try {
+        let endpoint = '';
+        if (panel === 'teaching') endpoint = '/teaching';
+        else if (panel === 'challenge') endpoint = '/challenge';
+        else if (panel === 'library') endpoint = '/library';
+
+        if (!endpoint) return;
+
+        const data = await callBackend(endpoint);
+        el.textContent = data.content || '(Aucun contenu)';
+    } catch (e) {
+        if (e.paywall) {
+            el.innerHTML = '<em style="color:var(--ink-faint);">🔒 Réservé aux abonnés.</em>';
+        } else {
+            el.innerHTML = '<em style="color:var(--error);">Erreur de chargement. Réessaie plus tard.</em>';
+        }
+    }
+}
+
+async function loadDaily() {
+    const today = todayKey();
+
+    if (state.dailyCache.date === today && state.dailyCache.morning) {
+        document.getElementById('morning-text').textContent = state.dailyCache.morning;
+        document.getElementById('evening-text').textContent = state.dailyCache.evening;
+        return;
+    }
+
+    const morningEl = document.getElementById('morning-text');
+    const eveningEl = document.getElementById('evening-text');
+
+    if (!state.access || !state.access.active) {
+        morningEl.innerHTML = '<em style="color:var(--ink-faint);">🔒 Réservé aux abonnés.</em>';
+        eveningEl.innerHTML = '<em style="color:var(--ink-faint);">🔒 Réservé aux abonnés.</em>';
+        return;
+    }
+
+    try {
+        const [morning, evening] = await Promise.all([
+            callBackend('/daily', { type: 'morning' }),
+            callBackend('/daily', { type: 'evening' })
+        ]);
+        morningEl.textContent = morning.content || '(Aucun contenu)';
+        eveningEl.textContent = evening.content || '(Aucun contenu)';
+        state.dailyCache = { morning: morning.content, evening: evening.content, date: today };
+    } catch (e) {
+        if (e.paywall) {
+            morningEl.innerHTML = '<em style="color:var(--ink-faint);">🔒 Réservé aux abonnés.</em>';
+            eveningEl.innerHTML = '<em style="color:var(--ink-faint);">🔒 Réservé aux abonnés.</em>';
+        } else {
+            morningEl.innerHTML = '<em style="color:var(--error);">Erreur de chargement.</em>';
+            eveningEl.innerHTML = '<em style="color:var(--error);">Erreur de chargement.</em>';
+        }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// JOURNAL
+// ══════════════════════════════════════════════════════════════════
+function initJournal() {
+    const today = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    document.getElementById('journal-date').textContent = today;
+
+    const existing = state.journal.find(j => j.date === todayKey());
+    if (existing) document.getElementById('journal-input').value = existing.text;
+
+    document.getElementById('journal-save-btn').addEventListener('click', () => {
+        const text = document.getElementById('journal-input').value.trim();
+        if (!text) {
+            showToast('Écris quelque chose d\'abord', 'error');
+            return;
+        }
+        const todayK = todayKey();
+        const existing = state.journal.findIndex(j => j.date === todayK);
+        if (existing >= 0) state.journal[existing].text = text;
+        else state.journal.push({ date: todayK, text: text });
+        saveLocal(STORAGE_JOURNAL, state.journal);
+        state.stats.journalCount = state.journal.length;
+        saveLocal(STORAGE_STATS, state.stats);
+        updateStats();
+        showToast('Sauvegardé dans ton journal ✓', 'success');
+    });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// STATS & PROGRESSION
+// ══════════════════════════════════════════════════════════════════
+function updateStats() {
+    document.getElementById('stat-questions').textContent = state.stats.questions || 0;
+    document.getElementById('stat-days').textContent = (state.stats.days || []).length;
+    document.getElementById('stat-journal').textContent = state.stats.journalCount || 0;
+
+    const points = (state.stats.questions || 0) * 5 + (state.stats.days || []).length * 10 + (state.stats.journalCount || 0) * 3;
+    let level = 1;
+    let levelName = 'Curieux';
+    let nextLevelPoints = 100;
+    if (points >= 100) { level = 2; levelName = 'Chercheur'; nextLevelPoints = 300; }
+    if (points >= 300) { level = 3; levelName = 'Sage en herbe'; nextLevelPoints = 600; }
+    if (points >= 600) { level = 4; levelName = 'Compagnon'; nextLevelPoints = 1000; }
+    if (points >= 1000) { level = 5; levelName = 'Gardien de la sagesse'; nextLevelPoints = 1500; }
+
+    document.getElementById('level-badge').textContent = 'Niveau ' + level + ' · ' + levelName;
+    document.getElementById('points-text').textContent = points + ' points';
+    document.getElementById('next-level-text').textContent = (nextLevelPoints - points) + ' points pour niveau ' + (level + 1);
+
+    const prevPoints = level === 1 ? 0 : (level === 2 ? 100 : level === 3 ? 300 : level === 4 ? 600 : 1000);
+    const progress = Math.min(100, Math.round(((points - prevPoints) / (nextLevelPoints - prevPoints)) * 100));
+    document.getElementById('progress-fill').style.width = progress + '%';
+}
+
+function recordDay() {
+    const todayK = todayKey();
+    if (!state.stats.days) state.stats.days = [];
+    if (!state.stats.days.includes(todayK)) {
+        state.stats.days.push(todayK);
+        saveLocal(STORAGE_STATS, state.stats);
+        updateStats();
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// STATUS BAR & PAYWALL
+// ══════════════════════════════════════════════════════════════════
+function updateStatusBar() {
+    const statusText = document.getElementById('status-text');
+    const subBtn = document.getElementById('subscribe-bar-btn');
+    const userBadge = document.getElementById('user-badge');
+
+    if (!state.email) {
+        statusText.textContent = 'Anonyme';
+        statusText.className = 'status-text';
+        subBtn.textContent = 'Commencer';
+        userBadge.textContent = 'Anonyme';
+        return;
+    }
+
+    userBadge.textContent = state.email.split('@')[0];
+
+    if (state.access && state.access.active) {
+        statusText.textContent = '✓ Abonné · ' + state.access.daysLeft + ' jours restants';
+        statusText.className = 'status-text active';
+        subBtn.style.display = 'none';
+    } else if (state.access && state.access.reason === 'expired') {
+        statusText.textContent = '⚠ Abonnement expiré';
+        statusText.className = 'status-text free';
+        subBtn.textContent = 'Renouveler';
+        subBtn.style.display = 'block';
+    } else {
+        statusText.textContent = 'Découverte · Questions offertes';
+        statusText.className = 'status-text free';
+        subBtn.textContent = 'S\'abonner';
+        subBtn.style.display = 'block';
+    }
+}
+
+function bindSubscribeLinks() {
+    document.querySelectorAll('.subscribe-link').forEach(el => {
+        el.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('paywall').classList.add('visible');
+        });
+    });
+}
+
+// ══════════════════════════════════════════════════════════════════
+// INITIALISATION
+// ══════════════════════════════════════════════════════════════════
+async function init() {
+    initTabs();
+
+    // Charger les données locales
+    state.email = localStorage.getItem(STORAGE_EMAIL);
+    state.history = loadLocal(STORAGE_HISTORY, []);
+    state.journal = loadLocal(STORAGE_JOURNAL, []);
+    state.stats = loadLocal(STORAGE_STATS, { questions: 0, days: [], journalCount: 0 });
+
+    // Restaurer les messages
+    state.history.forEach(msg => addMessage(msg.role, msg.content, false));
+
+    // Email modal
+    if (!state.email) {
+        document.getElementById('email-modal').classList.add('visible');
+    } else {
+        await checkAccess();
+        recordDay();
+    }
+
+    initJournal();
+    updateStats();
+    updateStatusBar();
+    bindSubscribeLinks();
+
+    // Events
+    document.getElementById('send-btn').addEventListener('click', sendQuestion);
+
+    document.getElementById('user-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendQuestion();
+        }
+    });
+
+    document.getElementById('user-input').addEventListener('input', (e) => {
+        e.target.style.height = 'auto';
+        e.target.style.height = Math.min(e.target.scrollHeight, 110) + 'px';
+    });
+
+    document.querySelectorAll('.suggestion').forEach(el => {
+        el.addEventListener('click', () => {
+            document.getElementById('user-input').value = el.textContent;
+            sendQuestion();
+        });
+    });
+
+    // Email modal
+    document.getElementById('email-save-btn').addEventListener('click', async () => {
+        const email = document.getElementById('email-input').value.trim();
+        if (!email || !email.includes('@')) {
+            showToast('Email invalide', 'error');
+            return;
+        }
+        state.email = email;
+        localStorage.setItem(STORAGE_EMAIL, email);
+        document.getElementById('email-modal').classList.remove('visible');
+        await checkAccess();
+        recordDay();
+        updateStatusBar();
+        showToast('Bienvenue, ' + email.split('@')[0] + ' ✓');
+    });
+
+    document.getElementById('email-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') document.getElementById('email-save-btn').click();
+    });
+
+    // Paywall
+    document.getElementById('subscribe-bar-btn').addEventListener('click', () => {
+        if (!state.email) {
+            document.getElementById('email-modal').classList.add('visible');
+            return;
+        }
+        document.getElementById('paywall').classList.add('visible');
+    });
+
+    document.getElementById('paywall-subscribe').addEventListener('click', () => {
+        if (!state.email) {
+            document.getElementById('paywall').classList.remove('visible');
+            document.getElementById('email-modal').classList.add('visible');
+            return;
+        }
+        const url = CHARIOW_URL + '?email=' + encodeURIComponent(state.email);
+        window.open(url, '_blank');
+        showToast('Complète ton paiement sur Chariow', 'success', 5000);
+    });
+
+    document.getElementById('paywall-check').addEventListener('click', async () => {
+        showToast('Vérification…');
+        await checkAccess();
+        if (state.access && state.access.active) {
+            document.getElementById('paywall').classList.remove('visible');
+            showToast('Abonnement confirmé ✓', 'success');
+            // Recharger les panneaux
+            state.loadedPanels = {};
+            loadPanelContent('today');
+        } else {
+            showToast('Aucun abonnement actif trouvé', 'error');
+        }
+    });
+
+    document.getElementById('status-text').addEventListener('click', () => {
+        if (state.access && state.access.active) {
+            document.querySelector('.tab[data-tab="progress"]').click();
+        }
+    });
+}
+
+init();
+</script>
+
+</body>
+</html>
