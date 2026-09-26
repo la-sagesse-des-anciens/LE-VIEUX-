@@ -9,8 +9,7 @@ const PORT = process.env.PORT || 3000;
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const ADMIN_PWD = process.env.ADMIN_PWD || 'levieux2026';
 
-const GROQ_MODEL = 'llama-3.1-8b-instant';
-
+const GROQ_MODEL = 'openai/gpt-oss-20b';
 const DB_FILE = path.join(__dirname, 'subscribers.json');
 
 function loadDB() {
