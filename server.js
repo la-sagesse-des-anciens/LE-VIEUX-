@@ -6,7 +6,7 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY || 'TA_CLE_MISTRAL_ICI';
+const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY || '';
 const ADMIN_PWD = process.env.ADMIN_PWD || 'levieux2026';
 
 const DB_FILE = path.join(__dirname, 'subscribers.json');
@@ -41,7 +41,12 @@ app.use(express.json({ limit: '10mb' }));
 // ROUTE DE TEST
 // ══════════════════════════════════════════════════════════════════
 app.get('/', (req, res) => {
-  res.json({ status: 'ok', service: 'Le Vieux Backend', version: '1.0.1' });
+  res.json({ 
+    status: 'ok', 
+    service: 'La Voix des Anciens Backend', 
+    version: '1.0.2',
+    mistral_key_set: !!MISTRAL_API_KEY && MISTRAL_API_KEY.length > 10
+  });
 });
 
 // ══════════════════════════════════════════════════════════════════
@@ -84,7 +89,7 @@ app.post('/check-access', (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// WEBHOOK CHARIOW (version simplifiée qui accepte tout)
+// WEBHOOK CHARIOW
 // ══════════════════════════════════════════════════════════════════
 app.post('/webhook/chariow', (req, res) => {
   const event = req.body;
@@ -111,7 +116,6 @@ app.post('/webhook/chariow', (req, res) => {
 
   const db = loadDB();
 
-  // VENTE → activer 30 jours
   if (eventType.includes('sale') || eventType.includes('purchase') || eventType.includes('successful') || !eventType) {
     const now = Date.now();
     const currentExpiry = (db.subscribers[customerEmail] && db.subscribers[customerEmail].expiryDate) || 0;
@@ -131,7 +135,6 @@ app.post('/webhook/chariow', (req, res) => {
     return res.json({ received: true, action: 'activated', email: customerEmail, expiryDate: newExpiry });
   }
 
-  // EXPIRATION
   if (eventType.includes('expired') || eventType.includes('expiry')) {
     if (db.subscribers[customerEmail]) {
       db.subscribers[customerEmail].lastEvent = 'expired';
@@ -145,6 +148,32 @@ app.post('/webhook/chariow', (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
+// FONCTION UTILITAIRE : Convertir les rôles pour Mistral
+// ══════════════════════════════════════════════════════════════════
+function convertHistoryForMistral(history) {
+  if (!Array.isArray(history)) return [];
+  
+  return history
+    .filter(msg => msg && msg.content)
+    .map(msg => {
+      let role = 'user';
+      const msgRole = (msg.role || '').toLowerCase();
+      
+      if (msgRole === 'user') {
+        role = 'user';
+      } else if (msgRole === 'elder' || msgRole === 'assistant' || msgRole === 'system') {
+        role = 'assistant';
+      }
+      
+      return {
+        role: role,
+        content: String(msg.content).trim()
+      };
+    })
+    .filter(msg => msg.content.length > 0);
+}
+
+// ══════════════════════════════════════════════════════════════════
 // CHAT AVEC LE VIEUX (Mistral)
 // ══════════════════════════════════════════════════════════════════
 app.post('/ask', async (req, res) => {
@@ -152,6 +181,14 @@ app.post('/ask', async (req, res) => {
 
   if (!email || !question) {
     return res.status(400).json({ error: 'Email et question requis' });
+  }
+
+  if (!MISTRAL_API_KEY || MISTRAL_API_KEY.length < 10) {
+    console.error('❌ Clé Mistral manquante dans les variables d\'environnement');
+    return res.status(500).json({ 
+      error: 'config_error', 
+      message: 'Le serveur n\'a pas de clé API configurée.' 
+    });
   }
 
   const db = loadDB();
@@ -182,49 +219,82 @@ Tu réponds avec bienveillance, sagesse, et un ton direct et chaleureux.
 Tu tutoies toujours ton interlocuteur.
 Tu puises dans la sagesse ancestrale africaine, la spiritualité universelle, la philosophie et l'expérience de la vie.
 Tu ne donnes jamais de conseils médicaux, juridiques ou dangereux.
-Tu réponds en français, en 3 à 6 phrases maximum, avec une image ou une métaphore.
+Tu réponds en français simple, compréhensible par tous, en 3 à 6 phrases maximum, avec une image ou une métaphore.
 Tu ne mentionnes jamais que tu es une IA. Tu es Le Vieux, point.`;
+
+    // ✅ Conversion des rôles (elder → assistant)
+    const convertedHistory = convertHistoryForMistral(history || []).slice(-6);
 
     const messages = [
       { role: 'system', content: systemPrompt },
-      ...((history || []).slice(-6)),
-      { role: 'user', content: question }
+      ...convertedHistory,
+      { role: 'user', content: String(question).trim() }
     ];
 
-    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + MISTRAL_API_KEY,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'mistral-small-latest',
-        messages: messages,
-        temperature: 0.85,
-        max_tokens: 400
-      })
-    });
+    console.log('📤 Envoi à Mistral avec', messages.length, 'messages');
+
+    // Appel Mistral avec retry automatique sur 429
+    let response;
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (attempts < maxAttempts) {
+      response = await fetch('https://api.mistral.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + MISTRAL_API_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'mistral-small-latest',
+          messages: messages,
+          temperature: 0.85,
+          max_tokens: 400
+        })
+      });
+
+      if (response.status === 429) {
+        attempts++;
+        if (attempts < maxAttempts) {
+          const wait = attempts * 2000;
+          console.log('⏳ Rate limit Mistral, attente ' + wait + 'ms');
+          await new Promise(r => setTimeout(r, wait));
+          continue;
+        }
+      }
+      break;
+    }
 
     if (!response.ok) {
       const err = await response.text();
-      console.error('Erreur Mistral :', err);
-      return res.status(500).json({ error: 'ai_error', message: 'Le Vieux est fatigué.' });
+      console.error('❌ Erreur Mistral :', err);
+      return res.status(500).json({ 
+        error: 'ai_error', 
+        message: 'Le Vieux est fatigué, réessaie dans un instant.' 
+      });
     }
 
     const data = await response.json();
     const answer = data.choices && data.choices[0] && data.choices[0].message.content;
 
-    if (!answer) return res.status(500).json({ error: 'no_answer' });
+    if (!answer) {
+      return res.status(500).json({ error: 'no_answer' });
+    }
+
+    console.log('✅ Réponse envoyée (' + answer.length + ' caractères)');
 
     return res.json({
       answer: answer.trim(),
       isFree: isFree,
-      freeRemaining: isFree ? (FREE_LIMIT - db.freeUsers[key].count) : null
+      freeRemaining: isFree ? Math.max(0, FREE_LIMIT - db.freeUsers[key].count) : null
     });
 
   } catch (e) {
-    console.error('Erreur serveur :', e.message);
-    return res.status(500).json({ error: 'server_error', message: e.message });
+    console.error('❌ Erreur serveur :', e.message);
+    return res.status(500).json({ 
+      error: 'server_error', 
+      message: e.message 
+    });
   }
 });
 
@@ -245,8 +315,8 @@ app.post('/daily', async (req, res) => {
   const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
 
   const prompt = type === 'evening'
-    ? `Tu es Le Vieux. Donne un rituel du soir pour aujourd'hui (jour ${dayOfYear}). Format : une pensée courte (2 phrases), une question à méditer (1 phrase), un exercice simple (1 phrase). Français, ton sage, tutoiement.`
-    : `Tu es Le Vieux. Donne le proverbe du matin (jour ${dayOfYear}). Format : un proverbe africain authentique, son explication (2 phrases), son application moderne (2 phrases). Français, ton sage.`;
+    ? `Tu es Le Vieux. Donne un rituel du soir pour aujourd'hui (jour ${dayOfYear}). Format : une pensée courte (2 phrases), une question à méditer (1 phrase), un exercice simple (1 phrase). Français simple, ton sage, tutoiement.`
+    : `Tu es Le Vieux. Donne le proverbe du matin (jour ${dayOfYear}). Format : un proverbe africain authentique, son explication (2 phrases), son application moderne (2 phrases). Français simple, ton sage.`;
 
   try {
     const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
@@ -285,7 +355,7 @@ app.post('/teaching', async (req, res) => {
   }
 
   const weekNumber = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
-  const prompt = `Tu es Le Vieux. Enseignement de la semaine (semaine ${weekNumber}). Format : titre (une vertu), introduction (3 phrases), 3 leçons numérotées, conclusion (2 phrases). Français, ton sage, tutoiement.`;
+  const prompt = `Tu es Le Vieux. Enseignement de la semaine (semaine ${weekNumber}). Format : titre (une vertu), introduction (3 phrases), 3 leçons numérotées, conclusion (2 phrases). Français simple, ton sage, tutoiement.`;
 
   try {
     const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
@@ -324,7 +394,7 @@ app.post('/challenge', async (req, res) => {
   }
 
   const cycleNumber = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
-  const prompt = `Tu es Le Vieux. Défi de 7 jours (cycle ${cycleNumber}). Format : titre, introduction (1 phrase), Jour 1 à Jour 7 (une action concrète chacun, 1 phrase). Français, ton sage, tutoiement.`;
+  const prompt = `Tu es Le Vieux. Défi de 7 jours (cycle ${cycleNumber}). Format : titre, introduction (1 phrase), Jour 1 à Jour 7 (une action concrète chacun, 1 phrase). Français simple, ton sage, tutoiement.`;
 
   try {
     const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
@@ -349,7 +419,7 @@ app.post('/challenge', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// BIBLIOTHÈQUE
+// BIBLIOTHÈQUE / CONTES
 // ══════════════════════════════════════════════════════════════════
 app.post('/library', async (req, res) => {
   const { email } = req.body || {};
@@ -363,7 +433,7 @@ app.post('/library', async (req, res) => {
   }
 
   const dayNumber = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
-  const prompt = `Tu es Le Vieux. Conte africain authentique pour aujourd'hui (jour ${dayNumber}). Format : titre, conte (8-12 phrases), morale (2 phrases). Français, ton chaleureux de conteur.`;
+  const prompt = `Tu es Le Vieux. Conte africain authentique pour aujourd'hui (jour ${dayNumber}). Format : titre, conte (8-12 phrases), morale (2 phrases). Français simple, ton chaleureux de conteur.`;
 
   try {
     const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
@@ -428,6 +498,7 @@ app.get('/admin/stats', (req, res) => {
 // DÉMARRAGE
 // ══════════════════════════════════════════════════════════════════
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend écoute sur le port ' + PORT);
+  console.log('🌳 La Voix des Anciens backend écoute sur le port ' + PORT);
   console.log('📊 Admin : /admin/stats?pwd=' + ADMIN_PWD);
+  console.log('🔑 Clé Mistral : ' + (MISTRAL_API_KEY ? '✓ configurée' : '❌ MANQUANTE'));
 });
