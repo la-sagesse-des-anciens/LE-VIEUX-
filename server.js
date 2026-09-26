@@ -6,8 +6,11 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const MISTRAL_API_KEY = process.env.MISTRAL_API_KEY || '';
+// ⚠️ Clé Groq (à configurer dans Railway)
+const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const ADMIN_PWD = process.env.ADMIN_PWD || 'levieux2026';
+
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
 const DB_FILE = path.join(__dirname, 'subscribers.json');
 
@@ -41,13 +44,69 @@ app.use(express.json({ limit: '10mb' }));
 // ROUTE DE TEST
 // ══════════════════════════════════════════════════════════════════
 app.get('/', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    service: 'La Voix des Anciens Backend', 
-    version: '1.0.2',
-    mistral_key_set: !!MISTRAL_API_KEY && MISTRAL_API_KEY.length > 10
+  res.json({
+    status: 'ok',
+    service: 'La Voix des Anciens Backend',
+    version: '2.0.0',
+    ai_provider: 'Groq',
+    ai_model: GROQ_MODEL,
+    groq_key_set: !!GROQ_API_KEY && GROQ_API_KEY.length > 10
   });
 });
+
+// ══════════════════════════════════════════════════════════════════
+// FONCTION : Convertir les rôles pour Groq
+// ══════════════════════════════════════════════════════════════════
+function convertHistoryForAI(history) {
+  if (!Array.isArray(history)) return [];
+  return history
+    .filter(msg => msg && msg.content)
+    .map(msg => {
+      let role = 'user';
+      const msgRole = (msg.role || '').toLowerCase();
+      if (msgRole === 'user') role = 'user';
+      else if (msgRole === 'elder' || msgRole === 'assistant' || msgRole === 'system') role = 'assistant';
+      return { role, content: String(msg.content).trim() };
+    })
+    .filter(msg => msg.content.length > 0);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// FONCTION : Appel Groq avec retry
+// ══════════════════════════════════════════════════════════════════
+async function callGroq(messages, maxTokens = 400, temperature = 0.85) {
+  let attempt = 0;
+  const maxAttempts = 3;
+
+  while (attempt < maxAttempts) {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + GROQ_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        messages: messages,
+        temperature: temperature,
+        max_tokens: maxTokens
+      })
+    });
+
+    if (response.status === 429) {
+      attempt++;
+      if (attempt < maxAttempts) {
+        const wait = attempt * 1500;
+        console.log('⏳ Rate limit Groq, attente ' + wait + 'ms');
+        await new Promise(r => setTimeout(r, wait));
+        continue;
+      }
+    }
+
+    return response;
+  }
+  return null;
+}
 
 // ══════════════════════════════════════════════════════════════════
 // VÉRIFICATION D'ACCÈS
@@ -61,24 +120,15 @@ app.post('/check-access', (req, res) => {
   const sub = db.subscribers[key];
 
   if (!sub) {
-    return res.json({
-      active: false,
-      reason: 'not_subscribed',
-      message: 'Aucun abonnement trouvé'
-    });
+    return res.json({ active: false, reason: 'not_subscribed' });
   }
 
   const now = Date.now();
   if (now > sub.expiryDate) {
-    return res.json({
-      active: false,
-      reason: 'expired',
-      message: 'Abonnement expiré',
-      expiryDate: sub.expiryDate
-    });
+    return res.json({ active: false, reason: 'expired', expiryDate: sub.expiryDate });
   }
 
-  const daysLeft = Math.ceil((sub.expiryDate - now) / (1000 * 60 * 60 * 24));
+  const daysLeft = Math.ceil((sub.expiryDate - now) / 86400000);
   return res.json({
     active: true,
     email: key,
@@ -93,8 +143,7 @@ app.post('/check-access', (req, res) => {
 // ══════════════════════════════════════════════════════════════════
 app.post('/webhook/chariow', (req, res) => {
   const event = req.body;
-
-  console.log('📩 Webhook Chariow reçu :', JSON.stringify(event, null, 2));
+  console.log('📩 Webhook Chariow :', JSON.stringify(event));
 
   if (!event || typeof event !== 'object') {
     return res.status(400).json({ error: 'JSON invalide' });
@@ -110,7 +159,6 @@ app.post('/webhook/chariow', (req, res) => {
   ).toLowerCase().trim();
 
   if (!customerEmail) {
-    console.warn('⚠️ Pas d\'email dans le webhook');
     return res.json({ received: true, warning: 'no_email' });
   }
 
@@ -127,54 +175,26 @@ app.post('/webhook/chariow', (req, res) => {
       startDate: now,
       expiryDate: newExpiry,
       plan: 'monthly',
-      lastEvent: eventType,
       updatedAt: now
     };
     saveDB(db);
-    console.log('✅ Abonnement activé : ' + customerEmail + ' jusqu\'au ' + new Date(newExpiry).toLocaleDateString('fr-FR'));
+    console.log('✅ Abonnement activé : ' + customerEmail);
     return res.json({ received: true, action: 'activated', email: customerEmail, expiryDate: newExpiry });
   }
 
-  if (eventType.includes('expired') || eventType.includes('expiry')) {
+  if (eventType.includes('expired')) {
     if (db.subscribers[customerEmail]) {
       db.subscribers[customerEmail].lastEvent = 'expired';
-      db.subscribers[customerEmail].updatedAt = Date.now();
       saveDB(db);
     }
     return res.json({ received: true, action: 'expired' });
   }
 
-  return res.json({ received: true, action: 'ignored', eventType });
+  return res.json({ received: true, action: 'ignored' });
 });
 
 // ══════════════════════════════════════════════════════════════════
-// FONCTION UTILITAIRE : Convertir les rôles pour Mistral
-// ══════════════════════════════════════════════════════════════════
-function convertHistoryForMistral(history) {
-  if (!Array.isArray(history)) return [];
-  
-  return history
-    .filter(msg => msg && msg.content)
-    .map(msg => {
-      let role = 'user';
-      const msgRole = (msg.role || '').toLowerCase();
-      
-      if (msgRole === 'user') {
-        role = 'user';
-      } else if (msgRole === 'elder' || msgRole === 'assistant' || msgRole === 'system') {
-        role = 'assistant';
-      }
-      
-      return {
-        role: role,
-        content: String(msg.content).trim()
-      };
-    })
-    .filter(msg => msg.content.length > 0);
-}
-
-// ══════════════════════════════════════════════════════════════════
-// CHAT AVEC LE VIEUX (Mistral)
+// CHAT AVEC LE VIEUX (Groq)
 // ══════════════════════════════════════════════════════════════════
 app.post('/ask', async (req, res) => {
   const { email, question, history } = req.body || {};
@@ -183,12 +203,9 @@ app.post('/ask', async (req, res) => {
     return res.status(400).json({ error: 'Email et question requis' });
   }
 
-  if (!MISTRAL_API_KEY || MISTRAL_API_KEY.length < 10) {
-    console.error('❌ Clé Mistral manquante dans les variables d\'environnement');
-    return res.status(500).json({ 
-      error: 'config_error', 
-      message: 'Le serveur n\'a pas de clé API configurée.' 
-    });
+  if (!GROQ_API_KEY || GROQ_API_KEY.length < 10) {
+    console.error('❌ Clé Groq manquante');
+    return res.status(500).json({ error: 'config_error', message: 'Clé API manquante.' });
   }
 
   const db = loadDB();
@@ -222,8 +239,7 @@ Tu ne donnes jamais de conseils médicaux, juridiques ou dangereux.
 Tu réponds en français simple, compréhensible par tous, en 3 à 6 phrases maximum, avec une image ou une métaphore.
 Tu ne mentionnes jamais que tu es une IA. Tu es Le Vieux, point.`;
 
-    // ✅ Conversion des rôles (elder → assistant)
-    const convertedHistory = convertHistoryForMistral(history || []).slice(-6);
+    const convertedHistory = convertHistoryForAI(history || []).slice(-6);
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -231,47 +247,14 @@ Tu ne mentionnes jamais que tu es une IA. Tu es Le Vieux, point.`;
       { role: 'user', content: String(question).trim() }
     ];
 
-    console.log('📤 Envoi à Mistral avec', messages.length, 'messages');
+    console.log('📤 Envoi à Groq (' + messages.length + ' messages)');
 
-    // Appel Mistral avec retry automatique sur 429
-    let response;
-    let attempts = 0;
-    const maxAttempts = 3;
-    
-    while (attempts < maxAttempts) {
-      response = await fetch('https://api.mistral.ai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + MISTRAL_API_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'mistral-small-latest',
-          messages: messages,
-          temperature: 0.85,
-          max_tokens: 400
-        })
-      });
+    const response = await callGroq(messages, 400, 0.85);
 
-      if (response.status === 429) {
-        attempts++;
-        if (attempts < maxAttempts) {
-          const wait = attempts * 2000;
-          console.log('⏳ Rate limit Mistral, attente ' + wait + 'ms');
-          await new Promise(r => setTimeout(r, wait));
-          continue;
-        }
-      }
-      break;
-    }
-
-    if (!response.ok) {
-      const err = await response.text();
-      console.error('❌ Erreur Mistral :', err);
-      return res.status(500).json({ 
-        error: 'ai_error', 
-        message: 'Le Vieux est fatigué, réessaie dans un instant.' 
-      });
+    if (!response || !response.ok) {
+      const errText = response ? await response.text() : 'No response';
+      console.error('❌ Erreur Groq :', errText);
+      return res.status(500).json({ error: 'ai_error', message: 'Le Vieux est fatigué.' });
     }
 
     const data = await response.json();
@@ -281,7 +264,7 @@ Tu ne mentionnes jamais que tu es une IA. Tu es Le Vieux, point.`;
       return res.status(500).json({ error: 'no_answer' });
     }
 
-    console.log('✅ Réponse envoyée (' + answer.length + ' caractères)');
+    console.log('✅ Réponse Groq (' + answer.length + ' caractères)');
 
     return res.json({
       answer: answer.trim(),
@@ -291,10 +274,7 @@ Tu ne mentionnes jamais que tu es une IA. Tu es Le Vieux, point.`;
 
   } catch (e) {
     console.error('❌ Erreur serveur :', e.message);
-    return res.status(500).json({ 
-      error: 'server_error', 
-      message: e.message 
-    });
+    return res.status(500).json({ error: 'server_error', message: e.message });
   }
 });
 
@@ -319,19 +299,8 @@ app.post('/daily', async (req, res) => {
     : `Tu es Le Vieux. Donne le proverbe du matin (jour ${dayOfYear}). Format : un proverbe africain authentique, son explication (2 phrases), son application moderne (2 phrases). Français simple, ton sage.`;
 
   try {
-    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + MISTRAL_API_KEY,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'mistral-small-latest',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.9,
-        max_tokens: 300
-      })
-    });
+    const response = await callGroq([{ role: 'user', content: prompt }], 300, 0.9);
+    if (!response || !response.ok) return res.status(500).json({ error: 'ai_error' });
     const data = await response.json();
     const content = data.choices && data.choices[0] && data.choices[0].message.content;
     return res.json({ content: content ? content.trim() : '' });
@@ -358,19 +327,8 @@ app.post('/teaching', async (req, res) => {
   const prompt = `Tu es Le Vieux. Enseignement de la semaine (semaine ${weekNumber}). Format : titre (une vertu), introduction (3 phrases), 3 leçons numérotées, conclusion (2 phrases). Français simple, ton sage, tutoiement.`;
 
   try {
-    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + MISTRAL_API_KEY,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'mistral-small-latest',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.9,
-        max_tokens: 500
-      })
-    });
+    const response = await callGroq([{ role: 'user', content: prompt }], 500, 0.9);
+    if (!response || !response.ok) return res.status(500).json({ error: 'ai_error' });
     const data = await response.json();
     const content = data.choices && data.choices[0] && data.choices[0].message.content;
     return res.json({ content: content ? content.trim() : '' });
@@ -397,19 +355,8 @@ app.post('/challenge', async (req, res) => {
   const prompt = `Tu es Le Vieux. Défi de 7 jours (cycle ${cycleNumber}). Format : titre, introduction (1 phrase), Jour 1 à Jour 7 (une action concrète chacun, 1 phrase). Français simple, ton sage, tutoiement.`;
 
   try {
-    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + MISTRAL_API_KEY,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'mistral-small-latest',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.9,
-        max_tokens: 400
-      })
-    });
+    const response = await callGroq([{ role: 'user', content: prompt }], 400, 0.9);
+    if (!response || !response.ok) return res.status(500).json({ error: 'ai_error' });
     const data = await response.json();
     const content = data.choices && data.choices[0] && data.choices[0].message.content;
     return res.json({ content: content ? content.trim() : '' });
@@ -419,7 +366,7 @@ app.post('/challenge', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// BIBLIOTHÈQUE / CONTES
+// CONTES / BIBLIOTHÈQUE
 // ══════════════════════════════════════════════════════════════════
 app.post('/library', async (req, res) => {
   const { email } = req.body || {};
@@ -436,19 +383,8 @@ app.post('/library', async (req, res) => {
   const prompt = `Tu es Le Vieux. Conte africain authentique pour aujourd'hui (jour ${dayNumber}). Format : titre, conte (8-12 phrases), morale (2 phrases). Français simple, ton chaleureux de conteur.`;
 
   try {
-    const response = await fetch('https://api.mistral.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + MISTRAL_API_KEY,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'mistral-small-latest',
-        messages: [{ role: 'user', content: prompt }],
-        temperature: 0.95,
-        max_tokens: 600
-      })
-    });
+    const response = await callGroq([{ role: 'user', content: prompt }], 600, 0.95);
+    if (!response || !response.ok) return res.status(500).json({ error: 'ai_error' });
     const data = await response.json();
     const content = data.choices && data.choices[0] && data.choices[0].message.content;
     return res.json({ content: content ? content.trim() : '' });
@@ -498,7 +434,7 @@ app.get('/admin/stats', (req, res) => {
 // DÉMARRAGE
 // ══════════════════════════════════════════════════════════════════
 app.listen(PORT, () => {
-  console.log('🌳 La Voix des Anciens backend écoute sur le port ' + PORT);
+  console.log('🌳 La Voix des Anciens backend (Groq) sur port ' + PORT);
   console.log('📊 Admin : /admin/stats?pwd=' + ADMIN_PWD);
-  console.log('🔑 Clé Mistral : ' + (MISTRAL_API_KEY ? '✓ configurée' : '❌ MANQUANTE'));
+  console.log('🔑 Clé Groq : ' + (GROQ_API_KEY ? '✓ configurée' : '❌ MANQUANTE'));
 });
