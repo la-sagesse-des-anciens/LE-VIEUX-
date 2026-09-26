@@ -57,7 +57,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'La Voix des Anciens Backend',
-    version: '3.4.0',
+    version: '3.5.0',
     ai_provider: 'Groq',
     ai_model: GROQ_MODEL,
     groq_key_set: !!GROQ_API_KEY && GROQ_API_KEY.length > 10
@@ -300,7 +300,9 @@ Tu ne mentionnes jamais que tu es une IA. Tu es Le Vieux, point.`;
   }
 });
 
-// /daily — maxTokens augmentés
+// ══════════════════════════════════════════════════════════════════
+// /daily — avec fallback si Groq refuse
+// ══════════════════════════════════════════════════════════════════
 app.post('/daily', async (req, res) => {
   const { email, type } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -331,15 +333,26 @@ app.post('/daily', async (req, res) => {
   }
 
   try {
-    const content = await generateWithCache(cacheKey, prompt, maxTok, 0.9, '/daily (' + type + ')');
-    if (!content) return res.status(500).json({ error: 'ai_error' });
+    let content = await generateWithCache(cacheKey, prompt, maxTok, 0.9, '/daily (' + type + ')');
+
+    // Fallback si Groq a refusé 5 fois
+    if (!content) {
+      const fallbacks = {
+        morning: "Proverbe africain : « Le fleuve ne remonte jamais vers sa source. »\n\nCela signifie que la vie avance toujours, et que regarder en arrière ne fait que ralentir ton chemin.\n\nAujourd'hui, laisse le passé là où il est. Chaque pas en avant est une nouvelle chance de grandir.",
+        meditation: "Respire profondément. Laisse ton souffle remplir chaque recoin de ton être. Sois reconnaissant pour cette nouvelle journée, même pour les petites choses.",
+        evening: "Pensée courte : Chaque soir, la journée s'efface comme une plume au vent. Apprends à écouter le silence qui t'entoure.\n\nQuestion à méditer : Qu'as-tu appris sur toi aujourd'hui ?\n\nExercice simple : Ferme les yeux, respire lentement, et laisse ton esprit se reposer."
+      };
+      content = fallbacks[type] || fallbacks.morning;
+      console.log('⚠️ Fallback utilisé pour /daily (' + type + ')');
+    }
+
     return res.json({ content: content });
   } catch (e) {
     return res.status(500).json({ error: 'ai_error', message: e.message });
   }
 });
 
-// /teaching — maxTokens 800
+// /teaching — avec fallback
 app.post('/teaching', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -356,15 +369,20 @@ app.post('/teaching', async (req, res) => {
   const prompt = `Tu es Le Vieux. Enseignement de la semaine (semaine ${weekNumber}). Format : titre (une vertu), introduction (3 phrases), 3 leçons numérotées, conclusion (2 phrases). Français simple, ton sage, tutoiement.`;
 
   try {
-    const content = await generateWithCache(cacheKey, prompt, 800, 0.9, '/teaching');
-    if (!content) return res.status(500).json({ error: 'ai_error' });
+    let content = await generateWithCache(cacheKey, prompt, 800, 0.9, '/teaching');
+
+    if (!content) {
+      content = "Semaine de la Patience\n\nLa patience est la clé pour surmonter les épreuves. Elle t'apprend à attendre sans frustration, à accepter les délais naturels. En la pratiquant, tu découvres la sérénité qui vient de l'attente.\n\n1. Observe chaque petit moment de ta journée et prends le temps de l'apprécier.\n2. Respire profondément quand un obstacle se présente ; rappelle-toi que rien ne dure.\n3. Fais confiance au temps : chaque chose arrive à son heure.\n\nLa patience n'est pas de la faiblesse. C'est une force calme qui te permet de traverser les tempêtes.";
+      console.log('⚠️ Fallback utilisé pour /teaching');
+    }
+
     return res.json({ content: content });
   } catch (e) {
     return res.status(500).json({ error: 'ai_error' });
   }
 });
 
-// /challenge — maxTokens 600
+// /challenge — avec fallback
 app.post('/challenge', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -381,15 +399,20 @@ app.post('/challenge', async (req, res) => {
   const prompt = `Tu es Le Vieux. Défi de 7 jours (cycle ${cycleNumber}). Format : titre, introduction (1 phrase), Jour 1 à Jour 7 (une action concrète chacun, 1 phrase). Français simple, ton sage, tutoiement.`;
 
   try {
-    const content = await generateWithCache(cacheKey, prompt, 600, 0.9, '/challenge');
-    if (!content) return res.status(500).json({ error: 'ai_error' });
+    let content = await generateWithCache(cacheKey, prompt, 600, 0.9, '/challenge');
+
+    if (!content) {
+      content = "Défi du Vieux — 7 jours vers la sérénité\n\nUne semaine de gestes simples pour retrouver l'équilibre intérieur.\n\nJour 1 : Respire profondément : prends 5 minutes pour inhaler le silence, exhale la tension.\nJour 2 : Marche pieds nus sur la terre : connecte-toi aux éléments, sans chercher à comprendre.\nJour 3 : Écris trois choses pour lesquelles tu es reconnaissant.\nJour 4 : Offre quelque chose sans attendre en retour.\nJour 5 : Envoie un message à quelqu'un qui compte pour toi.\nJour 6 : Reste 10 minutes en silence, sans téléphone, sans rien.\nJour 7 : Relis tes notes de la semaine et note ce qui a changé.";
+      console.log('⚠️ Fallback utilisé pour /challenge');
+    }
+
     return res.json({ content: content });
   } catch (e) {
     return res.status(500).json({ error: 'ai_error' });
   }
 });
 
-// /library — maxTokens 1200
+// /library — avec fallback
 app.post('/library', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -406,8 +429,13 @@ app.post('/library', async (req, res) => {
   const prompt = `Tu es Le Vieux. Conte africain authentique pour aujourd'hui (jour ${dayNumber}). Format : titre, conte complet (10 à 15 phrases), morale (2 phrases). Termine toujours par une morale complète. Français simple, ton chaleureux de conteur.`;
 
   try {
-    const content = await generateWithCache(cacheKey, prompt, 1200, 0.95, '/library');
-    if (!content) return res.status(500).json({ error: 'ai_error' });
+    let content = await generateWithCache(cacheKey, prompt, 1200, 0.95, '/library');
+
+    if (!content) {
+      content = "La Tortue et le Lièvre\n\nDans la savane, la tortue se promenait lentement quand elle rencontra le lièvre qui battait son cœur de course.\nLe lièvre, fier de sa vitesse, la défia de courir jusqu'au grand baobab.\nLa tortue accepta sans hésiter, convaincue que la patience l'aiderait.\nAu début, le lièvre bondit devant, ricanant, tandis que la tortue avançait pas à pas.\nQuand le lièvre s'arrêta pour se reposer, la tortue continua sans pause.\nLe lièvre se réveilla trop tard, mais la tortue était déjà au sommet du baobab.\nLe lièvre, honteux, demanda à la tortue comment elle avait réussi.\nLa tortue répondit que chaque pas compte quand on ne se laisse pas distraire.\nLes animaux de la savane apprirent alors à admirer la persévérance.\n\nMorale : La persévérance vaut mieux que la vitesse. Celui qui avance sans s'arrêter atteint toujours son but.";
+      console.log('⚠️ Fallback utilisé pour /library');
+    }
+
     return res.json({ content: content });
   } catch (e) {
     return res.status(500).json({ error: 'ai_error' });
@@ -449,7 +477,7 @@ app.get('/admin/stats', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 La Voix des Anciens backend (Groq + Cache) sur port ' + PORT);
+  console.log('🌳 La Voix des Anciens backend (Groq + Cache + Fallback) sur port ' + PORT);
   console.log('📊 Admin : /admin/stats?pwd=' + ADMIN_PWD);
   console.log('🔑 Clé Groq : ' + (GROQ_API_KEY ? '✓ configurée' : '❌ MANQUANTE'));
   console.log('🤖 Modèle : ' + GROQ_MODEL);
