@@ -6,11 +6,12 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ⚠️ Clé Groq (à configurer dans Railway)
+// ⚠️ Clé Groq (configurée dans Railway)
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const ADMIN_PWD = process.env.ADMIN_PWD || 'levieux2026';
 
-const GROQ_MODEL = 'llama-3.3-70b-versatile';
+// ✅ Modèle Groq corrigé (llama-3.1-8b-instant est toujours disponible)
+const GROQ_MODEL = 'llama-3.1-8b-instant';
 
 const DB_FILE = path.join(__dirname, 'subscribers.json');
 
@@ -47,7 +48,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'La Voix des Anciens Backend',
-    version: '2.0.0',
+    version: '2.1.0',
     ai_provider: 'Groq',
     ai_model: GROQ_MODEL,
     groq_key_set: !!GROQ_API_KEY && GROQ_API_KEY.length > 10
@@ -437,4 +438,5 @@ app.listen(PORT, () => {
   console.log('🌳 La Voix des Anciens backend (Groq) sur port ' + PORT);
   console.log('📊 Admin : /admin/stats?pwd=' + ADMIN_PWD);
   console.log('🔑 Clé Groq : ' + (GROQ_API_KEY ? '✓ configurée' : '❌ MANQUANTE'));
+  console.log('🤖 Modèle : ' + GROQ_MODEL);
 });
