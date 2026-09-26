@@ -57,7 +57,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'La Voix des Anciens Backend',
-    version: '3.3.0',
+    version: '3.4.0',
     ai_provider: 'Groq',
     ai_model: GROQ_MODEL,
     groq_key_set: !!GROQ_API_KEY && GROQ_API_KEY.length > 10
@@ -111,17 +111,14 @@ async function callGroq(messages, maxTokens = 400, temperature = 0.85) {
   return null;
 }
 
-// Fonction générique avec cache + retry
 async function generateWithCache(cacheKey, prompt, maxTokens, temperature, label) {
   const cache = loadCache();
 
-  // 1. Vérifier le cache
   if (cache[cacheKey]) {
     console.log('💾 Cache hit : ' + cacheKey);
     return cache[cacheKey];
   }
 
-  // 2. Sinon, appeler Groq avec 5 tentatives
   let response = null;
   let attempts = 0;
   const maxAttempts = 5;
@@ -135,10 +132,9 @@ async function generateWithCache(cacheKey, prompt, maxTokens, temperature, label
       const data = await response.json();
       const content = data.choices && data.choices[0] && data.choices[0].message.content;
       if (content && content.trim().length > 0) {
-        // Sauvegarder dans le cache
         cache[cacheKey] = content.trim();
         saveCache(cache);
-        console.log('✅ ' + label + ' généré et caché');
+        console.log('✅ ' + label + ' généré et caché (' + content.length + ' caractères)');
         return content.trim();
       }
     }
@@ -279,7 +275,7 @@ Tu ne mentionnes jamais que tu es une IA. Tu es Le Vieux, point.`;
       { role: 'user', content: String(question).trim() }
     ];
 
-    const response = await callGroq(messages, 400, 0.85);
+    const response = await callGroq(messages, 600, 0.85);
 
     if (!response || !response.ok) {
       const errText = response ? await response.text() : 'No response';
@@ -304,7 +300,7 @@ Tu ne mentionnes jamais que tu es une IA. Tu es Le Vieux, point.`;
   }
 });
 
-// /daily avec cache
+// /daily — maxTokens augmentés
 app.post('/daily', async (req, res) => {
   const { email, type } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -318,20 +314,24 @@ app.post('/daily', async (req, res) => {
 
   const dayKey = todayKey();
   const cacheKey = 'daily_' + dayKey + '_' + (type || 'morning');
-
   const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
 
   let prompt;
+  let maxTok;
+
   if (type === 'evening') {
     prompt = `Tu es Le Vieux. Donne un rituel du soir pour aujourd'hui (jour ${dayOfYear}). Format : une pensée courte (2 phrases), une question à méditer (1 phrase), un exercice simple (1 phrase). Français simple, ton sage, tutoiement.`;
+    maxTok = 500;
   } else if (type === 'meditation') {
     prompt = `Tu es Le Vieux. Donne une courte méditation du matin pour aujourd'hui (jour ${dayOfYear}). Format : 3 phrases maximum. Une pensée apaisante sur la respiration, la présence, ou la gratitude. Français simple, ton sage, tutoiement.`;
+    maxTok = 400;
   } else {
     prompt = `Tu es Le Vieux. Donne le proverbe du matin (jour ${dayOfYear}). Format : un proverbe africain authentique, son explication (2 phrases), son application moderne (2 phrases). Français simple, ton sage.`;
+    maxTok = 500;
   }
 
   try {
-    const content = await generateWithCache(cacheKey, prompt, 300, 0.9, '/daily (' + type + ')');
+    const content = await generateWithCache(cacheKey, prompt, maxTok, 0.9, '/daily (' + type + ')');
     if (!content) return res.status(500).json({ error: 'ai_error' });
     return res.json({ content: content });
   } catch (e) {
@@ -339,7 +339,7 @@ app.post('/daily', async (req, res) => {
   }
 });
 
-// /teaching avec cache hebdo
+// /teaching — maxTokens 800
 app.post('/teaching', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -356,7 +356,7 @@ app.post('/teaching', async (req, res) => {
   const prompt = `Tu es Le Vieux. Enseignement de la semaine (semaine ${weekNumber}). Format : titre (une vertu), introduction (3 phrases), 3 leçons numérotées, conclusion (2 phrases). Français simple, ton sage, tutoiement.`;
 
   try {
-    const content = await generateWithCache(cacheKey, prompt, 500, 0.9, '/teaching');
+    const content = await generateWithCache(cacheKey, prompt, 800, 0.9, '/teaching');
     if (!content) return res.status(500).json({ error: 'ai_error' });
     return res.json({ content: content });
   } catch (e) {
@@ -364,7 +364,7 @@ app.post('/teaching', async (req, res) => {
   }
 });
 
-// /challenge avec cache hebdo
+// /challenge — maxTokens 600
 app.post('/challenge', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -381,7 +381,7 @@ app.post('/challenge', async (req, res) => {
   const prompt = `Tu es Le Vieux. Défi de 7 jours (cycle ${cycleNumber}). Format : titre, introduction (1 phrase), Jour 1 à Jour 7 (une action concrète chacun, 1 phrase). Français simple, ton sage, tutoiement.`;
 
   try {
-    const content = await generateWithCache(cacheKey, prompt, 400, 0.9, '/challenge');
+    const content = await generateWithCache(cacheKey, prompt, 600, 0.9, '/challenge');
     if (!content) return res.status(500).json({ error: 'ai_error' });
     return res.json({ content: content });
   } catch (e) {
@@ -389,7 +389,7 @@ app.post('/challenge', async (req, res) => {
   }
 });
 
-// /library avec cache quotidien
+// /library — maxTokens 1200
 app.post('/library', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -403,10 +403,10 @@ app.post('/library', async (req, res) => {
 
   const cacheKey = 'library_' + todayKey();
   const dayNumber = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
-  const prompt = `Tu es Le Vieux. Conte africain authentique pour aujourd'hui (jour ${dayNumber}). Format : titre, conte (8-12 phrases), morale (2 phrases). Français simple, ton chaleureux de conteur.`;
+  const prompt = `Tu es Le Vieux. Conte africain authentique pour aujourd'hui (jour ${dayNumber}). Format : titre, conte complet (10 à 15 phrases), morale (2 phrases). Termine toujours par une morale complète. Français simple, ton chaleureux de conteur.`;
 
   try {
-    const content = await generateWithCache(cacheKey, prompt, 600, 0.95, '/library');
+    const content = await generateWithCache(cacheKey, prompt, 1200, 0.95, '/library');
     if (!content) return res.status(500).json({ error: 'ai_error' });
     return res.json({ content: content });
   } catch (e) {
