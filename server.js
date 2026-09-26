@@ -300,9 +300,7 @@ Tu ne mentionnes jamais que tu es une IA. Tu es Le Vieux, point.`;
   }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// /daily — avec fallback si Groq refuse
-// ══════════════════════════════════════════════════════════════════
+// /daily avec fallback
 app.post('/daily', async (req, res) => {
   const { email, type } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -335,7 +333,6 @@ app.post('/daily', async (req, res) => {
   try {
     let content = await generateWithCache(cacheKey, prompt, maxTok, 0.9, '/daily (' + type + ')');
 
-    // Fallback si Groq a refusé 5 fois
     if (!content) {
       const fallbacks = {
         morning: "Proverbe africain : « Le fleuve ne remonte jamais vers sa source. »\n\nCela signifie que la vie avance toujours, et que regarder en arrière ne fait que ralentir ton chemin.\n\nAujourd'hui, laisse le passé là où il est. Chaque pas en avant est une nouvelle chance de grandir.",
@@ -352,7 +349,7 @@ app.post('/daily', async (req, res) => {
   }
 });
 
-// /teaching — avec fallback
+// /teaching avec fallback
 app.post('/teaching', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -382,7 +379,7 @@ app.post('/teaching', async (req, res) => {
   }
 });
 
-// /challenge — avec fallback
+// /challenge avec fallback
 app.post('/challenge', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -412,7 +409,7 @@ app.post('/challenge', async (req, res) => {
   }
 });
 
-// /library — avec fallback
+// /library avec fallback
 app.post('/library', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
