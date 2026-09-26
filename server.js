@@ -11,6 +11,7 @@ const ADMIN_PWD = process.env.ADMIN_PWD || 'levieux2026';
 
 const GROQ_MODEL = 'openai/gpt-oss-20b';
 const DB_FILE = path.join(__dirname, 'subscribers.json');
+const CACHE_FILE = path.join(__dirname, 'content_cache.json');
 
 function loadDB() {
   try {
@@ -22,11 +23,31 @@ function loadDB() {
 }
 
 function saveDB(db) {
+  try { fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2)); } catch (e) {}
+}
+
+function loadCache() {
   try {
-    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
-  } catch (e) {
-    console.error('Erreur sauvegarde DB :', e.message);
-  }
+    if (fs.existsSync(CACHE_FILE)) {
+      return JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8'));
+    }
+  } catch (e) {}
+  return {};
+}
+
+function saveCache(cache) {
+  try { fs.writeFileSync(CACHE_FILE, JSON.stringify(cache, null, 2)); } catch (e) {}
+}
+
+function todayKey() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function weekKey() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const week = Math.floor((d - new Date(year, 0, 1)) / 604800000);
+  return year + '-W' + week;
 }
 
 app.use(cors());
@@ -36,7 +57,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'La Voix des Anciens Backend',
-    version: '3.1.0',
+    version: '3.3.0',
     ai_provider: 'Groq',
     ai_model: GROQ_MODEL,
     groq_key_set: !!GROQ_API_KEY && GROQ_API_KEY.length > 10
@@ -59,7 +80,7 @@ function convertHistoryForAI(history) {
 
 async function callGroq(messages, maxTokens = 400, temperature = 0.85) {
   let attempt = 0;
-  const maxAttempts = 3;
+  const maxAttempts = 4;
 
   while (attempt < maxAttempts) {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -79,15 +100,57 @@ async function callGroq(messages, maxTokens = 400, temperature = 0.85) {
     if (response.status === 429) {
       attempt++;
       if (attempt < maxAttempts) {
-        const wait = attempt * 1500;
+        const wait = attempt * 3000;
         console.log('⏳ Rate limit Groq, attente ' + wait + 'ms');
         await new Promise(r => setTimeout(r, wait));
         continue;
       }
     }
-
     return response;
   }
+  return null;
+}
+
+// Fonction générique avec cache + retry
+async function generateWithCache(cacheKey, prompt, maxTokens, temperature, label) {
+  const cache = loadCache();
+
+  // 1. Vérifier le cache
+  if (cache[cacheKey]) {
+    console.log('💾 Cache hit : ' + cacheKey);
+    return cache[cacheKey];
+  }
+
+  // 2. Sinon, appeler Groq avec 5 tentatives
+  let response = null;
+  let attempts = 0;
+  const maxAttempts = 5;
+
+  while (attempts < maxAttempts) {
+    attempts++;
+    console.log('📤 ' + label + ' tentative ' + attempts + '/' + maxAttempts);
+    response = await callGroq([{ role: 'user', content: prompt }], maxTokens, temperature);
+
+    if (response && response.ok) {
+      const data = await response.json();
+      const content = data.choices && data.choices[0] && data.choices[0].message.content;
+      if (content && content.trim().length > 0) {
+        // Sauvegarder dans le cache
+        cache[cacheKey] = content.trim();
+        saveCache(cache);
+        console.log('✅ ' + label + ' généré et caché');
+        return content.trim();
+      }
+    }
+
+    if (attempts < maxAttempts) {
+      const wait = attempts * 5000;
+      console.log('⏳ ' + label + ' échec, attente ' + wait + 'ms');
+      await new Promise(r => setTimeout(r, wait));
+    }
+  }
+
+  console.error('❌ ' + label + ' échec après ' + maxAttempts + ' tentatives');
   return null;
 }
 
@@ -99,9 +162,7 @@ app.post('/check-access', (req, res) => {
   const key = email.toLowerCase().trim();
   const sub = db.subscribers[key];
 
-  if (!sub) {
-    return res.json({ active: false, reason: 'not_subscribed' });
-  }
+  if (!sub) return res.json({ active: false, reason: 'not_subscribed' });
 
   const now = Date.now();
   if (now > sub.expiryDate) {
@@ -135,9 +196,7 @@ app.post('/webhook/chariow', (req, res) => {
     ''
   ).toLowerCase().trim();
 
-  if (!customerEmail) {
-    return res.json({ received: true, warning: 'no_email' });
-  }
+  if (!customerEmail) return res.json({ received: true, warning: 'no_email' });
 
   const db = loadDB();
 
@@ -178,8 +237,7 @@ app.post('/ask', async (req, res) => {
   }
 
   if (!GROQ_API_KEY || GROQ_API_KEY.length < 10) {
-    console.error('❌ Clé Groq manquante');
-    return res.status(500).json({ error: 'config_error', message: 'Clé API manquante.' });
+    return res.status(500).json({ error: 'config_error' });
   }
 
   const db = loadDB();
@@ -221,8 +279,6 @@ Tu ne mentionnes jamais que tu es une IA. Tu es Le Vieux, point.`;
       { role: 'user', content: String(question).trim() }
     ];
 
-    console.log('📤 Envoi à Groq (' + messages.length + ' messages)');
-
     const response = await callGroq(messages, 400, 0.85);
 
     if (!response || !response.ok) {
@@ -234,11 +290,7 @@ Tu ne mentionnes jamais que tu es une IA. Tu es Le Vieux, point.`;
     const data = await response.json();
     const answer = data.choices && data.choices[0] && data.choices[0].message.content;
 
-    if (!answer) {
-      return res.status(500).json({ error: 'no_answer' });
-    }
-
-    console.log('✅ Réponse Groq (' + answer.length + ' caractères)');
+    if (!answer) return res.status(500).json({ error: 'no_answer' });
 
     return res.json({
       answer: answer.trim(),
@@ -252,9 +304,7 @@ Tu ne mentionnes jamais que tu es une IA. Tu es Le Vieux, point.`;
   }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// /daily — CORRIGÉ avec 3 types : morning, meditation, evening
-// ══════════════════════════════════════════════════════════════════
+// /daily avec cache
 app.post('/daily', async (req, res) => {
   const { email, type } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -266,10 +316,12 @@ app.post('/daily', async (req, res) => {
     return res.status(402).json({ error: 'subscription_required' });
   }
 
+  const dayKey = todayKey();
+  const cacheKey = 'daily_' + dayKey + '_' + (type || 'morning');
+
   const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
 
   let prompt;
-
   if (type === 'evening') {
     prompt = `Tu es Le Vieux. Donne un rituel du soir pour aujourd'hui (jour ${dayOfYear}). Format : une pensée courte (2 phrases), une question à méditer (1 phrase), un exercice simple (1 phrase). Français simple, ton sage, tutoiement.`;
   } else if (type === 'meditation') {
@@ -279,25 +331,15 @@ app.post('/daily', async (req, res) => {
   }
 
   try {
-    const response = await callGroq([{ role: 'user', content: prompt }], 300, 0.9);
-    if (!response || !response.ok) {
-      const errText = response ? await response.text() : 'no response';
-      console.error('❌ Erreur /daily :', errText);
-      return res.status(500).json({ error: 'ai_error' });
-    }
-    const data = await response.json();
-    const content = data.choices && data.choices[0] && data.choices[0].message.content;
-    if (!content) {
-      console.error('❌ Contenu vide reçu de Groq');
-      return res.status(500).json({ error: 'empty_content' });
-    }
-    return res.json({ content: content.trim() });
+    const content = await generateWithCache(cacheKey, prompt, 300, 0.9, '/daily (' + type + ')');
+    if (!content) return res.status(500).json({ error: 'ai_error' });
+    return res.json({ content: content });
   } catch (e) {
-    console.error('❌ Exception /daily :', e.message);
     return res.status(500).json({ error: 'ai_error', message: e.message });
   }
 });
 
+// /teaching avec cache hebdo
 app.post('/teaching', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -309,20 +351,20 @@ app.post('/teaching', async (req, res) => {
     return res.status(402).json({ error: 'subscription_required' });
   }
 
+  const cacheKey = 'teaching_' + weekKey();
   const weekNumber = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
   const prompt = `Tu es Le Vieux. Enseignement de la semaine (semaine ${weekNumber}). Format : titre (une vertu), introduction (3 phrases), 3 leçons numérotées, conclusion (2 phrases). Français simple, ton sage, tutoiement.`;
 
   try {
-    const response = await callGroq([{ role: 'user', content: prompt }], 500, 0.9);
-    if (!response || !response.ok) return res.status(500).json({ error: 'ai_error' });
-    const data = await response.json();
-    const content = data.choices && data.choices[0] && data.choices[0].message.content;
-    return res.json({ content: content ? content.trim() : '' });
+    const content = await generateWithCache(cacheKey, prompt, 500, 0.9, '/teaching');
+    if (!content) return res.status(500).json({ error: 'ai_error' });
+    return res.json({ content: content });
   } catch (e) {
     return res.status(500).json({ error: 'ai_error' });
   }
 });
 
+// /challenge avec cache hebdo
 app.post('/challenge', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -334,20 +376,20 @@ app.post('/challenge', async (req, res) => {
     return res.status(402).json({ error: 'subscription_required' });
   }
 
+  const cacheKey = 'challenge_' + weekKey();
   const cycleNumber = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
   const prompt = `Tu es Le Vieux. Défi de 7 jours (cycle ${cycleNumber}). Format : titre, introduction (1 phrase), Jour 1 à Jour 7 (une action concrète chacun, 1 phrase). Français simple, ton sage, tutoiement.`;
 
   try {
-    const response = await callGroq([{ role: 'user', content: prompt }], 400, 0.9);
-    if (!response || !response.ok) return res.status(500).json({ error: 'ai_error' });
-    const data = await response.json();
-    const content = data.choices && data.choices[0] && data.choices[0].message.content;
-    return res.json({ content: content ? content.trim() : '' });
+    const content = await generateWithCache(cacheKey, prompt, 400, 0.9, '/challenge');
+    if (!content) return res.status(500).json({ error: 'ai_error' });
+    return res.json({ content: content });
   } catch (e) {
     return res.status(500).json({ error: 'ai_error' });
   }
 });
 
+// /library avec cache quotidien
 app.post('/library', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -359,15 +401,14 @@ app.post('/library', async (req, res) => {
     return res.status(402).json({ error: 'subscription_required' });
   }
 
+  const cacheKey = 'library_' + todayKey();
   const dayNumber = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
   const prompt = `Tu es Le Vieux. Conte africain authentique pour aujourd'hui (jour ${dayNumber}). Format : titre, conte (8-12 phrases), morale (2 phrases). Français simple, ton chaleureux de conteur.`;
 
   try {
-    const response = await callGroq([{ role: 'user', content: prompt }], 600, 0.95);
-    if (!response || !response.ok) return res.status(500).json({ error: 'ai_error' });
-    const data = await response.json();
-    const content = data.choices && data.choices[0] && data.choices[0].message.content;
-    return res.json({ content: content ? content.trim() : '' });
+    const content = await generateWithCache(cacheKey, prompt, 600, 0.95, '/library');
+    if (!content) return res.status(500).json({ error: 'ai_error' });
+    return res.json({ content: content });
   } catch (e) {
     return res.status(500).json({ error: 'ai_error' });
   }
@@ -408,7 +449,7 @@ app.get('/admin/stats', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 La Voix des Anciens backend (Groq) sur port ' + PORT);
+  console.log('🌳 La Voix des Anciens backend (Groq + Cache) sur port ' + PORT);
   console.log('📊 Admin : /admin/stats?pwd=' + ADMIN_PWD);
   console.log('🔑 Clé Groq : ' + (GROQ_API_KEY ? '✓ configurée' : '❌ MANQUANTE'));
   console.log('🤖 Modèle : ' + GROQ_MODEL);
