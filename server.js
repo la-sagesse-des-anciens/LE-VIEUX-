@@ -6,18 +6,13 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ⚠️ Clé Groq (configurée dans Railway)
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const ADMIN_PWD = process.env.ADMIN_PWD || 'levieux2026';
 
-// ✅ Modèle Groq corrigé (llama-3.1-8b-instant est toujours disponible)
 const GROQ_MODEL = 'llama-3.1-8b-instant';
 
 const DB_FILE = path.join(__dirname, 'subscribers.json');
 
-// ══════════════════════════════════════════════════════════════════
-// BASE DE DONNÉES
-// ══════════════════════════════════════════════════════════════════
 function loadDB() {
   try {
     if (fs.existsSync(DB_FILE)) {
@@ -35,29 +30,20 @@ function saveDB(db) {
   }
 }
 
-// ══════════════════════════════════════════════════════════════════
-// MIDDLEWARE
-// ══════════════════════════════════════════════════════════════════
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// ══════════════════════════════════════════════════════════════════
-// ROUTE DE TEST
-// ══════════════════════════════════════════════════════════════════
 app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'La Voix des Anciens Backend',
-    version: '2.1.0',
+    version: '3.0.0',
     ai_provider: 'Groq',
     ai_model: GROQ_MODEL,
     groq_key_set: !!GROQ_API_KEY && GROQ_API_KEY.length > 10
   });
 });
 
-// ══════════════════════════════════════════════════════════════════
-// FONCTION : Convertir les rôles pour Groq
-// ══════════════════════════════════════════════════════════════════
 function convertHistoryForAI(history) {
   if (!Array.isArray(history)) return [];
   return history
@@ -72,9 +58,6 @@ function convertHistoryForAI(history) {
     .filter(msg => msg.content.length > 0);
 }
 
-// ══════════════════════════════════════════════════════════════════
-// FONCTION : Appel Groq avec retry
-// ══════════════════════════════════════════════════════════════════
 async function callGroq(messages, maxTokens = 400, temperature = 0.85) {
   let attempt = 0;
   const maxAttempts = 3;
@@ -109,9 +92,6 @@ async function callGroq(messages, maxTokens = 400, temperature = 0.85) {
   return null;
 }
 
-// ══════════════════════════════════════════════════════════════════
-// VÉRIFICATION D'ACCÈS
-// ══════════════════════════════════════════════════════════════════
 app.post('/check-access', (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -139,9 +119,6 @@ app.post('/check-access', (req, res) => {
   });
 });
 
-// ══════════════════════════════════════════════════════════════════
-// WEBHOOK CHARIOW
-// ══════════════════════════════════════════════════════════════════
 app.post('/webhook/chariow', (req, res) => {
   const event = req.body;
   console.log('📩 Webhook Chariow :', JSON.stringify(event));
@@ -194,9 +171,6 @@ app.post('/webhook/chariow', (req, res) => {
   return res.json({ received: true, action: 'ignored' });
 });
 
-// ══════════════════════════════════════════════════════════════════
-// CHAT AVEC LE VIEUX (Groq)
-// ══════════════════════════════════════════════════════════════════
 app.post('/ask', async (req, res) => {
   const { email, question, history } = req.body || {};
 
@@ -279,9 +253,6 @@ Tu ne mentionnes jamais que tu es une IA. Tu es Le Vieux, point.`;
   }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// CONTENU QUOTIDIEN
-// ══════════════════════════════════════════════════════════════════
 app.post('/daily', async (req, res) => {
   const { email, type } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -310,9 +281,6 @@ app.post('/daily', async (req, res) => {
   }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// ENSEIGNEMENT HEBDO
-// ══════════════════════════════════════════════════════════════════
 app.post('/teaching', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -338,9 +306,6 @@ app.post('/teaching', async (req, res) => {
   }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// DÉFI 7 JOURS
-// ══════════════════════════════════════════════════════════════════
 app.post('/challenge', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -366,9 +331,6 @@ app.post('/challenge', async (req, res) => {
   }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// CONTES / BIBLIOTHÈQUE
-// ══════════════════════════════════════════════════════════════════
 app.post('/library', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -394,9 +356,6 @@ app.post('/library', async (req, res) => {
   }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// ADMIN
-// ══════════════════════════════════════════════════════════════════
 app.get('/admin/stats', (req, res) => {
   const pwd = req.query.pwd;
   if (pwd !== ADMIN_PWD) return res.status(401).json({ error: 'unauthorized' });
@@ -431,9 +390,6 @@ app.get('/admin/stats', (req, res) => {
   });
 });
 
-// ══════════════════════════════════════════════════════════════════
-// DÉMARRAGE
-// ══════════════════════════════════════════════════════════════════
 app.listen(PORT, () => {
   console.log('🌳 La Voix des Anciens backend (Groq) sur port ' + PORT);
   console.log('📊 Admin : /admin/stats?pwd=' + ADMIN_PWD);
