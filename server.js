@@ -59,7 +59,7 @@ function convertHistoryForAI(history) {
 
 async function callGroq(messages, maxTokens = 400, temperature = 0.85) {
   let attempt = 0;
-  const maxAttempts = 3;
+  const maxAttempts = 4;
 
   while (attempt < maxAttempts) {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -79,8 +79,8 @@ async function callGroq(messages, maxTokens = 400, temperature = 0.85) {
     if (response.status === 429) {
       attempt++;
       if (attempt < maxAttempts) {
-        const wait = attempt * 1500;
-        console.log('⏳ Rate limit Groq, attente ' + wait + 'ms');
+        const wait = attempt * 2000;
+        console.log('⏳ Rate limit Groq, attente ' + wait + 'ms (tentative ' + attempt + '/' + maxAttempts + ')');
         await new Promise(r => setTimeout(r, wait));
         continue;
       }
@@ -253,7 +253,7 @@ Tu ne mentionnes jamais que tu es une IA. Tu es Le Vieux, point.`;
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /daily — CORRIGÉ avec 3 types : morning, meditation, evening
+// /daily — 3 types : morning, meditation, evening + retry
 // ══════════════════════════════════════════════════════════════════
 app.post('/daily', async (req, res) => {
   const { email, type } = req.body || {};
@@ -279,18 +279,29 @@ app.post('/daily', async (req, res) => {
   }
 
   try {
-    const response = await callGroq([{ role: 'user', content: prompt }], 300, 0.9);
+    let response = await callGroq([{ role: 'user', content: prompt }], 300, 0.9);
+
+    // Retry si échec
+    if (!response || !response.ok) {
+      console.log('⏳ Retry /daily (' + type + ') dans 3s...');
+      await new Promise(r => setTimeout(r, 3000));
+      response = await callGroq([{ role: 'user', content: prompt }], 300, 0.9);
+    }
+
     if (!response || !response.ok) {
       const errText = response ? await response.text() : 'no response';
       console.error('❌ Erreur /daily :', errText);
       return res.status(500).json({ error: 'ai_error' });
     }
+
     const data = await response.json();
     const content = data.choices && data.choices[0] && data.choices[0].message.content;
     if (!content) {
       console.error('❌ Contenu vide reçu de Groq');
       return res.status(500).json({ error: 'empty_content' });
     }
+
+    console.log('✅ /daily (' + type + ') : ' + content.length + ' caractères');
     return res.json({ content: content.trim() });
   } catch (e) {
     console.error('❌ Exception /daily :', e.message);
@@ -313,7 +324,11 @@ app.post('/teaching', async (req, res) => {
   const prompt = `Tu es Le Vieux. Enseignement de la semaine (semaine ${weekNumber}). Format : titre (une vertu), introduction (3 phrases), 3 leçons numérotées, conclusion (2 phrases). Français simple, ton sage, tutoiement.`;
 
   try {
-    const response = await callGroq([{ role: 'user', content: prompt }], 500, 0.9);
+    let response = await callGroq([{ role: 'user', content: prompt }], 500, 0.9);
+    if (!response || !response.ok) {
+      await new Promise(r => setTimeout(r, 3000));
+      response = await callGroq([{ role: 'user', content: prompt }], 500, 0.9);
+    }
     if (!response || !response.ok) return res.status(500).json({ error: 'ai_error' });
     const data = await response.json();
     const content = data.choices && data.choices[0] && data.choices[0].message.content;
@@ -338,7 +353,11 @@ app.post('/challenge', async (req, res) => {
   const prompt = `Tu es Le Vieux. Défi de 7 jours (cycle ${cycleNumber}). Format : titre, introduction (1 phrase), Jour 1 à Jour 7 (une action concrète chacun, 1 phrase). Français simple, ton sage, tutoiement.`;
 
   try {
-    const response = await callGroq([{ role: 'user', content: prompt }], 400, 0.9);
+    let response = await callGroq([{ role: 'user', content: prompt }], 400, 0.9);
+    if (!response || !response.ok) {
+      await new Promise(r => setTimeout(r, 3000));
+      response = await callGroq([{ role: 'user', content: prompt }], 400, 0.9);
+    }
     if (!response || !response.ok) return res.status(500).json({ error: 'ai_error' });
     const data = await response.json();
     const content = data.choices && data.choices[0] && data.choices[0].message.content;
@@ -363,7 +382,11 @@ app.post('/library', async (req, res) => {
   const prompt = `Tu es Le Vieux. Conte africain authentique pour aujourd'hui (jour ${dayNumber}). Format : titre, conte (8-12 phrases), morale (2 phrases). Français simple, ton chaleureux de conteur.`;
 
   try {
-    const response = await callGroq([{ role: 'user', content: prompt }], 600, 0.95);
+    let response = await callGroq([{ role: 'user', content: prompt }], 600, 0.95);
+    if (!response || !response.ok) {
+      await new Promise(r => setTimeout(r, 3000));
+      response = await callGroq([{ role: 'user', content: prompt }], 600, 0.95);
+    }
     if (!response || !response.ok) return res.status(500).json({ error: 'ai_error' });
     const data = await response.json();
     const content = data.choices && data.choices[0] && data.choices[0].message.content;
