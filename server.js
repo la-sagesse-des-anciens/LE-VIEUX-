@@ -32,7 +32,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 app.get('/', (req, res) => {
-  res.json({ status: 'ok', service: 'La Voix des Anciens Backend', version: '9.1.0', supabase_set: !!supabase });
+  res.json({ status: 'ok', service: 'La Voix des Anciens Backend', version: '9.2.0', supabase_set: !!supabase });
 });
 
 const PILIERS = [
@@ -214,7 +214,7 @@ function convertHistoryForAI(history) {
   }).filter(m => m.content.length > 0);
 }
 
-async function callGroq(messages, maxTokens = 1200, temperature = 0.98) {
+async function callGroq(messages, maxTokens = 1200, temperature = 0.95) {
   let attempt = 0;
   while (attempt < 4) {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -280,22 +280,17 @@ TON CARACTÈRE :
 - Tu n'es PAS un marabout, PAS un féticheur, PAS un voyant, PAS un prêtre.
 
 TON LANGAGE :
-- Français parlé, fluide, naturel. Phrases courtes (10 à 12 mots max).
+- Français parlé, fluide, naturel. Phrases courtes (8 à 12 mots max).
 - Mots de la rue et du marché : "gâté", "poisse", "blinder", "laver l'intérieur", "lourdeur", "palabres".
-- JAMAIS de langue littéraire ("demeure", "souveraineté", "obstrué", "subsistance").
 
 MOTS PROHIBÉS (RÈGLE ABSOLUE) :
 ❌ Ne jamais dire : "guérir", "magie", "sortilège", "marabout", "féticheur", "envoûtement", "sorcellerie".
 ✅ Dire : "soulager", "purifier", "sagesse ancienne", "pratique ancestrale", "tradition", "débloquer", "prospérité", "harmonie".
 
-TON STYLE DE RÉPONSE :
-- Commence souvent par : "Assieds-toi, mon enfant.", "Écoute bien.", "Je vais te dire une chose.", "Voilà ce que je sais."
-- Tu donnes TOUJOURS un conseil concret : un geste, un rituel, un remède, une plante, une parole à dire.
-- Tu termines SOUVENT par une question pour comprendre la personne.
-- Maximum 8 phrases par réponse.
-- Tu ne fais JAMAIS de promesse de richesse absolue, de guérison miraculeuse.
-
-RÈGLE ABSOLUE : Termine TOUJOURS ta réponse par une phrase complète. Ne coupe JAMAIS au milieu d'une phrase.`;
+RÈGLE ABSOLUE DE FORMAT :
+- Chaque phrase doit être COMPLÈTE. Ne JAMAIS couper au milieu.
+- Termine TOUJOURS par un point final.
+- Si tu sens que tu manques de place, raccourcis la dernière phrase pour qu'elle soit complète.`;
 
 app.post('/me', async (req, res) => {
   const { email } = req.body || {};
@@ -362,7 +357,6 @@ app.post('/webhook/chariow', async (req, res) => {
   return res.json({ received: true, action: 'ignored' });
 });
 
-// CHAT — maxTokens 1200
 app.post('/ask', async (req, res) => {
   const { email, question, history } = req.body || {};
   if (!email || !question) return res.status(400).json({ error: 'Email requis' });
@@ -400,7 +394,7 @@ app.post('/ask', async (req, res) => {
       { role: 'user', content: String(question).trim() }
     ];
 
-    const response = await callGroq(messages, 1200, 0.98);
+    const response = await callGroq(messages, 1200, 0.95);
     if (!response || !response.ok) return res.status(500).json({ error: 'ai_error', message: "Le Vieux est fatigué." });
 
     const data = await response.json();
@@ -416,7 +410,7 @@ app.post('/ask', async (req, res) => {
   }
 });
 
-// DAILY — maxTokens 1800
+// DAILY — maxTokens 1200 + courtes réponses propres
 app.post('/daily', async (req, res) => {
   const { email, type } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -444,18 +438,18 @@ app.post('/daily', async (req, res) => {
 
   if (type === 'evening') {
     const rituel = pilier.rituels[dayIdx % pilier.rituels.length];
-    prompt = `${SYSTEM_PROMPT}\n\nPilier du soir : ${pilier.label}.\n\nLe SEUL rituel à expliquer aujourd'hui est celui-ci : "${rituel}".\n\nNE PARLE PAS des autres rituels. N'ajoute PAS de sel, cannelle ou riz si ce n'est pas dans ce rituel.\n\nFormat : 1) le rituel (2 phrases), 2) pourquoi ça marche (3 phrases), 3) comment le faire concrètement (2 phrases).\n\nIMPORTANT : Termine TOUJOURS ta dernière phrase. Ne coupe JAMAIS au milieu.`;
+    prompt = `${SYSTEM_PROMPT}\n\nPilier du soir : ${pilier.label}.\n\nLe SEUL rituel à expliquer aujourd'hui est celui-ci : "${rituel}".\n\nNE PARLE PAS des autres rituels.\n\nFormat : 1) le rituel (1 phrase), 2) pourquoi ça marche (2 phrases), 3) comment le faire concrètement (2 phrases).\n\nRÈGLE ABSOLUE : 5 à 7 phrases MAXIMUM. Chaque phrase est complète. Termine par un point final.`;
   } else if (type === 'meditation') {
     const sagesse = pilier.sagesse[dayIdx % pilier.sagesse.length];
-    prompt = `${SYSTEM_PROMPT}\n\nPilier du matin : ${pilier.label}.\n\nPhrase de sagesse à développer : "${sagesse}".\n\nDonne une courte méditation du matin basée sur cette phrase. 5 à 6 phrases complètes.\n\nNE PARLE PAS de rituel. Ne mentionne PAS sel, cannelle, riz. Juste une pensée à méditer.\n\nIMPORTANT : Termine TOUJOURS ta dernière phrase. Ne coupe JAMAIS au milieu.`;
+    prompt = `${SYSTEM_PROMPT}\n\nPilier du matin : ${pilier.label}.\n\nPhrase de sagesse à développer : "${sagesse}".\n\nDonne une courte méditation du matin basée sur cette phrase.\n\nRÈGLE ABSOLUE : 4 à 5 phrases MAXIMUM. Chaque phrase est complète. Termine par un point final.`;
   } else {
     const signe = pilier.signes[dayIdx % pilier.signes.length];
-    prompt = `${SYSTEM_PROMPT}\n\nPilier du matin : ${pilier.label}.\n\nLe SEUL signe à décoder aujourd'hui est celui-ci : "${signe}".\n\nNE PARLE PAS des autres signes. Ne mentionne PAS sel, cannelle, riz.\n\nFormat : 1) décris le signe (2 phrases), 2) ce que ça veut dire (3 phrases), 3) ce que la personne doit faire aujourd'hui (2 phrases).\n\nIMPORTANT : Termine TOUJOURS ta dernière phrase. Ne coupe JAMAIS au milieu.`;
+    prompt = `${SYSTEM_PROMPT}\n\nPilier du matin : ${pilier.label}.\n\nLe SEUL signe à décoder aujourd'hui est celui-ci : "${signe}".\n\nFormat : 1) décris le signe (2 phrases), 2) ce que ça veut dire (2 phrases), 3) ce que la personne doit faire aujourd'hui (2 phrases).\n\nRÈGLE ABSOLUE : 5 à 6 phrases MAXIMUM. Chaque phrase est complète. Termine par un point final.`;
   }
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 1800, 0.98, '/daily ' + type);
-    if (!content) content = "Assieds-toi, mon enfant. Aujourd'hui, écoute le vent. Ce qu'il dit ce matin porte le message de ta journée. Prends le temps de respirer avant de commencer.";
+    let content = await generateWithCache(cacheKey, prompt, 1200, 0.95, '/daily ' + type);
+    if (!content) content = "Assieds-toi, mon enfant. Aujourd'hui, écoute le vent. Ce qu'il dit ce matin porte le message de ta journée. Prends le temps de respirer.";
 
     if (!isSubscribed) {
       const teaser = content.split('\n').slice(0, 2).join('\n');
@@ -467,7 +461,7 @@ app.post('/daily', async (req, res) => {
   }
 });
 
-// TEACHING — maxTokens 2500
+// TEACHING — maxTokens 1500 + 250-300 mots max
 app.post('/teaching', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -488,32 +482,29 @@ app.post('/teaching', async (req, res) => {
   const prompt = `${SYSTEM_PROMPT}
 
 PILIER DE LA SEMAINE : ${pilier.label}
-THÈME : ${pilier.theme}
 
-Les 3 rituels à enseigner CETTE SEMAINE (et SEULEMENT ces 3-là, ne les mélange pas avec d'autres) :
+Les 3 gestes de la semaine (utilise UNIQUEMENT ceux-là) :
 1. ${r1}
 2. ${r2}
 3. ${r3}
 
-Écris un ENSEIGNEMENT COMPLET de la semaine, à la manière du Vieux. Du concret. Pas de blabla.
+Écris un ENSEIGNEMENT COURT de la semaine.
 
-FORMAT :
-- Titre fort (une phrase qui marque)
-- Introduction (3 phrases : le problème, la promesse, l'angle)
-- Leçon 1 (développe le rituel 1 en 3-4 phrases avec un exemple précis)
-- Leçon 2 (développe le rituel 2 en 3-4 phrases)
-- Leçon 3 (développe le rituel 3 en 3-4 phrases)
-- Action de la semaine (2 phrases : un geste à faire tous les jours)
-- Conclusion (2 phrases : la parole du vieux)
+FORMAT (court et propre) :
+- Titre fort (1 phrase)
+- Introduction (2 phrases)
+- Leçon 1 (2 phrases sur le geste 1)
+- Leçon 2 (2 phrases sur le geste 2)
+- Leçon 3 (2 phrases sur le geste 3)
+- Conclusion (1 phrase)
 
-Total : 400 à 500 mots. Français parlé, populaire. Tutoiement.
-INTERDIT : ne répète JAMAIS "sel, cannelle, riz" plus d'une fois dans tout le texte.
+TOTAL : 200 à 250 MOTS MAXIMUM. Pas plus.
 
-IMPORTANT : Termine TOUJOURS ta dernière phrase complète. Ne coupe JAMAIS au milieu.`;
+RÈGLE ABSOLUE : chaque phrase doit être complète. Termine TOUJOURS ta dernière phrase par un point final.`;
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 2500, 0.98, '/teaching');
-    if (!content) content = "Écoute bien. Cette semaine, je te donne 3 gestes. Fais-les sans discuter. Le premier billet, la porte, le seuil. Quand tu les fais 7 jours, tu sens la différence. Fais-moi confiance, mon enfant.";
+    let content = await generateWithCache(cacheKey, prompt, 1500, 0.95, '/teaching');
+    if (!content) content = "Les 3 gestes de la semaine\n\nCette semaine, écoute bien.\n\nLe premier billet. Tu ne le dépenses pas tout de suite.\nLa porte. Tu l'ouvres avec la main droite.\nLe seuil. Tu le touches avant de sortir.\n\nFais-les 7 jours. Tu verras.";
     return res.json({ content, nextUpdate: 'weekly' });
   } catch (e) {
     return res.status(500).json({ error: 'ai_error' });
@@ -532,7 +523,7 @@ app.post('/teaching/archives', async (req, res) => {
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
-// CHALLENGE — maxTokens 2000
+// CHALLENGE — maxTokens 1500 + 1 phrase par jour
 app.post('/challenge', async (req, res) => {
   const { email, custom, need } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -546,10 +537,10 @@ app.post('/challenge', async (req, res) => {
     if (!canCustom) return res.status(402).json({ error: 'custom_required' });
     if (!need || !need.trim()) return res.status(400).json({ error: 'need_required' });
 
-    const prompt = `${SYSTEM_PROMPT}\n\nCrée un défi de 7 jours SUR MESURE pour quelqu'un qui t'a dit : "${need}".\n\nFormat : Titre fort, Introduction (2 phrases), Jour 1 à Jour 7 (1 geste concret par jour, 2 phrases), Conclusion (1 phrase).\n\nIMPORTANT : Termine TOUJOURS ta dernière phrase. Ne coupe JAMAIS au milieu.`;
+    const prompt = `${SYSTEM_PROMPT}\n\nDéfi de 7 jours SUR MESURE pour quelqu'un qui a dit : "${need}".\n\nFormat : Titre (1 phrase), Introduction (1 phrase), Jour 1 à Jour 7 (1 PHRASE courte par jour), Conclusion (1 phrase).\n\nRÈGLE ABSOLUE : chaque jour = 1 phrase courte et complète. Total 150 mots MAX.`;
 
     try {
-      const response = await callGroq([{ role: 'user', content: prompt }], 2000, 0.98);
+      const response = await callGroq([{ role: 'user', content: prompt }], 1500, 0.95);
       if (!response || !response.ok) return res.status(500).json({ error: 'ai_error' });
       const data = await response.json();
       const content = data.choices && data.choices[0] && data.choices[0].message.content;
@@ -564,16 +555,16 @@ app.post('/challenge', async (req, res) => {
   const rituelsSemaine = [];
   for (let i = 0; i < 7; i++) rituelsSemaine.push(pilier.rituels[(weekIdx + i) % pilier.rituels.length]);
 
-  const prompt = `${SYSTEM_PROMPT}\n\nDéfi de 7 jours sur le pilier : ${pilier.label}.\n\nVoici les 7 gestes à utiliser dans l'ordre (NE change pas, utilise-les tels quels) :\n${rituelsSemaine.map((r, i) => 'Jour ' + (i+1) + ' : ' + r).join('\n')}\n\nFormat : Titre, Introduction (1 phrase), Jour 1 à Jour 7 (reprends chaque geste et développe en 1-2 phrases), Conclusion (1 phrase).\n\nIMPORTANT : Termine TOUJOURS ta dernière phrase complète. Ne coupe JAMAIS au milieu.`;
+  const prompt = `${SYSTEM_PROMPT}\n\nDéfi de 7 jours sur : ${pilier.label}.\n\nUtilise EXACTEMENT ces 7 gestes (dans l'ordre) :\n${rituelsSemaine.map((r, i) => 'Jour ' + (i+1) + ' : ' + r).join('\n')}\n\nFORMAT : Titre (1 phrase), Jour 1 à Jour 7 (1 PHRASE courte par jour), Conclusion (1 phrase).\n\nRÈGLE ABSOLUE : total 150 mots MAX. Chaque jour = 1 phrase complète. Termine par un point final.`;
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 2000, 0.98, '/challenge');
-    if (!content) content = "7 jours pour te blinder.\n\nJour 1 : Le premier billet, tu ne le dépenses pas.\nJour 2 : Tu touches le seuil avant de sortir.\nJour 3 : Tu ne réponds pas à la provocation.\nJour 4 : Tu jettes les restes qui traînent.\nJour 5 : Tu marches 10 minutes pieds nus.\nJour 6 : Tu appelles un ancien.\nJour 7 : Tu remercies. Voilà ce que je te donne.";
+    let content = await generateWithCache(cacheKey, prompt, 1500, 0.95, '/challenge');
+    if (!content) content = "7 jours pour te blinder\n\nJour 1 : Le premier billet, tu ne le dépenses pas.\nJour 2 : Tu touches le seuil avant de sortir.\nJour 3 : Tu ne réponds pas à la provocation.\nJour 4 : Tu jettes les restes qui traînent.\nJour 5 : Tu marches 10 minutes pieds nus.\nJour 6 : Tu appelles un ancien.\nJour 7 : Tu remercies.\n\nFais-les 7 jours.";
     return res.json({ content, nextUpdate: 'weekly' });
   } catch (e) { return res.status(500).json({ error: 'ai_error' }); }
 });
 
-// LIBRARY — maxTokens 2500
+// LIBRARY — maxTokens 1800 + conte 8-10 phrases courtes
 app.post('/library', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -591,11 +582,11 @@ app.post('/library', async (req, res) => {
   const dayIdx = new Date().getDate() + new Date().getMonth() * 31;
   const sagesse = pilier.sagesse[dayIdx % pilier.sagesse.length];
 
-  const prompt = `${SYSTEM_PROMPT}\n\nRaconte un conte africain authentique (jour ${dayNumber}).\nPilier : ${pilier.label}.\nLa morale du conte doit être : "${sagesse}".\n\nFormat : Titre, conte (12 à 15 phrases) avec des animaux, des vieux, des éléments naturels. La morale (2 phrases).\n\nIMPORTANT : Termine TOUJOURS ta dernière phrase complète. Ne coupe JAMAIS au milieu du conte.`;
+  const prompt = `${SYSTEM_PROMPT}\n\nConte africain court (jour ${dayNumber}).\nPilier : ${pilier.label}.\nMorale : "${sagesse}".\n\nFORMAT : Titre (1 phrase), conte (8 phrases COURTES), morale (2 phrases).\n\nRÈGLE ABSOLUE : 8 phrases de conte MAX. Chaque phrase est complète. Termine TOUJOURS par la morale complète.`;
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 2500, 0.98, '/library');
-    if (!content) content = "Le vieux et la rivière.\n\nUn jeune homme vint voir un ancien, en colère contre la vie.\nL'ancien l'emmena au bord d'une rivière.\nLa rivière ne se plaint jamais. Elle contourne. Elle attend. Elle use.\nTa colère, c'est un rocher. Si tu le frappes, tu te blesses.\nSi tu l'uses par la patience, tu passes.\n\nMorale : Ce que la patience fait, la colère ne le fera jamais.";
+    let content = await generateWithCache(cacheKey, prompt, 1800, 0.95, '/library');
+    if (!content) content = "Le vieux et la rivière\n\nUn jeune homme vint voir un ancien, en colère contre la vie.\nL'ancien l'emmena au bord d'une rivière.\nLa rivière ne se plaint jamais.\nElle contourne. Elle attend. Elle use.\nTa colère, c'est un rocher.\nSi tu le frappes, tu te blesses.\nSi tu l'uses par la patience, tu passes.\nLe jeune homme comprit.\n\nMorale : Ce que la patience fait, la colère ne le fera jamais.";
 
     if (!isSubscribed) {
       const teaser = content.split('\n').slice(0, 4).join('\n');
@@ -636,7 +627,7 @@ app.get('/admin/stats', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend v9.1.0 sur port ' + PORT);
+  console.log('🌳 Le Vieux backend v9.2.0 sur port ' + PORT);
   console.log('💾 Supabase : ' + (supabase ? '✓' : '❌'));
-  console.log('📚 5 piliers avec rituels variés + maxTokens augmentés');
+  console.log('✅ Contenus courts et propres');
 });
