@@ -12,14 +12,9 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
 
 const GROQ_MODEL = 'openai/gpt-oss-20b';
 
-// Client Supabase
 const supabase = (SUPABASE_URL && SUPABASE_KEY)
   ? createClient(SUPABASE_URL, SUPABASE_KEY)
   : null;
-
-if (!supabase) {
-  console.error('❌ Supabase non configuré — vérifie SUPABASE_URL et SUPABASE_KEY');
-}
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -28,7 +23,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'La Voix des Anciens Backend',
-    version: '4.0.0',
+    version: '5.0.0',
     ai_provider: 'Groq',
     ai_model: GROQ_MODEL,
     groq_key_set: !!GROQ_API_KEY && GROQ_API_KEY.length > 10,
@@ -36,6 +31,79 @@ app.get('/', (req, res) => {
   });
 });
 
+// ══════════════════════════════════════════════════════════════════
+// LES 8 CATÉGORIES DE SAGESSE
+// ══════════════════════════════════════════════════════════════════
+const CATEGORIES = [
+  {
+    id: 'nature',
+    label: 'Sagesse de la nature',
+    prompt: `Parle de la sagesse que la nature enseigne. Choisis UN élément (arbre, plante, eau, terre, feu, vent, animal, saison) et tire une leçon profonde pour la vie humaine. Explique ce que cet élément fait, et ce que l'humain doit apprendre de lui. Ton : direct, sage, autoritaire. Pas de religion. Pas de superstition. Uniquement la sagesse naturelle universelle.`
+  },
+  {
+    id: 'signes',
+    label: 'Signes et destinée',
+    prompt: `Parle des signes que la vie nous envoie. Un signe concret (un oiseau, un objet trouvé, un événement répété, une rencontre) et comment l'interpréter avec sagesse. Explique : 1) le signe, 2) ce qu'il signifie, 3) comment agir. Ton : direct, sage, autoritaire. Pas de religion. Pas de sorcellerie. Juste l'observation et la sagesse.`
+  },
+  {
+    id: 'protection',
+    label: 'Protection intérieure',
+    prompt: `Explique comment se protéger intérieurement des mauvaises énergies, des intentions négatives, des personnes toxiques. Donne une pratique concrète (un rituel de sel, un bain, une intention, un geste). Explique : 1) pourquoi, 2) comment, 3) quand. Ton : direct, sage. Pas de religion. Pas de sorcellerie. Juste la purification naturelle.`
+  },
+  {
+    id: 'reves',
+    label: 'Rêves et messages',
+    prompt: `Interprète un rêve courant de manière noble et symbolique. Choisis UN rêve (eau, serpent, dents, chute, vol, mort, mariage, argent, feu) et explique son sens profond. Rappelle que le rêve est un message de ton propre esprit, pas une prédiction. Explique : 1) le rêve, 2) son sens symbolique, 3) ce que tu dois en faire. Ton : direct, sage, mystérieux mais noble.`
+  },
+  {
+    id: 'abondance',
+    label: 'Abondance',
+    prompt: `Parle de l'abondance et de la prospérité. Explique ce qui attire et ce qui repousse l'argent. Donne un principe concret (une attitude, un geste, une habitude) lié à la sagesse ancienne. Explique : 1) le principe, 2) pourquoi il marche, 3) comment l'appliquer aujourd'hui. Ton : direct, sage. Pas de promesse magique. Juste la sagesse pratique.`
+  },
+  {
+    id: 'paix',
+    label: 'Paix et ancrage',
+    prompt: `Aide à retrouver la paix intérieure dans le chaos. Explique un état intérieur (colère, peur, doute, fatigue, tristesse) et comment le traverser avec sagesse. Donne un geste simple, une pensée, ou une pratique d'ancrage. Ton : direct, sage, chaleureux. Pas de psychologie moderne. Juste la sagesse ancienne.`
+  },
+  {
+    id: 'cycles',
+    label: 'Cycles et temps',
+    prompt: `Parle des cycles de la vie : naissance, lune, saison, âge, moment propice. Explique comment un cycle influence une situation. Donne un conseil pratique : quel moment est bon pour agir, pour attendre, pour se reposer. Ton : direct, sage. Pas de religion. Pas d'astrologie moderne. Juste l'observation ancienne des cycles.`
+  },
+  {
+    id: 'rituels',
+    label: 'Rituels nobles',
+    prompt: `Décris un rituel simple et noble d'ancrage ou de purification. Basé sur des éléments naturels (eau, sel, feu, plante, lumière). Explique : 1) à quoi ça sert, 2) comment le faire, 3) quand le faire. Ton : direct, sage, respectueux. Pas de religion. Pas de sorcellerie. Juste un geste ancien de reconnexion.`
+  }
+];
+
+function getDayCategory(dateStr) {
+  // Rotation basée sur le jour de l'année
+  const d = new Date(dateStr || Date.now());
+  const dayOfYear = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
+  return CATEGORIES[dayOfYear % CATEGORIES.length];
+}
+
+function getWeekCategory(dateStr) {
+  const d = new Date(dateStr || Date.now());
+  const weekOfYear = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / (7 * 86400000));
+  return CATEGORIES[weekOfYear % CATEGORIES.length];
+}
+
+function todayKey() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function weekKey() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const week = Math.floor((d - new Date(year, 0, 1)) / 604800000);
+  return year + '-W' + week;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// APPELS GROQ
+// ══════════════════════════════════════════════════════════════════
 function convertHistoryForAI(history) {
   if (!Array.isArray(history)) return [];
   return history
@@ -81,17 +149,6 @@ async function callGroq(messages, maxTokens = 400, temperature = 0.85) {
     return response;
   }
   return null;
-}
-
-function todayKey() {
-  return new Date().toISOString().split('T')[0];
-}
-
-function weekKey() {
-  const d = new Date();
-  const year = d.getFullYear();
-  const week = Math.floor((d - new Date(year, 0, 1)) / 604800000);
-  return year + '-W' + week;
 }
 
 async function getCache(cacheKey) {
@@ -155,6 +212,19 @@ async function generateWithCache(cacheKey, prompt, maxTokens, temperature, label
   return null;
 }
 
+// ══════════════════════════════════════════════════════════════════
+// VÉRIFICATION D'ACCÈS
+// ══════════════════════════════════════════════════════════════════
+async function isSubscribed(email) {
+  if (!supabase || !email) return false;
+  try {
+    const key = email.toLowerCase().trim();
+    const { data: sub } = await supabase.from('subscribers').select('*').eq('email', key).maybeSingle();
+    if (!sub) return false;
+    return Date.now() <= sub.expiry_date;
+  } catch (e) { return false; }
+}
+
 app.post('/check-access', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -189,6 +259,9 @@ app.post('/check-access', async (req, res) => {
   }
 });
 
+// ══════════════════════════════════════════════════════════════════
+// WEBHOOK CHARIOW
+// ══════════════════════════════════════════════════════════════════
 app.post('/webhook/chariow', async (req, res) => {
   const event = req.body;
   console.log('📩 Webhook Chariow :', JSON.stringify(event));
@@ -228,18 +301,20 @@ app.post('/webhook/chariow', async (req, res) => {
       updated_at: now
     });
 
-    console.log('✅ Abonnement activé : ' + customerEmail + ' jusqu\'au ' + new Date(newExpiry).toLocaleDateString('fr-FR'));
+    console.log('✅ Abonnement activé : ' + customerEmail);
     return res.json({ received: true, action: 'activated', email: customerEmail, expiryDate: newExpiry });
   }
 
   if (eventType.includes('expired')) {
-    console.log('⏰ Licence expirée : ' + customerEmail);
     return res.json({ received: true, action: 'expired' });
   }
 
   return res.json({ received: true, action: 'ignored' });
 });
 
+// ══════════════════════════════════════════════════════════════════
+// CHAT AVEC L'ANCIEN — 5 questions gratuites
+// ══════════════════════════════════════════════════════════════════
 app.post('/ask', async (req, res) => {
   const { email, question, history } = req.body || {};
 
@@ -253,18 +328,12 @@ app.post('/ask', async (req, res) => {
 
   const key = email.toLowerCase().trim();
   const now = Date.now();
-  const FREE_LIMIT = 3;
+  const FREE_LIMIT = 5;
 
-  // Vérifier abonnement
+  const subscribed = await isSubscribed(key);
   let isFree = false;
-  let sub = null;
-  try {
-    const { data } = await supabase.from('subscribers').select('*').eq('email', key).maybeSingle();
-    sub = data;
-  } catch (e) {}
 
-  if (!sub || now > sub.expiry_date) {
-    // Utilisateur gratuit
+  if (!subscribed) {
     let freeUser = null;
     try {
       const { data } = await supabase.from('free_users').select('*').eq('email', key).maybeSingle();
@@ -275,7 +344,7 @@ app.post('/ask', async (req, res) => {
     if (currentCount >= FREE_LIMIT) {
       return res.status(402).json({
         error: 'quota_exceeded',
-        message: 'Vos 3 questions gratuites sont épuisées.',
+        message: 'Tes 5 questions offertes sont épuisées.',
         freeUsed: currentCount,
         freeLimit: FREE_LIMIT
       });
@@ -289,13 +358,15 @@ app.post('/ask', async (req, res) => {
   }
 
   try {
-    const systemPrompt = `Tu es "Le Vieux", un sage africain de 70 ans, assis sous un arbre géant.
-Tu réponds avec bienveillance, sagesse, et un ton direct et chaleureux.
+    const systemPrompt = `Tu es "L'Ancien", un sage africain de 70 ans, assis sous un baobab sacré.
+Tu transmets la sagesse ancestrale africaine noble — celle qui parle de la nature, des signes, des cycles, de la protection intérieure, des rêves et de l'abondance.
+Tu ne parles JAMAIS de religion. Tu ne parles JAMAIS de sorcellerie. Tu ne fais JAMAIS de promesse de guérison.
+Tu parles de la nature, de l'observation, de l'intention, du respect des cycles.
 Tu tutoies toujours ton interlocuteur.
-Tu puises dans la sagesse ancestrale africaine, la spiritualité universelle, la philosophie et l'expérience de la vie.
-Tu ne donnes jamais de conseils médicaux, juridiques ou dangereux.
-Tu réponds en français simple, compréhensible par tous, en 3 à 6 phrases maximum, avec une image ou une métaphore.
-Tu ne mentionnes jamais que tu es une IA. Tu es Le Vieux, point.`;
+Ton style : direct, autoritaire, sage. Tu dis "Voici ce que les anciens savaient...", "Écoute bien...", "Ne l'oublie jamais...".
+Tu réponds en français simple, compréhensible par tous.
+Tu réponds en 4 à 8 phrases. Tu donnes toujours un conseil concret.
+Tu ne mentionnes jamais que tu es une IA. Tu es L'Ancien, point.`;
 
     const convertedHistory = convertHistoryForAI(history || []).slice(-6);
 
@@ -305,12 +376,12 @@ Tu ne mentionnes jamais que tu es une IA. Tu es Le Vieux, point.`;
       { role: 'user', content: String(question).trim() }
     ];
 
-    const response = await callGroq(messages, 600, 0.85);
+    const response = await callGroq(messages, 800, 0.9);
 
     if (!response || !response.ok) {
       const errText = response ? await response.text() : 'No response';
       console.error('❌ Erreur Groq :', errText);
-      return res.status(500).json({ error: 'ai_error', message: 'Le Vieux est fatigué.' });
+      return res.status(500).json({ error: 'ai_error', message: "L'Ancien est fatigué." });
     }
 
     const data = await response.json();
@@ -318,7 +389,6 @@ Tu ne mentionnes jamais que tu es une IA. Tu es Le Vieux, point.`;
 
     if (!answer) return res.status(500).json({ error: 'no_answer' });
 
-    // Compter les questions gratuites restantes
     let freeRemaining = null;
     if (isFree) {
       try {
@@ -339,51 +409,65 @@ Tu ne mentionnes jamais que tu es une IA. Tu es Le Vieux, point.`;
   }
 });
 
+// ══════════════════════════════════════════════════════════════════
+// /daily — 3 contenus quotidiens (avec rotation de catégories)
+// ══════════════════════════════════════════════════════════════════
 app.post('/daily', async (req, res) => {
   const { email, type } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
 
   const key = email.toLowerCase().trim();
-
-  // Vérifier abonnement
-  try {
-    const { data: sub } = await supabase.from('subscribers').select('*').eq('email', key).maybeSingle();
-    if (!sub || Date.now() > sub.expiry_date) {
-      return res.status(402).json({ error: 'subscription_required' });
-    }
-  } catch (e) {
-    return res.status(402).json({ error: 'subscription_required' });
-  }
+  const subscribed = await isSubscribed(key);
 
   const dayKey = todayKey();
   const cacheKey = 'daily_' + dayKey + '_' + (type || 'morning');
-  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+  const dayCategory = getDayCategory();
 
   let prompt;
-  let maxTok;
 
   if (type === 'evening') {
-    prompt = `Tu es Le Vieux. Donne un rituel du soir pour aujourd'hui (jour ${dayOfYear}). Format : une pensée courte (2 phrases), une question à méditer (1 phrase), un exercice simple (1 phrase). Français simple, ton sage, tutoiement.`;
-    maxTok = 500;
+    // Rituel du soir — catégorie "paix" ou "rêves"
+    const eveningCategories = ['paix', 'reves', 'protection'];
+    const cat = CATEGORIES.find(c => c.id === eveningCategories[
+      Math.floor((Date.now() / 86400000) % eveningCategories.length)
+    ]) || CATEGORIES[5];
+    prompt = `${cat.prompt}\n\nContexte : c'est le soir. Donne un contenu pour la soirée. Format : 1) le sujet (2 phrases), 2) l'explication (3-4 phrases), 3) l'action concrète (2 phrases). Français simple, ton direct et sage.`;
   } else if (type === 'meditation') {
-    prompt = `Tu es Le Vieux. Donne une courte méditation du matin pour aujourd'hui (jour ${dayOfYear}). Format : 3 phrases maximum. Une pensée apaisante sur la respiration, la présence, ou la gratitude. Français simple, ton sage, tutoiement.`;
-    maxTok = 400;
+    // Méditation du matin — catégorie "nature" ou "rituels"
+    const medCategories = ['nature', 'rituels', 'cycles'];
+    const cat = CATEGORIES.find(c => c.id === medCategories[
+      Math.floor((Date.now() / 86400000) % medCategories.length)
+    ]) || CATEGORIES[0];
+    prompt = `${cat.prompt}\n\nContexte : c'est le matin. Donne une méditation courte et puissante. Format : 3-5 phrases. Un geste simple à faire ce matin. Français simple, ton direct et sage.`;
   } else {
-    prompt = `Tu es Le Vieux. Donne le proverbe du matin (jour ${dayOfYear}). Format : un proverbe africain authentique, son explication (2 phrases), son application moderne (2 phrases). Français simple, ton sage.`;
-    maxTok = 500;
+    // Proverbe du matin — catégorie "signes" ou "abondance"
+    const morningCategories = ['signes', 'abondance', 'nature'];
+    const cat = CATEGORIES.find(c => c.id === morningCategories[
+      Math.floor((Date.now() / 86400000) % morningCategories.length)
+    ]) || CATEGORIES[1];
+    prompt = `${cat.prompt}\n\nContexte : c'est le matin. Donne le signe ou la leçon du jour. Format : 1) le signe ou la leçon (2 phrases), 2) son sens profond (3-4 phrases), 3) ce que tu dois faire aujourd'hui (2 phrases). Français simple, ton direct et sage.`;
   }
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, maxTok, 0.9, '/daily (' + type + ')');
+    let content = await generateWithCache(cacheKey, prompt, 800, 0.92, '/daily (' + type + ')');
 
     if (!content) {
       const fallbacks = {
-        morning: "Proverbe africain : « Le fleuve ne remonte jamais vers sa source. »\n\nCela signifie que la vie avance toujours, et que regarder en arrière ne fait que ralentir ton chemin.\n\nAujourd'hui, laisse le passé là où il est. Chaque pas en avant est une nouvelle chance de grandir.",
-        meditation: "Respire profondément. Laisse ton souffle remplir chaque recoin de ton être. Sois reconnaissant pour cette nouvelle journée, même pour les petites choses.",
-        evening: "Pensée courte : Chaque soir, la journée s'efface comme une plume au vent. Apprends à écouter le silence qui t'entoure.\n\nQuestion à méditer : Qu'as-tu appris sur toi aujourd'hui ?\n\nExercice simple : Ferme les yeux, respire lentement, et laisse ton esprit se reposer."
+        morning: "Aujourd'hui, observe le premier arbre que tu verras.\n\nLes anciens savaient que l'arbre que tu remarques en premier le matin porte un message. Sa forme, sa taille, son état — tout parle. Si l'arbre est fort et droit, la journée te portera. S'il est penché, tu devras t'adapter.\n\nAujourd'hui, prends 30 secondes pour regarder un arbre. Et écoute ce qu'il te dit.",
+        meditation: "Ce matin, avant de toucher ton téléphone, pose tes deux pieds au sol.\n\nLes anciens disaient : celui qui sent la terre sous ses pieds ne perd pas son chemin. La terre est ton premier soutien. Avant toute chose, reconnecte-toi à elle.\n\nFais-le maintenant. 10 secondes. Pieds nus si possible.",
+        evening: "Ce soir, avant de dormir, pose ta main sur ton cœur.\n\nLes anciens savaient que le cœur parle la nuit. Ce que tu ressens avant de dormir, ton esprit le travaille pendant ton sommeil. Si tu dors avec de la colère, tu te réveilleras fatigué. Si tu dors avec de la gratitude, tu te réveilleras léger.\n\nCe soir, avant de fermer les yeux, dis merci pour une chose. Une seule. Et dors en paix."
       };
       content = fallbacks[type] || fallbacks.morning;
-      console.log('⚠️ Fallback utilisé pour /daily (' + type + ')');
+    }
+
+    // Si non abonné, on renvoie un TEASER
+    if (!subscribed) {
+      const teaser = content.split('\n').slice(0, 2).join('\n');
+      return res.status(402).json({
+        error: 'subscription_required',
+        teaser: teaser,
+        content: content
+      });
     }
 
     return res.json({ content: content });
@@ -392,90 +476,147 @@ app.post('/daily', async (req, res) => {
   }
 });
 
+// ══════════════════════════════════════════════════════════════════
+// /teaching — Enseignement hebdo (catégorie différente chaque semaine)
+// ══════════════════════════════════════════════════════════════════
 app.post('/teaching', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
 
   const key = email.toLowerCase().trim();
-  try {
-    const { data: sub } = await supabase.from('subscribers').select('*').eq('email', key).maybeSingle();
-    if (!sub || Date.now() > sub.expiry_date) return res.status(402).json({ error: 'subscription_required' });
-  } catch (e) {
-    return res.status(402).json({ error: 'subscription_required' });
-  }
+  const subscribed = await isSubscribed(key);
 
   const cacheKey = 'teaching_' + weekKey();
-  const weekNumber = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
-  const prompt = `Tu es Le Vieux. Enseignement de la semaine (semaine ${weekNumber}). Format : titre (une vertu), introduction (3 phrases), 3 leçons numérotées, conclusion (2 phrases). Français simple, ton sage, tutoiement.`;
+  const weekCat = getWeekCategory();
+
+  const prompt = `Tu es L'Ancien. Catégorie de la semaine : ${weekCat.label}.
+${weekCat.prompt}
+
+Format de l'enseignement :
+- Titre (une phrase forte)
+- Introduction (3 phrases qui captivent)
+- 3 leçons numérotées (chacune : 3-4 phrases avec un exemple concret)
+- Une action de la semaine (2 phrases)
+- Conclusion (2 phrases de sagesse)
+
+Total : environ 300 mots. Français simple, ton direct, autoritaire, sage. Pas de religion. Pas de sorcellerie. Juste la sagesse ancestrale noble.`;
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 800, 0.9, '/teaching');
+    let content = await generateWithCache(cacheKey, prompt, 1200, 0.92, '/teaching');
+
     if (!content) {
-      content = "Semaine de la Patience\n\nLa patience est la clé pour surmonter les épreuves. Elle t'apprend à attendre sans frustration, à accepter les délais naturels. En la pratiquant, tu découvres la sérénité qui vient de l'attente.\n\n1. Observe chaque petit moment de ta journée et prends le temps de l'apprécier.\n2. Respire profondément quand un obstacle se présente ; rappelle-toi que rien ne dure.\n3. Fais confiance au temps : chaque chose arrive à son heure.\n\nLa patience n'est pas de la faiblesse. C'est une force calme qui te permet de traverser les tempêtes.";
-      console.log('⚠️ Fallback /teaching');
+      content = "La sagesse du baobab\n\nLe baobab ne pousse pas vite. Il pousse longtemps. Voici ce que les anciens enseignaient sur cet arbre.\n\n1. La lenteur n'est pas une faiblesse. Le baobab met 100 ans à devenir grand, mais rien ne le déracine ensuite.\n\n2. Le baobab donne tout : fruit, ombre, écorce, eau. Plus tu grandis, plus tu dois donner.\n\n3. Le baobab vit plus longtemps que ceux qui le plantent. Ce que tu fais aujourd'hui servira à tes petits-enfants.\n\nAction de la semaine : plante quelque chose. Une graine, une idée, une relation. Et laisse le temps faire.\n\nCe que tu construis lentement, rien ne peut le détruire.";
     }
+
+    if (!subscribed) {
+      const teaser = content.split('\n').slice(0, 4).join('\n');
+      return res.status(402).json({
+        error: 'subscription_required',
+        teaser: teaser,
+        content: content
+      });
+    }
+
     return res.json({ content: content });
   } catch (e) {
     return res.status(500).json({ error: 'ai_error' });
   }
 });
 
+// ══════════════════════════════════════════════════════════════════
+// /challenge — Défi de 7 jours (thème tournant)
+// ══════════════════════════════════════════════════════════════════
 app.post('/challenge', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
 
   const key = email.toLowerCase().trim();
-  try {
-    const { data: sub } = await supabase.from('subscribers').select('*').eq('email', key).maybeSingle();
-    if (!sub || Date.now() > sub.expiry_date) return res.status(402).json({ error: 'subscription_required' });
-  } catch (e) {
-    return res.status(402).json({ error: 'subscription_required' });
-  }
+  const subscribed = await isSubscribed(key);
 
   const cacheKey = 'challenge_' + weekKey();
-  const cycleNumber = Math.floor(Date.now() / (7 * 24 * 60 * 60 * 1000));
-  const prompt = `Tu es Le Vieux. Défi de 7 jours (cycle ${cycleNumber}). Format : titre, introduction (1 phrase), Jour 1 à Jour 7 (une action concrète chacun, 1 phrase). Français simple, ton sage, tutoiement.`;
+  const weekCat = getWeekCategory();
+
+  const prompt = `Tu es L'Ancien. Défi de 7 jours sur le thème : ${weekCat.label}.
+${weekCat.prompt}
+
+Format du défi :
+- Titre (court et fort)
+- Introduction (1 phrase)
+- Jour 1 à Jour 7 : une action concrète par jour (2 phrases chacune)
+- Conclusion (1 phrase)
+
+Total : environ 200 mots. Français simple, ton direct, sage. Pas de religion. Pas de sorcellerie.`;
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 600, 0.9, '/challenge');
+    let content = await generateWithCache(cacheKey, prompt, 900, 0.92, '/challenge');
+
     if (!content) {
-      content = "Défi du Vieux — 7 jours vers la sérénité\n\nUne semaine de gestes simples pour retrouver l'équilibre intérieur.\n\nJour 1 : Respire profondément : prends 5 minutes pour inhaler le silence, exhale la tension.\nJour 2 : Marche pieds nus sur la terre : connecte-toi aux éléments, sans chercher à comprendre.\nJour 3 : Écris trois choses pour lesquelles tu es reconnaissant.\nJour 4 : Offre quelque chose sans attendre en retour.\nJour 5 : Envoie un message à quelqu'un qui compte pour toi.\nJour 6 : Reste 10 minutes en silence, sans téléphone, sans rien.\nJour 7 : Relis tes notes de la semaine et note ce qui a changé.";
-      console.log('⚠️ Fallback /challenge');
+      content = "7 jours de reconnexion\n\nUne semaine pour revenir à l'essentiel.\n\nJour 1 : Regarde le ciel 5 minutes. Sans rien faire d'autre.\n\nJour 2 : Marche pieds nus sur la terre ou l'herbe.\n\nJour 3 : Écris une chose que tu n'as jamais dite à personne.\n\nJour 4 : Offre quelque chose sans attendre de retour.\n\nJour 5 : Reste 10 minutes en silence complet.\n\nJour 6 : Contacte quelqu'un que tu as perdu de vue.\n\nJour 7 : Relis tout ce que tu as fait cette semaine.\n\nCe que tu fais 7 jours de suite devient une habitude. Une habitude devient une vie.";
     }
+
+    if (!subscribed) {
+      const teaser = content.split('\n').slice(0, 5).join('\n');
+      return res.status(402).json({
+        error: 'subscription_required',
+        teaser: teaser,
+        content: content
+      });
+    }
+
     return res.json({ content: content });
   } catch (e) {
     return res.status(500).json({ error: 'ai_error' });
   }
 });
 
+// ══════════════════════════════════════════════════════════════════
+// /library — Conte africain quotidien
+// ══════════════════════════════════════════════════════════════════
 app.post('/library', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
 
   const key = email.toLowerCase().trim();
-  try {
-    const { data: sub } = await supabase.from('subscribers').select('*').eq('email', key).maybeSingle();
-    if (!sub || Date.now() > sub.expiry_date) return res.status(402).json({ error: 'subscription_required' });
-  } catch (e) {
-    return res.status(402).json({ error: 'subscription_required' });
-  }
+  const subscribed = await isSubscribed(key);
 
   const cacheKey = 'library_' + todayKey();
   const dayNumber = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
-  const prompt = `Tu es Le Vieux. Conte africain authentique pour aujourd'hui (jour ${dayNumber}). Format : titre, conte complet (10 à 15 phrases), morale (2 phrases). Termine toujours par une morale complète. Français simple, ton chaleureux de conteur.`;
+
+  const prompt = `Tu es L'Ancien. Raconte un conte africain authentique pour aujourd'hui (jour ${dayNumber}).
+
+Format du conte :
+- Titre
+- Le conte (12-15 phrases, avec des animaux, des sages ou des éléments naturels)
+- La morale (2 phrases)
+
+Le conte doit être noble, universel, sans religion, sans sorcellerie. Il doit transmettre une leçon profonde sur la vie, la nature, les cycles, la sagesse.
+Français simple, ton chaleureux de conteur ancien.`;
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 1200, 0.95, '/library');
+    let content = await generateWithCache(cacheKey, prompt, 1500, 0.95, '/library');
+
     if (!content) {
-      content = "La Tortue et le Lièvre\n\nDans la savane, la tortue se promenait lentement quand elle rencontra le lièvre qui battait son cœur de course.\nLe lièvre, fier de sa vitesse, la défia de courir jusqu'au grand baobab.\nLa tortue accepta sans hésiter, convaincue que la patience l'aiderait.\nAu début, le lièvre bondit devant, ricanant, tandis que la tortue avançait pas à pas.\nQuand le lièvre s'arrêta pour se reposer, la tortue continua sans pause.\nLe lièvre se réveilla trop tard, mais la tortue était déjà au sommet du baobab.\nLe lièvre, honteux, demanda à la tortue comment elle avait réussi.\nLa tortue répondit que chaque pas compte quand on ne se laisse pas distraire.\nLes animaux de la savane apprirent alors à admirer la persévérance.\n\nMorale : La persévérance vaut mieux que la vitesse. Celui qui avance sans s'arrêter atteint toujours son but.";
-      console.log('⚠️ Fallback /library');
+      content = "Le vieux et la rivière\n\nUn jour, un jeune homme vint voir un ancien. Il était en colère contre la vie.\nL'ancien l'emmena au bord d'une rivière.\nRegarde, dit-il. La rivière ne se plaint jamais.\nElle ne dit pas : pourquoi ce rocher sur mon chemin ?\nElle contourne. Elle attend. Elle use.\nLe jeune homme regarda la rivière.\nElle était là depuis toujours, et elle coulait toujours.\nL'ancien dit : Ta colère, c'est un rocher. Si tu le frappes, tu te blesses.\nSi tu l'uses par la patience, tu passes.\nLe jeune homme comprit.\nIl revint un an plus tard.\nIl avait contourné son rocher.\nEt il coulait, lui aussi, comme la rivière.\n\nMorale : Ne frappe pas l'obstacle. Contourne-le. Ce que la patience fait, la colère ne le fera jamais.";
     }
+
+    if (!subscribed) {
+      const teaser = content.split('\n').slice(0, 4).join('\n');
+      return res.status(402).json({
+        error: 'subscription_required',
+        teaser: teaser,
+        content: content
+      });
+    }
+
     return res.json({ content: content });
   } catch (e) {
     return res.status(500).json({ error: 'ai_error' });
   }
 });
 
+// ══════════════════════════════════════════════════════════════════
+// ADMIN
+// ══════════════════════════════════════════════════════════════════
 app.get('/admin/stats', async (req, res) => {
   const pwd = req.query.pwd;
   if (pwd !== ADMIN_PWD) return res.status(401).json({ error: 'unauthorized' });
@@ -517,9 +658,9 @@ app.get('/admin/stats', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 La Voix des Anciens backend (Supabase + Groq + Cache) sur port ' + PORT);
+  console.log('🌳 La Voix des Anciens backend v5.0.0 sur port ' + PORT);
   console.log('📊 Admin : /admin/stats?pwd=' + ADMIN_PWD);
-  console.log('🔑 Clé Groq : ' + (GROQ_API_KEY ? '✓' : '❌'));
+  console.log('🔑 Groq : ' + (GROQ_API_KEY ? '✓' : '❌'));
   console.log('💾 Supabase : ' + (supabase ? '✓' : '❌'));
-  console.log('🤖 Modèle : ' + GROQ_MODEL);
+  console.log('📚 8 catégories de sagesse chargées');
 });
