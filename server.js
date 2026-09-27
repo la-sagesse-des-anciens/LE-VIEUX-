@@ -32,9 +32,10 @@ const FREE_LIMIT = 10;
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+app.use(express.static('public'));
 
 app.get('/', (req, res) => {
-  res.json({ status: 'ok', service: 'La Voix des Anciens Backend', version: '11.3.0', model: GROQ_MODEL, freeLimit: FREE_LIMIT, supabase_set: !!supabase });
+  res.json({ status: 'ok', service: 'La Voix des Anciens Backend', version: '11.4.0', model: GROQ_MODEL, freeLimit: FREE_LIMIT, supabase_set: !!supabase });
 });
 
 const PILIERS = [
@@ -422,7 +423,7 @@ app.post('/preload', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /ask — gratuit : 10 questions
+// /ask
 // ══════════════════════════════════════════════════════════════════
 app.post('/ask', async (req, res) => {
   const { email, question, history } = req.body || {};
@@ -492,7 +493,7 @@ app.post('/ask', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /daily — gratuit : Signe du matin COMPLET, Méditation en teaser, Soir bloqué
+// /daily
 // ══════════════════════════════════════════════════════════════════
 app.post('/daily', async (req, res) => {
   const { email, type } = req.body || {};
@@ -508,7 +509,6 @@ app.post('/daily', async (req, res) => {
     else if (type === 'meditation') allowed = await getPermissionValue(key, 'meditation');
     else allowed = await getPermissionValue(key, 'daily');
   } else {
-    // Gratuit : signe du matin + méditation
     allowed = (type === 'morning' || type === 'meditation');
   }
 
@@ -535,18 +535,14 @@ app.post('/daily', async (req, res) => {
     let content = await generateWithCache(cacheKey, prompt, 1500, 0.95, '/daily ' + type);
     if (!content) content = "Assieds-toi, mon enfant. Écoute le vent ce matin. Il porte le message de ta journée. Prends le temps de respirer avant de commencer.";
 
-    // 🎁 GRATUIT
     if (!isSubscribed) {
       if (type === 'morning') {
-        // Signe du matin COMPLET
         return res.json({ content });
       }
       if (type === 'meditation') {
-        // Méditation : teaser 2 phrases
         const teaser = content.split('\n').slice(0, 2).join('\n');
         return res.json({ content: teaser, teaser, isTeaser: true });
       }
-      // Soir : bloqué (déjà géré plus haut)
       return res.status(402).json({ error: 'subscription_required' });
     }
 
@@ -557,7 +553,7 @@ app.post('/daily', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /teaching — gratuit : teaser 5 phrases
+// /teaching
 // ══════════════════════════════════════════════════════════════════
 app.post('/teaching', async (req, res) => {
   const { email } = req.body || {};
@@ -661,7 +657,7 @@ app.post('/challenge', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /library — gratuit : teaser 5 phrases
+// /library
 // ══════════════════════════════════════════════════════════════════
 app.post('/library', async (req, res) => {
   const { email } = req.body || {};
@@ -686,7 +682,6 @@ app.post('/library', async (req, res) => {
     if (!content) content = "Le vieux et la rivière\n\nUn jeune homme vint voir un ancien, en colère.\nL'ancien l'emmena au bord d'une rivière.\nLa rivière ne se plaint jamais.\nElle contourne. Elle attend. Elle use.\nTa colère, c'est un rocher.\nSi tu le frappes, tu te blesses.\nSi tu l'uses par la patience, tu passes.\n\nMorale : Ne frappe pas l'obstacle. Contourne-le avec patience.";
 
     if (!isSubscribed) {
-      // Gratuit : titre + 5 phrases
       const teaser = content.split('\n').slice(0, 5).join('\n');
       return res.json({ content: teaser, teaser, isTeaser: true });
     }
@@ -725,8 +720,9 @@ app.get('/admin/stats', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend v11.3.0 sur port ' + PORT);
+  console.log('🌳 Le Vieux backend v11.4.0 sur port ' + PORT);
   console.log('🤖 Modèle : ' + GROQ_MODEL);
   console.log('💾 Supabase : ' + (supabase ? '✓' : '❌'));
   console.log('🎁 Gratuit : ' + FREE_LIMIT + ' questions + signe du matin complet + méditation teaser');
+  console.log('🖼️  Dossier public servi sur /');
 });
