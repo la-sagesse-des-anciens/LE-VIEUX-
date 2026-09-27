@@ -32,7 +32,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 app.get('/', (req, res) => {
-  res.json({ status: 'ok', service: 'La Voix des Anciens Backend', version: '11.1.0', model: GROQ_MODEL, supabase_set: !!supabase });
+  res.json({ status: 'ok', service: 'La Voix des Anciens Backend', version: '11.2.0', model: GROQ_MODEL, supabase_set: !!supabase });
 });
 
 const PILIERS = [
@@ -277,7 +277,7 @@ MOTS INTERDITS : "guérir", "magie", "sortilège", "marabout", "féticheur", "en
 RÈGLE DE FIN : chaque phrase est complète, jamais coupée au milieu.`;
 
 // ══════════════════════════════════════════════════════════════════
-// /me — Infos du compte + compteur mensuel
+// /me
 // ══════════════════════════════════════════════════════════════════
 app.post('/me', async (req, res) => {
   const { email } = req.body || {};
@@ -374,7 +374,7 @@ app.post('/webhook/chariow', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /preload — Précharge 6 contenus en arrière-plan
+// /preload
 // ══════════════════════════════════════════════════════════════════
 app.post('/preload', async (req, res) => {
   const { email } = req.body || {};
@@ -419,7 +419,7 @@ app.post('/preload', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /ask — Chat avec compteur
+// /ask
 // ══════════════════════════════════════════════════════════════════
 app.post('/ask', async (req, res) => {
   const { email, question, history } = req.body || {};
@@ -490,7 +490,7 @@ app.post('/ask', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /daily
+// /daily — Gratuit : seulement le signe du matin en teaser
 // ══════════════════════════════════════════════════════════════════
 app.post('/daily', async (req, res) => {
   const { email, type } = req.body || {};
@@ -506,7 +506,8 @@ app.post('/daily', async (req, res) => {
     else if (type === 'meditation') allowed = await getPermissionValue(key, 'meditation');
     else allowed = await getPermissionValue(key, 'daily');
   } else {
-    allowed = (type === 'morning' || type === 'meditation');
+    // Gratuit : SEULEMENT le signe du matin
+    allowed = (type === 'morning');
   }
 
   if (!allowed) return res.status(402).json({ error: 'subscription_required', message: 'Ce contenu est réservé aux abonnés.' });
@@ -533,8 +534,9 @@ app.post('/daily', async (req, res) => {
     if (!content) content = "Assieds-toi, mon enfant. Écoute le vent ce matin. Il porte le message de ta journée. Prends le temps de respirer avant de commencer.";
 
     if (!isSubscribed) {
+      // Gratuit : uniquement 2 phrases en teaser
       const teaser = content.split('\n').slice(0, 2).join('\n');
-      return res.json({ content, teaser, isTeaser: true });
+      return res.json({ content: teaser, teaser, isTeaser: true });
     }
     return res.json({ content });
   } catch (e) {
@@ -543,14 +545,24 @@ app.post('/daily', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /teaching
+// /teaching — Gratuit : teaser seulement
 // ══════════════════════════════════════════════════════════════════
 app.post('/teaching', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
   const key = email.toLowerCase().trim();
   const plan = await getPlan(key);
-  if (!plan) return res.status(402).json({ error: 'subscription_required' });
+
+  if (!plan) {
+    // Gratuit : renvoyer juste un teaser
+    const cacheKeyFree = 'teaching_' + weekKey();
+    const cachedFree = await getCache(cacheKeyFree);
+    const teaserText = cachedFree
+      ? cachedFree.split('\n').slice(0, 3).join('\n')
+      : 'Cette semaine, écoute bien. Les 3 gestes que je vais te donner sont simples mais puissants.';
+    return res.json({ content: teaserText, teaser: teaserText, isTeaser: true, freeTeaser: true });
+  }
+
   const teachingAllowed = await getPermissionValue(key, 'teaching');
   if (!teachingAllowed) return res.status(402).json({ error: 'subscription_required' });
 
@@ -638,7 +650,7 @@ app.post('/challenge', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /library
+// /library — Gratuit : teaser seulement
 // ══════════════════════════════════════════════════════════════════
 app.post('/library', async (req, res) => {
   const { email } = req.body || {};
@@ -663,8 +675,9 @@ app.post('/library', async (req, res) => {
     if (!content) content = "Le vieux et la rivière\n\nUn jeune homme vint voir un ancien, en colère.\nL'ancien l'emmena au bord d'une rivière.\nLa rivière ne se plaint jamais.\nElle contourne. Elle attend. Elle use.\nTa colère, c'est un rocher.\nSi tu le frappes, tu te blesses.\nSi tu l'uses par la patience, tu passes.\n\nMorale : Ne frappe pas l'obstacle. Contourne-le avec patience.";
 
     if (!isSubscribed) {
-      const teaser = content.split('\n').slice(0, 4).join('\n');
-      return res.json({ content, teaser, isTeaser: true });
+      // Gratuit : titre + 2 phrases seulement
+      const teaser = content.split('\n').slice(0, 3).join('\n');
+      return res.json({ content: teaser, teaser, isTeaser: true });
     }
     const nextUpdate = (libraryLevel === 'weekly') ? 'weekly' : 'daily';
     return res.json({ content, nextUpdate });
@@ -701,7 +714,8 @@ app.get('/admin/stats', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend v11.1.0 sur port ' + PORT);
+  console.log('🌳 Le Vieux backend v11.2.0 sur port ' + PORT);
   console.log('🤖 Modèle : ' + GROQ_MODEL);
   console.log('💾 Supabase : ' + (supabase ? '✓' : '❌'));
+  console.log('🎁 Gratuit : 5 questions + signe du matin + teasers');
 });
