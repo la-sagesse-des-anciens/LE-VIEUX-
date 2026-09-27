@@ -23,7 +23,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'La Voix des Anciens Backend',
-    version: '5.0.0',
+    version: '5.1.0',
     ai_provider: 'Groq',
     ai_model: GROQ_MODEL,
     groq_key_set: !!GROQ_API_KEY && GROQ_API_KEY.length > 10,
@@ -38,47 +38,46 @@ const CATEGORIES = [
   {
     id: 'nature',
     label: 'Sagesse de la nature',
-    prompt: `Parle de la sagesse que la nature enseigne. Choisis UN élément (arbre, plante, eau, terre, feu, vent, animal, saison) et tire une leçon profonde pour la vie humaine. Explique ce que cet élément fait, et ce que l'humain doit apprendre de lui. Ton : direct, sage, autoritaire. Pas de religion. Pas de superstition. Uniquement la sagesse naturelle universelle.`
+    prompt: `Parle de la sagesse que la nature enseigne. Choisis UN élément (arbre, plante, eau, terre, feu, vent, animal, saison) et tire une leçon profonde pour la vie humaine. Explique ce que cet élément fait, et ce que l'humain doit apprendre de lui. Ton : direct, sage, autoritaire. Pas de religion. Pas de superstition.`
   },
   {
     id: 'signes',
     label: 'Signes et destinée',
-    prompt: `Parle des signes que la vie nous envoie. Un signe concret (un oiseau, un objet trouvé, un événement répété, une rencontre) et comment l'interpréter avec sagesse. Explique : 1) le signe, 2) ce qu'il signifie, 3) comment agir. Ton : direct, sage, autoritaire. Pas de religion. Pas de sorcellerie. Juste l'observation et la sagesse.`
+    prompt: `Parle des signes que la vie nous envoie. Un signe concret (un oiseau, un objet trouvé, un événement répété, une rencontre) et comment l'interpréter avec sagesse. Explique : 1) le signe, 2) ce qu'il signifie, 3) comment agir. Ton : direct, sage, autoritaire.`
   },
   {
     id: 'protection',
     label: 'Protection intérieure',
-    prompt: `Explique comment se protéger intérieurement des mauvaises énergies, des intentions négatives, des personnes toxiques. Donne une pratique concrète (un rituel de sel, un bain, une intention, un geste). Explique : 1) pourquoi, 2) comment, 3) quand. Ton : direct, sage. Pas de religion. Pas de sorcellerie. Juste la purification naturelle.`
+    prompt: `Explique comment se protéger intérieurement des mauvaises énergies, des intentions négatives, des personnes toxiques. Donne une pratique concrète (un rituel de sel, un bain, une intention, un geste). Explique : 1) pourquoi, 2) comment, 3) quand. Ton : direct, sage.`
   },
   {
     id: 'reves',
     label: 'Rêves et messages',
-    prompt: `Interprète un rêve courant de manière noble et symbolique. Choisis UN rêve (eau, serpent, dents, chute, vol, mort, mariage, argent, feu) et explique son sens profond. Rappelle que le rêve est un message de ton propre esprit, pas une prédiction. Explique : 1) le rêve, 2) son sens symbolique, 3) ce que tu dois en faire. Ton : direct, sage, mystérieux mais noble.`
+    prompt: `Interprète un rêve courant de manière noble et symbolique. Choisis UN rêve (eau, serpent, dents, chute, vol, mort, mariage, argent, feu) et explique son sens profond. Rappelle que le rêve est un message de ton propre esprit, pas une prédiction. Explique : 1) le rêve, 2) son sens symbolique, 3) ce que tu dois en faire.`
   },
   {
     id: 'abondance',
     label: 'Abondance',
-    prompt: `Parle de l'abondance et de la prospérité. Explique ce qui attire et ce qui repousse l'argent. Donne un principe concret (une attitude, un geste, une habitude) lié à la sagesse ancienne. Explique : 1) le principe, 2) pourquoi il marche, 3) comment l'appliquer aujourd'hui. Ton : direct, sage. Pas de promesse magique. Juste la sagesse pratique.`
+    prompt: `Parle de l'abondance et de la prospérité. Explique ce qui attire et ce qui repousse l'argent. Donne un principe concret (une attitude, un geste, une habitude) lié à la sagesse ancienne. Explique : 1) le principe, 2) pourquoi il marche, 3) comment l'appliquer aujourd'hui.`
   },
   {
     id: 'paix',
     label: 'Paix et ancrage',
-    prompt: `Aide à retrouver la paix intérieure dans le chaos. Explique un état intérieur (colère, peur, doute, fatigue, tristesse) et comment le traverser avec sagesse. Donne un geste simple, une pensée, ou une pratique d'ancrage. Ton : direct, sage, chaleureux. Pas de psychologie moderne. Juste la sagesse ancienne.`
+    prompt: `Aide à retrouver la paix intérieure dans le chaos. Explique un état intérieur (colère, peur, doute, fatigue, tristesse) et comment le traverser avec sagesse. Donne un geste simple, une pensée, ou une pratique d'ancrage. Ton : direct, sage, chaleureux.`
   },
   {
     id: 'cycles',
     label: 'Cycles et temps',
-    prompt: `Parle des cycles de la vie : naissance, lune, saison, âge, moment propice. Explique comment un cycle influence une situation. Donne un conseil pratique : quel moment est bon pour agir, pour attendre, pour se reposer. Ton : direct, sage. Pas de religion. Pas d'astrologie moderne. Juste l'observation ancienne des cycles.`
+    prompt: `Parle des cycles de la vie : naissance, lune, saison, âge, moment propice. Explique comment un cycle influence une situation. Donne un conseil pratique : quel moment est bon pour agir, pour attendre, pour se reposer.`
   },
   {
     id: 'rituels',
     label: 'Rituels nobles',
-    prompt: `Décris un rituel simple et noble d'ancrage ou de purification. Basé sur des éléments naturels (eau, sel, feu, plante, lumière). Explique : 1) à quoi ça sert, 2) comment le faire, 3) quand le faire. Ton : direct, sage, respectueux. Pas de religion. Pas de sorcellerie. Juste un geste ancien de reconnexion.`
+    prompt: `Décris un rituel simple et noble d'ancrage ou de purification. Basé sur des éléments naturels (eau, sel, feu, plante, lumière). Explique : 1) à quoi ça sert, 2) comment le faire, 3) quand le faire. Ton : direct, sage, respectueux.`
   }
 ];
 
 function getDayCategory(dateStr) {
-  // Rotation basée sur le jour de l'année
   const d = new Date(dateStr || Date.now());
   const dayOfYear = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
   return CATEGORIES[dayOfYear % CATEGORIES.length];
@@ -101,9 +100,6 @@ function weekKey() {
   return year + '-W' + week;
 }
 
-// ══════════════════════════════════════════════════════════════════
-// APPELS GROQ
-// ══════════════════════════════════════════════════════════════════
 function convertHistoryForAI(history) {
   if (!Array.isArray(history)) return [];
   return history
@@ -212,9 +208,6 @@ async function generateWithCache(cacheKey, prompt, maxTokens, temperature, label
   return null;
 }
 
-// ══════════════════════════════════════════════════════════════════
-// VÉRIFICATION D'ACCÈS
-// ══════════════════════════════════════════════════════════════════
 async function isSubscribed(email) {
   if (!supabase || !email) return false;
   try {
@@ -259,9 +252,6 @@ app.post('/check-access', async (req, res) => {
   }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// WEBHOOK CHARIOW
-// ══════════════════════════════════════════════════════════════════
 app.post('/webhook/chariow', async (req, res) => {
   const event = req.body;
   console.log('📩 Webhook Chariow :', JSON.stringify(event));
@@ -313,7 +303,7 @@ app.post('/webhook/chariow', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// CHAT AVEC L'ANCIEN — 5 questions gratuites
+// CHAT — 5 questions gratuites
 // ══════════════════════════════════════════════════════════════════
 app.post('/ask', async (req, res) => {
   const { email, question, history } = req.body || {};
@@ -327,7 +317,6 @@ app.post('/ask', async (req, res) => {
   }
 
   const key = email.toLowerCase().trim();
-  const now = Date.now();
   const FREE_LIMIT = 5;
 
   const subscribed = await isSubscribed(key);
@@ -376,7 +365,7 @@ Tu ne mentionnes jamais que tu es une IA. Tu es L'Ancien, point.`;
       { role: 'user', content: String(question).trim() }
     ];
 
-    const response = await callGroq(messages, 800, 0.9);
+    const response = await callGroq(messages, 1000, 0.9);
 
     if (!response || !response.ok) {
       const errText = response ? await response.text() : 'No response';
@@ -410,7 +399,7 @@ Tu ne mentionnes jamais que tu es une IA. Tu es L'Ancien, point.`;
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /daily — 3 contenus quotidiens (avec rotation de catégories)
+// /daily — Signe / Méditation / Rituel
 // ══════════════════════════════════════════════════════════════════
 app.post('/daily', async (req, res) => {
   const { email, type } = req.body || {};
@@ -421,26 +410,22 @@ app.post('/daily', async (req, res) => {
 
   const dayKey = todayKey();
   const cacheKey = 'daily_' + dayKey + '_' + (type || 'morning');
-  const dayCategory = getDayCategory();
 
   let prompt;
 
   if (type === 'evening') {
-    // Rituel du soir — catégorie "paix" ou "rêves"
     const eveningCategories = ['paix', 'reves', 'protection'];
     const cat = CATEGORIES.find(c => c.id === eveningCategories[
       Math.floor((Date.now() / 86400000) % eveningCategories.length)
     ]) || CATEGORIES[5];
     prompt = `${cat.prompt}\n\nContexte : c'est le soir. Donne un contenu pour la soirée. Format : 1) le sujet (2 phrases), 2) l'explication (3-4 phrases), 3) l'action concrète (2 phrases). Français simple, ton direct et sage.`;
   } else if (type === 'meditation') {
-    // Méditation du matin — catégorie "nature" ou "rituels"
     const medCategories = ['nature', 'rituels', 'cycles'];
     const cat = CATEGORIES.find(c => c.id === medCategories[
       Math.floor((Date.now() / 86400000) % medCategories.length)
     ]) || CATEGORIES[0];
     prompt = `${cat.prompt}\n\nContexte : c'est le matin. Donne une méditation courte et puissante. Format : 3-5 phrases. Un geste simple à faire ce matin. Français simple, ton direct et sage.`;
   } else {
-    // Proverbe du matin — catégorie "signes" ou "abondance"
     const morningCategories = ['signes', 'abondance', 'nature'];
     const cat = CATEGORIES.find(c => c.id === morningCategories[
       Math.floor((Date.now() / 86400000) % morningCategories.length)
@@ -449,7 +434,7 @@ app.post('/daily', async (req, res) => {
   }
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 800, 0.92, '/daily (' + type + ')');
+    let content = await generateWithCache(cacheKey, prompt, 1200, 0.92, '/daily (' + type + ')');
 
     if (!content) {
       const fallbacks = {
@@ -460,7 +445,6 @@ app.post('/daily', async (req, res) => {
       content = fallbacks[type] || fallbacks.morning;
     }
 
-    // Si non abonné, on renvoie un TEASER
     if (!subscribed) {
       const teaser = content.split('\n').slice(0, 2).join('\n');
       return res.status(402).json({
@@ -477,7 +461,7 @@ app.post('/daily', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /teaching — Enseignement hebdo (catégorie différente chaque semaine)
+// /teaching — Enseignement hebdo (maxTokens 1800)
 // ══════════════════════════════════════════════════════════════════
 app.post('/teaching', async (req, res) => {
   const { email } = req.body || {};
@@ -499,10 +483,10 @@ Format de l'enseignement :
 - Une action de la semaine (2 phrases)
 - Conclusion (2 phrases de sagesse)
 
-Total : environ 300 mots. Français simple, ton direct, autoritaire, sage. Pas de religion. Pas de sorcellerie. Juste la sagesse ancestrale noble.`;
+Total : environ 400 mots. Français simple, ton direct, autoritaire, sage.`;
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 1200, 0.92, '/teaching');
+    let content = await generateWithCache(cacheKey, prompt, 1800, 0.92, '/teaching');
 
     if (!content) {
       content = "La sagesse du baobab\n\nLe baobab ne pousse pas vite. Il pousse longtemps. Voici ce que les anciens enseignaient sur cet arbre.\n\n1. La lenteur n'est pas une faiblesse. Le baobab met 100 ans à devenir grand, mais rien ne le déracine ensuite.\n\n2. Le baobab donne tout : fruit, ombre, écorce, eau. Plus tu grandis, plus tu dois donner.\n\n3. Le baobab vit plus longtemps que ceux qui le plantent. Ce que tu fais aujourd'hui servira à tes petits-enfants.\n\nAction de la semaine : plante quelque chose. Une graine, une idée, une relation. Et laisse le temps faire.\n\nCe que tu construis lentement, rien ne peut le détruire.";
@@ -524,7 +508,7 @@ Total : environ 300 mots. Français simple, ton direct, autoritaire, sage. Pas d
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /challenge — Défi de 7 jours (thème tournant)
+// /challenge — Défi de 7 jours (maxTokens 1500)
 // ══════════════════════════════════════════════════════════════════
 app.post('/challenge', async (req, res) => {
   const { email } = req.body || {};
@@ -539,16 +523,22 @@ app.post('/challenge', async (req, res) => {
   const prompt = `Tu es L'Ancien. Défi de 7 jours sur le thème : ${weekCat.label}.
 ${weekCat.prompt}
 
-Format du défi :
+Format OBLIGATOIRE (respecte exactement) :
 - Titre (court et fort)
 - Introduction (1 phrase)
-- Jour 1 à Jour 7 : une action concrète par jour (2 phrases chacune)
+- Jour 1 : (1 action concrète, 1-2 phrases)
+- Jour 2 : (1 action concrète, 1-2 phrases)
+- Jour 3 : (1 action concrète, 1-2 phrases)
+- Jour 4 : (1 action concrète, 1-2 phrases)
+- Jour 5 : (1 action concrète, 1-2 phrases)
+- Jour 6 : (1 action concrète, 1-2 phrases)
+- Jour 7 : (1 action concrète, 1-2 phrases)
 - Conclusion (1 phrase)
 
-Total : environ 200 mots. Français simple, ton direct, sage. Pas de religion. Pas de sorcellerie.`;
+Écris les 7 jours en entier, sans t'arrêter.`;
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 900, 0.92, '/challenge');
+    let content = await generateWithCache(cacheKey, prompt, 1500, 0.92, '/challenge');
 
     if (!content) {
       content = "7 jours de reconnexion\n\nUne semaine pour revenir à l'essentiel.\n\nJour 1 : Regarde le ciel 5 minutes. Sans rien faire d'autre.\n\nJour 2 : Marche pieds nus sur la terre ou l'herbe.\n\nJour 3 : Écris une chose que tu n'as jamais dite à personne.\n\nJour 4 : Offre quelque chose sans attendre de retour.\n\nJour 5 : Reste 10 minutes en silence complet.\n\nJour 6 : Contacte quelqu'un que tu as perdu de vue.\n\nJour 7 : Relis tout ce que tu as fait cette semaine.\n\nCe que tu fais 7 jours de suite devient une habitude. Une habitude devient une vie.";
@@ -570,7 +560,7 @@ Total : environ 200 mots. Français simple, ton direct, sage. Pas de religion. P
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /library — Conte africain quotidien
+// /library — Conte africain (maxTokens 1800)
 // ══════════════════════════════════════════════════════════════════
 app.post('/library', async (req, res) => {
   const { email } = req.body || {};
@@ -590,10 +580,10 @@ Format du conte :
 - La morale (2 phrases)
 
 Le conte doit être noble, universel, sans religion, sans sorcellerie. Il doit transmettre une leçon profonde sur la vie, la nature, les cycles, la sagesse.
-Français simple, ton chaleureux de conteur ancien.`;
+Français simple, ton chaleureux de conteur ancien. Écris le conte en entier sans t'arrêter.`;
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 1500, 0.95, '/library');
+    let content = await generateWithCache(cacheKey, prompt, 1800, 0.95, '/library');
 
     if (!content) {
       content = "Le vieux et la rivière\n\nUn jour, un jeune homme vint voir un ancien. Il était en colère contre la vie.\nL'ancien l'emmena au bord d'une rivière.\nRegarde, dit-il. La rivière ne se plaint jamais.\nElle ne dit pas : pourquoi ce rocher sur mon chemin ?\nElle contourne. Elle attend. Elle use.\nLe jeune homme regarda la rivière.\nElle était là depuis toujours, et elle coulait toujours.\nL'ancien dit : Ta colère, c'est un rocher. Si tu le frappes, tu te blesses.\nSi tu l'uses par la patience, tu passes.\nLe jeune homme comprit.\nIl revint un an plus tard.\nIl avait contourné son rocher.\nEt il coulait, lui aussi, comme la rivière.\n\nMorale : Ne frappe pas l'obstacle. Contourne-le. Ce que la patience fait, la colère ne le fera jamais.";
@@ -658,9 +648,9 @@ app.get('/admin/stats', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 La Voix des Anciens backend v5.0.0 sur port ' + PORT);
+  console.log('🌳 L\'Ancien backend v5.1.0 sur port ' + PORT);
   console.log('📊 Admin : /admin/stats?pwd=' + ADMIN_PWD);
   console.log('🔑 Groq : ' + (GROQ_API_KEY ? '✓' : '❌'));
   console.log('💾 Supabase : ' + (supabase ? '✓' : '❌'));
-  console.log('📚 8 catégories de sagesse chargées');
+  console.log('📚 8 catégories chargées');
 });
