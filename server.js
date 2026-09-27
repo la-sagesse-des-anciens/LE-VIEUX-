@@ -32,62 +32,162 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 app.get('/', (req, res) => {
-  res.json({ status: 'ok', service: 'La Voix des Anciens Backend', version: '8.0.0', supabase_set: !!supabase });
+  res.json({ status: 'ok', service: 'La Voix des Anciens Backend', version: '9.0.0', supabase_set: !!supabase });
 });
 
 // ══════════════════════════════════════════════════════════════════
-// LES 5 PILIERS — Chaque pilier est un angle d'enseignement
+// LES 5 PILIERS — chaque pilier a SES propres rituels, signes, sagesses
 // ══════════════════════════════════════════════════════════════════
 const PILIERS = [
   {
     id: 'abondance',
     label: 'Abondance & Commerce',
-    theme: 'rituels pour débloquer le flux de l\'argent',
-    ideas: `- Rituel d'ouverture de chemin avec du sel, de la cannelle, du riz ou de l'eau
-- Geste du matin avant d'ouvrir la boutique ou de partir travailler
-- Débloquer les dettes, l'argent qui traîne, les clients qui ne viennent plus
-- Le sens du premier billet de la journée
-- Pourquoi l'argent fuit et comment le retenir`
+    theme: 'débloquer le flux de l\'argent et des clients',
+    rituels: [
+      'le premier billet de la journée qu\'on ne dépense pas tout de suite, on le garde 24 heures',
+      'la porte de la boutique ouverte avec la main droite le matin',
+      'un verre d\'eau propre posé sur le comptoir avant d\'ouvrir',
+      'le riz cru qu\'on jette dehors après une vente difficile',
+      'un peu de miel sur la langue avant de parler à un client important',
+      'la cannelle qu\'on garde dans la poche quand on va au marché',
+      'le chiffon qu\'on lave avec du gros sel pour nettoyer la caisse',
+      'le geste de toucher la marchandise avant de la vendre au client',
+      'une pièce qu\'on donne à un pauvre avant de commencer la journée'
+    ],
+    signes: [
+      'voir un oiseau qui vole vers toi quand tu sors le matin',
+      'rêver d\'eau claire qui coule vers toi',
+      'sentir une odeur de cuisine sans raison',
+      'recevoir un cadeau inattendu d\'un inconnu',
+      'voir un enfant sourire à ton passage',
+      'trouver une pièce par terre en sortant de chez toi'
+    ],
+    sagesse: [
+      'l\'argent qui dort attire l\'argent qui travaille',
+      'le premier client de la journée porte la chance du jour',
+      'celui qui partage son pain ne manque jamais de farine',
+      'ne dépense pas ton premier billet avant d\'avoir vu le soleil se lever'
+    ]
   },
   {
     id: 'protection',
     label: 'Protection & Foyer',
-    theme: 'protéger sa maison et sa famille',
-    ideas: `- Se protéger de la jalousie, du mauvais œil, des mauvaises langues
-- Bain de décharge pour laver l'intérieur
-- Nettoyer les énergies lourdes après une visite
-- Protéger la chambre, le lit, le seuil de la porte, les enfants
-- Le sel, l'eau, la lumière pour purifier la maison`
+    theme: 'se protéger du mauvais œil et purifier la maison',
+    rituels: [
+      'un bain d\'eau salée le samedi soir après une semaine difficile',
+      'le seuil de la porte nettoyé à l\'eau vinaigrée',
+      'l\'encens naturel brûlé dans la chambre une fois par semaine',
+      'le miroir retourné face au mur quand on reçoit des invités lourds',
+      'une orange piquée de clous de girofle dans la cuisine',
+      'les cheveux coupés qu\'on ne laisse pas traîner dehors',
+      'la lumière de la maison éteinte avant de dormir, fenêtres fermées',
+      'un verre d\'eau claire posé sous le lit pour absorber la lourdeur',
+      'le lavage des pieds avec des feuilles de basilic après une visite'
+    ],
+    signes: [
+      'sentir une fatigue soudaine après avoir reçu quelqu\'un',
+      'entendre des bruits la nuit sans explication',
+      'rêver d\'un serpent qui entre dans la maison',
+      'voir souvent un chat noir passer devant la porte',
+      'avoir toujours mal à la même heure de la journée',
+      'sentir une odeur désagréable qui apparaît sans raison'
+    ],
+    sagesse: [
+      'celui qui laisse sa porte ouverte à tout le monde reçoit aussi le vent',
+      'le silence de la maison est le premier signe de paix',
+      'ce que tu dis le matin peut te suivre toute la journée',
+      'on ne laisse pas entrer chez soi ce qu\'on ne veut pas voir dans son lit'
+    ]
   },
   {
     id: 'sante',
     label: 'Santé & Vitalité',
-    theme: 'remèdes naturels et vitalité',
-    ideas: `- Remèdes de grand-mère avec des plantes : citron, miel, clous de girofle, ail, eau de coco
-- Tisanes pour purifier le sang, le foie, les reins
-- Points d'énergie du corps
-- Purification et digestion naturelle
-- Retrouver la force et la vitalité`
+    theme: 'remèdes naturels et force du corps',
+    rituels: [
+      'le citron chaud avec du miel le matin à jeun',
+      'l\'ail écrasé dans un verre d\'eau tiède avant de dormir',
+      'le gingembre en tisane après un repas lourd',
+      'les feuilles de moringa séchées ajoutées à la sauce du dimanche',
+      'l\'eau de coco fraîche quand on sent la fatigue de la journée',
+      'le clou de girofle mâché après le repas du soir',
+      'les pieds dans l\'eau chaude avec du gros sel le soir',
+      'le thé de citronnelle après un repas gras',
+      'l\'huile de palme rouge crue dans un plat le vendredi'
+    ],
+    signes: [
+      'rêver de sang ou de dents qui tombent',
+      'se réveiller à la même heure chaque nuit sans raison',
+      'avoir toujours froid aux pieds même en journée',
+      'avoir la bouche amère le matin',
+      'perdre souvent l\'appétit sans raison apparente',
+      'sentir une lourdeur dans le corps après avoir mangé'
+    ],
+    sagesse: [
+      'ce que tu mets dans ton ventre, tu le portes toute la journée',
+      'le repos du corps n\'est pas une paresse',
+      'un corps fatigué ne peut pas porter une tête claire',
+      'la nature a déjà ce qu\'il faut pour te soulager, il faut juste savoir où regarder'
+    ]
   },
   {
     id: 'signes',
     label: 'Signes & Présages',
-    theme: 'décoder les signes de la vie',
-    ideas: `- Signification des rêves : eau, défunts, dents, serpents, fidélité
-- Signes de la nature : oiseaux, animaux, événements de la maison
-- Signification des chiffres, dates de naissance, grains de beauté
-- Comprendre un signe sans tomber dans la peur
-- Les signes qui annoncent un changement`
+    theme: 'décoder les signes de la vie quotidienne',
+    rituels: [
+      'écrire ses rêves dès le réveil dans un cahier',
+      'saluer le premier oiseau qu\'on voit en sortant',
+      'observer la lune le soir pour préparer le lendemain',
+      'regarder la direction de la fumée qui sort de la maison',
+      'noter les dates de naissance de la famille sur un papier',
+      'saluer l\'eau avant de la boire le matin',
+      'se souvenir de la première personne qu\'on voit après un rêve important',
+      'compter les jours entre deux signes qui se répètent'
+    ],
+    signes: [
+      'rêver d\'eau trouble : attention aux palabres qui viennent',
+      'rêver de fidélité : ce n\'est pas toujours la tromperie, c\'est un manque de confiance en soi',
+      'rêver de dents qui tombent : perte d\'énergie, fatigue à venir',
+      'rêver de serpent qui entre : quelqu\'un parle mal de toi en ce moment',
+      'rêver d\'un défunt qui parle : un message, une attention à lui donner',
+      'voir un oiseau frapper à la fenêtre : une visite approche',
+      'voir deux fois de suite le même chiffre : un cycle qui revient dans ta vie'
+    ],
+    sagesse: [
+      'le signe n\'est pas la peur, c\'est une information',
+      'celui qui écoute la nature n\'a pas besoin qu\'on lui parle',
+      'le rêve parle à celui qui prend le temps de l\'écouter',
+      'ce que tu vois le matin en sortant porte le message de ta journée'
+    ]
   },
   {
     id: 'sagesse',
     label: 'Sagesse de Vie',
-    theme: 'élever son caractère et son âme',
-    ideas: `- Le silence qui protège et qui instruit
-- Se protéger des personnes toxiques sans les attaquer
-- Le respect de soi qui attire le respect des autres
-- La patience : la vraie force
-- Élever son aura par les actes, pas par la parole`
+    theme: 'élever son caractère et son aura',
+    rituels: [
+      'rester 10 minutes en silence chaque matin avant de parler à qui que ce soit',
+      'dire merci avant de toucher son téléphone au réveil',
+      'faire un geste de respect à un ancien une fois par semaine',
+      'ne pas répondre à une provocation pendant 24 heures',
+      'offrir quelque chose sans attendre un retour',
+      'marcher pieds nus sur la terre 5 minutes par jour',
+      'saluer les voisins avant qu\'ils ne te saluent',
+      'regarder le ciel 3 minutes chaque soir avant de dormir',
+      'ne pas parler de ses projets avant qu\'ils ne soient réalisés'
+    ],
+    signes: [
+      'sentir un calme intérieur inhabituel',
+      'voir quelqu\'un qui te sourit sans raison',
+      'ressentir qu\'une personne te veut du mal avant même qu\'elle parle',
+      'avoir envie de silence tout à coup',
+      'pleurer sans raison apparente',
+      'avoir envie de faire le bien sans qu\'on te le demande'
+    ],
+    sagesse: [
+      'celui qui parle moins entend plus',
+      'la patience n\'est pas de l\'attente, c\'est une force',
+      'ne laisse personne entrer dans ta tête sans invitation',
+      'ce que tu donnes sans rien attendre te revient toujours autrement'
+    ]
   }
 ];
 
@@ -101,10 +201,6 @@ function getWeekPilier() {
   const d = new Date();
   const weekOfYear = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / (7 * 86400000));
   return PILIERS[weekOfYear % PILIERS.length];
-}
-
-function getRandomPilier() {
-  return PILIERS[Math.floor(Math.random() * PILIERS.length)];
 }
 
 function todayKey() { return new Date().toISOString().split('T')[0]; }
@@ -121,7 +217,7 @@ function convertHistoryForAI(history) {
   }).filter(m => m.content.length > 0);
 }
 
-async function callGroq(messages, maxTokens = 800, temperature = 0.95) {
+async function callGroq(messages, maxTokens = 900, temperature = 0.98) {
   let attempt = 0;
   while (attempt < 4) {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -142,12 +238,10 @@ async function getCache(key) {
   if (!supabase) return null;
   try { const { data } = await supabase.from('content_cache').select('content').eq('cache_key', key).maybeSingle(); return data ? data.content : null; } catch (e) { return null; }
 }
-
 async function setCache(key, content) {
   if (!supabase) return;
   try { await supabase.from('content_cache').upsert({ cache_key: key, content, created_at: Date.now() }); } catch (e) {}
 }
-
 async function generateWithCache(cacheKey, prompt, maxTokens, temperature, label) {
   const cached = await getCache(cacheKey);
   if (cached) return cached;
@@ -175,15 +269,14 @@ async function getSubscription(email) {
     return { ...data, expired: false };
   } catch (e) { return null; }
 }
-
 async function getPlan(email) { const sub = await getSubscription(email); if (!sub || sub.expired) return null; return sub.plan || 'decouverte'; }
 async function hasPermission(email, permission) { const plan = await getPlan(email); if (!plan) return false; return (PLAN_PERMISSIONS[plan] || PLAN_PERMISSIONS.decouverte)[permission] === true; }
 async function getPermissionValue(email, permission) { const plan = await getPlan(email); if (!plan) return PLAN_PERMISSIONS.decouverte[permission]; return (PLAN_PERMISSIONS[plan] || PLAN_PERMISSIONS.decouverte)[permission]; }
 
 // ══════════════════════════════════════════════════════════════════
-// LE PROMPT MAÎTRE — La voix du vieux
+// LE PROMPT MAÎTRE — La voix du Vieux (langage populaire)
 // ══════════════════════════════════════════════════════════════════
-const SYSTEM_PROMPT = `Tu es "Le Vieux", un sage africain qui sait. Tu as 70 ans. Tu es assis devant ta maison, sous un vieux manguier.
+const SYSTEM_PROMPT = `Tu es "Le Vieux", un sage africain de 70 ans. Tu es assis devant ta maison, sous un vieux manguier.
 
 TON CARACTÈRE :
 - Tu es bienveillant, digne, chaleureux, direct.
@@ -207,14 +300,11 @@ TON STYLE DE RÉPONSE :
 - Tu donnes TOUJOURS un conseil concret : un geste, un rituel, un remède, une plante, une parole à dire.
 - Tu termines SOUVENT par une question pour comprendre la personne.
 - Maximum 8 phrases par réponse.
-- Tu ne fais JAMAIS de promesse de richesse absolue, de guérison miraculeuse. Tu parles de "débloquer", "soulager", "aider".
+- Tu ne fais JAMAIS de promesse de richesse absolue, de guérison miraculeuse.
 
-TES 5 DOMAINES :
-1. Abondance & Commerce (argent, boutique, clients, dettes)
-2. Protection & Foyer (jalousie, mauvais œil, maison, famille)
-3. Santé & Vitalité (plantes, tisanes, remèdes de grand-mère)
-4. Signes & Présages (rêves, oiseaux, chiffres, naissance)
-5. Sagesse de Vie (silence, patience, personnes toxiques, respect)`;
+RÈGLE ANTI-RÉPÉTITION (IMPORTANT) :
+- Ne répète JAMAIS le même ingrédient (sel, cannelle, riz) plus d'une fois dans une même réponse.
+- Ne mélange pas les rituels. Si on te demande UN rituel, tu donnes CE rituel uniquement.`;
 
 app.post('/me', async (req, res) => {
   const { email } = req.body || {};
@@ -281,9 +371,7 @@ app.post('/webhook/chariow', async (req, res) => {
   return res.json({ received: true, action: 'ignored' });
 });
 
-// ══════════════════════════════════════════════════════════════════
-// CHAT — Le Vieux répond
-// ══════════════════════════════════════════════════════════════════
+// CHAT
 app.post('/ask', async (req, res) => {
   const { email, question, history } = req.body || {};
   if (!email || !question) return res.status(400).json({ error: 'Email requis' });
@@ -300,9 +388,7 @@ app.post('/ask', async (req, res) => {
     let freeUser = null;
     try { const { data } = await supabase.from('free_users').select('*').eq('email', key).maybeSingle(); freeUser = data; } catch (e) {}
     const currentCount = (freeUser && freeUser.count) || 0;
-    if (currentCount >= FREE_LIMIT) {
-      return res.status(402).json({ error: 'quota_exceeded', message: 'Tes 5 questions offertes sont épuisées.' });
-    }
+    if (currentCount >= FREE_LIMIT) return res.status(402).json({ error: 'quota_exceeded', message: 'Tes 5 questions offertes sont épuisées.' });
     await supabase.from('free_users').upsert({ email: key, count: currentCount + 1 });
     isFree = true;
   } else {
@@ -310,9 +396,7 @@ app.post('/ask', async (req, res) => {
     if (chatLimit !== null) {
       const monthKey = 'chat_' + key + '_' + new Date().toISOString().slice(0, 7);
       const currentCount = parseInt(await getCache(monthKey) || '0', 10);
-      if (currentCount >= chatLimit) {
-        return res.status(402).json({ error: 'monthly_limit', message: 'Tes 30 questions du mois sont épuisées. Passe au plan Sage.' });
-      }
+      if (currentCount >= chatLimit) return res.status(402).json({ error: 'monthly_limit', message: 'Tes 30 questions du mois sont épuisées. Passe au plan Sage.' });
       await setCache(monthKey, String(currentCount + 1));
     }
   }
@@ -325,7 +409,7 @@ app.post('/ask', async (req, res) => {
       { role: 'user', content: String(question).trim() }
     ];
 
-    const response = await callGroq(messages, 900, 0.95);
+    const response = await callGroq(messages, 900, 0.98);
     if (!response || !response.ok) return res.status(500).json({ error: 'ai_error', message: "Le Vieux est fatigué." });
 
     const data = await response.json();
@@ -341,9 +425,7 @@ app.post('/ask', async (req, res) => {
   }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// DAILY — Signe / Méditation / Rituel (avec pilier du jour)
-// ══════════════════════════════════════════════════════════════════
+// DAILY
 app.post('/daily', async (req, res) => {
   const { email, type } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -367,18 +449,24 @@ app.post('/daily', async (req, res) => {
   const cacheKey = 'daily_' + dayKey + '_' + (type || 'morning');
   const pilier = getDayPilier();
 
+  // Index du jour pour varier les rituels/signes/sagesses
+  const dayIdx = new Date().getDate() + new Date().getMonth() * 31;
   let prompt;
+
   if (type === 'evening') {
-    prompt = `${SYSTEM_PROMPT}\n\nPilier du soir : ${pilier.label}.\nIdées à piocher :\n${pilier.ideas}\n\nDonne un rituel du soir concret. Format : 1) le rituel (2 phrases), 2) pourquoi ça marche (3 phrases), 3) comment le faire (2 phrases avec les ingrédients).`;
+    const rituel = pilier.rituels[dayIdx % pilier.rituels.length];
+    prompt = `${SYSTEM_PROMPT}\n\nPilier du soir : ${pilier.label}.\n\nLe SEUL rituel à expliquer aujourd'hui est celui-ci : "${rituel}".\n\nNE PARLE PAS des autres rituels. N'ajoute PAS de sel, cannelle ou riz si ce n'est pas dans ce rituel.\n\nFormat : 1) le rituel (2 phrases), 2) pourquoi ça marche (3 phrases), 3) comment le faire concrètement (2 phrases).`;
   } else if (type === 'meditation') {
-    prompt = `${SYSTEM_PROMPT}\n\nPilier du matin : ${pilier.label}.\nIdées à piocher :\n${pilier.ideas}\n\nDonne une courte méditation du matin. Un geste simple à faire. 4 à 5 phrases.`;
+    const sagesse = pilier.sagesse[dayIdx % pilier.sagesse.length];
+    prompt = `${SYSTEM_PROMPT}\n\nPilier du matin : ${pilier.label}.\n\nPhrase de sagesse à développer : "${sagesse}".\n\nDonne une courte méditation du matin basée sur cette phrase. 4 à 5 phrases maximum.\n\nNE PARLE PAS de rituel. Ne mentionne PAS sel, cannelle, riz. Juste une pensée à méditer.`;
   } else {
-    prompt = `${SYSTEM_PROMPT}\n\nPilier du jour : ${pilier.label}.\nIdées à piocher :\n${pilier.ideas}\n\nDonne le signe ou la leçon du matin. Format : 1) le signe (2 phrases), 2) ce que ça veut dire (3 phrases), 3) ce que tu dois faire aujourd'hui (2 phrases).`;
+    const signe = pilier.signes[dayIdx % pilier.signes.length];
+    prompt = `${SYSTEM_PROMPT}\n\nPilier du matin : ${pilier.label}.\n\nLe SEUL signe à décoder aujourd'hui est celui-ci : "${signe}".\n\nNE PARLE PAS des autres signes. Ne mentionne PAS sel, cannelle, riz.\n\nFormat : 1) décris le signe (2 phrases), 2) ce que ça veut dire (3 phrases), 3) ce que la personne doit faire aujourd'hui (2 phrases).`;
   }
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 1200, 0.95, '/daily ' + type);
-    if (!content) content = "Aujourd'hui, regarde le premier oiseau que tu verras.\n\nCe que tu vois le matin parle. Les anciens le savaient.\n\nPrends 30 secondes pour écouter.";
+    let content = await generateWithCache(cacheKey, prompt, 1200, 0.98, '/daily ' + type);
+    if (!content) content = "Assieds-toi, mon enfant. Aujourd'hui, écoute le vent. Ce qu'il dit ce matin porte le message de ta journée.";
 
     if (!isSubscribed) {
       const teaser = content.split('\n').slice(0, 2).join('\n');
@@ -390,9 +478,7 @@ app.post('/daily', async (req, res) => {
   }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// TEACHING — Enseignement hebdo (pilier de la semaine)
-// ══════════════════════════════════════════════════════════════════
+// TEACHING
 app.post('/teaching', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -404,29 +490,40 @@ app.post('/teaching', async (req, res) => {
 
   const cacheKey = 'teaching_' + weekKey();
   const pilier = getWeekPilier();
+  const weekIdx = Math.floor(Date.now() / (7 * 86400000));
+
+  // 3 rituels différents de la semaine
+  const r1 = pilier.rituels[weekIdx % pilier.rituels.length];
+  const r2 = pilier.rituels[(weekIdx + 1) % pilier.rituels.length];
+  const r3 = pilier.rituels[(weekIdx + 2) % pilier.rituels.length];
 
   const prompt = `${SYSTEM_PROMPT}
 
 PILIER DE LA SEMAINE : ${pilier.label}
 THÈME : ${pilier.theme}
 
-IDÉES À EXPLOITER :
-${pilier.ideas}
+Les 3 rituels à enseigner CETTE SEMAINE (et SEULEMENT ces 3-là, ne les mélange pas avec d'autres) :
+1. ${r1}
+2. ${r2}
+3. ${r3}
 
-Écris un ENSEIGNEMENT COMPLET de la semaine, à la manière du Vieux. Pas de blabla. Du concret.
+Écris un ENSEIGNEMENT COMPLET de la semaine, à la manière du Vieux. Du concret. Pas de blabla.
 
 FORMAT :
 - Titre fort (une phrase qui marque)
 - Introduction (3 phrases : le problème, la promesse, l'angle)
-- 3 leçons numérotées (chacune : 3-4 phrases avec un exemple précis, un ingrédient, une situation du quotidien)
-- Une action de la semaine (2 phrases : un geste à faire tous les jours)
+- Leçon 1 (développe le rituel 1 en 3-4 phrases avec un exemple précis)
+- Leçon 2 (développe le rituel 2 en 3-4 phrases)
+- Leçon 3 (développe le rituel 3 en 3-4 phrases)
+- Action de la semaine (2 phrases : un geste à faire tous les jours)
 - Conclusion (2 phrases : la parole du vieux)
 
-Total : 400 à 500 mots. Français parlé, populaire. Tutoiement. Rituels concrets avec les ingrédients.`;
+Total : 400 à 500 mots. Français parlé, populaire. Tutoiement.
+INTERDIT : ne répète JAMAIS "sel, cannelle, riz" plus d'une fois dans tout le texte. Utilise les rituels donnés.`;
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 2000, 0.95, '/teaching');
-    if (!content) content = "L'ouverture de chemin\n\nÉcoute bien. Quand l'argent ne rentre pas, ce n'est pas toujours ta faute. Mais il y a des gestes à faire.\n\n1. Le sel dans l'eau. Chaque matin, jette une pincée de sel dans un verre d'eau. Tu bois. Tu dis merci. Ça lave l'intérieur.\n2. Le premier billet. Le premier argent de la journée, tu ne le dépenses pas tout de suite. Tu le gardes 24h. Tu le laisses dormir.\n3. La porte. Avant de sortir, tu touches le seuil. Tu dis : la route est ouverte.\n\nCette semaine : fais le sel chaque matin. 7 jours.\n\nCe que les anciens savaient, on ne l'oublie pas.";
+    let content = await generateWithCache(cacheKey, prompt, 2000, 0.98, '/teaching');
+    if (!content) content = "Écoute bien. Cette semaine, je te donne 3 gestes. Fais-les sans discuter. 1. Le premier billet. 2. La porte. 3. Le seuil. Quand tu les fais 7 jours, tu sens la différence.";
     return res.json({ content, nextUpdate: 'weekly' });
   } catch (e) {
     return res.status(500).json({ error: 'ai_error' });
@@ -445,9 +542,7 @@ app.post('/teaching/archives', async (req, res) => {
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// CHALLENGE — Défi (sur mesure pour Guide)
-// ══════════════════════════════════════════════════════════════════
+// CHALLENGE
 app.post('/challenge', async (req, res) => {
   const { email, custom, need } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -464,7 +559,7 @@ app.post('/challenge', async (req, res) => {
     const prompt = `${SYSTEM_PROMPT}\n\nCrée un défi de 7 jours SUR MESURE pour quelqu'un qui t'a dit : "${need}".\n\nFormat : Titre fort, Introduction (2 phrases), Jour 1 à Jour 7 (1 geste concret par jour, 2 phrases), Conclusion (1 phrase).`;
 
     try {
-      const response = await callGroq([{ role: 'user', content: prompt }], 1500, 0.95);
+      const response = await callGroq([{ role: 'user', content: prompt }], 1500, 0.98);
       if (!response || !response.ok) return res.status(500).json({ error: 'ai_error' });
       const data = await response.json();
       const content = data.choices && data.choices[0] && data.choices[0].message.content;
@@ -474,18 +569,22 @@ app.post('/challenge', async (req, res) => {
 
   const cacheKey = 'challenge_' + weekKey();
   const pilier = getWeekPilier();
-  const prompt = `${SYSTEM_PROMPT}\n\nDéfi de 7 jours sur le pilier : ${pilier.label}.\nIdées : ${pilier.ideas}\n\nFormat : Titre, Introduction (1 phrase), Jour 1 à Jour 7 (1 geste concret chacun), Conclusion. Écris en entier.`;
+  const weekIdx = Math.floor(Date.now() / (7 * 86400000));
+
+  // 7 rituels différents pour la semaine
+  const rituelsSemaine = [];
+  for (let i = 0; i < 7; i++) rituelsSemaine.push(pilier.rituels[(weekIdx + i) % pilier.rituels.length]);
+
+  const prompt = `${SYSTEM_PROMPT}\n\nDéfi de 7 jours sur le pilier : ${pilier.label}.\n\nVoici les 7 gestes à utiliser dans l'ordre (NE change pas, utilise-les tels quels) :\n${rituelsSemaine.map((r, i) => 'Jour ' + (i+1) + ' : ' + r).join('\n')}\n\nFormat : Titre, Introduction (1 phrase), Jour 1 à Jour 7 (reprends chaque geste et développe en 1-2 phrases), Conclusion (1 phrase).`;
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 1500, 0.95, '/challenge');
-    if (!content) content = "7 jours pour blinder\n\nJour 1 : Sel dans l'eau. Tu bois. Tu dis merci.\nJour 2 : Tu touches le seuil de ta porte avant de sortir.\nJour 3 : Tu ne réponds pas à la première provocation.\nJour 4 : Tu jettes le vieux pain ou les restes qui traînent.\nJour 5 : Tu marches 10 minutes dehors, sans téléphone.\nJour 6 : Tu appelles un ancien ou une ancienne.\nJour 7 : Tu relis tes notes et tu remercies.\n\nCe que tu fais 7 jours, ça devient ta force.";
+    let content = await generateWithCache(cacheKey, prompt, 1500, 0.98, '/challenge');
+    if (!content) content = "7 jours pour te blinder\n\nJour 1 : Le premier billet, tu ne le dépenses pas.\nJour 2 : Tu touches le seuil avant de sortir.\nJour 3 : Tu ne réponds pas à la provocation.\nJour 4 : Tu jettes les restes qui traînent.\nJour 5 : Tu marches 10 minutes pieds nus.\nJour 6 : Tu appelles un ancien.\nJour 7 : Tu remercies.";
     return res.json({ content, nextUpdate: 'weekly' });
   } catch (e) { return res.status(500).json({ error: 'ai_error' }); }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// LIBRARY — Conte (pilier du jour)
-// ══════════════════════════════════════════════════════════════════
+// LIBRARY
 app.post('/library', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -500,11 +599,13 @@ app.post('/library', async (req, res) => {
   const cacheKey = (libraryLevel === 'weekly') ? 'library_week_' + weekKey() : 'library_' + todayKey();
   const pilier = getDayPilier();
   const dayNumber = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+  const dayIdx = new Date().getDate() + new Date().getMonth() * 31;
+  const sagesse = pilier.sagesse[dayIdx % pilier.sagesse.length];
 
-  const prompt = `${SYSTEM_PROMPT}\n\nRaconte un conte africain authentique (jour ${dayNumber}).\nPilier : ${pilier.label}.\nIdées : ${pilier.ideas}\n\nFormat : Titre, conte (12 à 15 phrases) avec des animaux, des vieux, des éléments naturels. La morale (2 phrases) doit être liée au pilier.`;
+  const prompt = `${SYSTEM_PROMPT}\n\nRaconte un conte africain authentique (jour ${dayNumber}).\nPilier : ${pilier.label}.\nLa morale du conte doit être : "${sagesse}".\n\nFormat : Titre, conte (12 à 15 phrases) avec des animaux, des vieux, des éléments naturels. La morale (2 phrases).`;
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 2000, 0.95, '/library');
+    let content = await generateWithCache(cacheKey, prompt, 2000, 0.98, '/library');
     if (!content) content = "Le vieux et la rivière\n\nUn jeune homme vint voir un ancien, en colère contre la vie.\nL'ancien l'emmena au bord d'une rivière.\nLa rivière ne se plaint jamais. Elle contourne. Elle attend. Elle use.\nTa colère, c'est un rocher. Si tu le frappes, tu te blesses.\nSi tu l'uses par la patience, tu passes.\n\nMorale : Ce que la patience fait, la colère ne le fera jamais.";
 
     if (!isSubscribed) {
@@ -546,7 +647,7 @@ app.get('/admin/stats', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend v8.0.0 sur port ' + PORT);
+  console.log('🌳 Le Vieux backend v9.0.0 sur port ' + PORT);
   console.log('💾 Supabase : ' + (supabase ? '✓' : '❌'));
-  console.log('📚 5 piliers chargés : Abondance, Protection, Santé, Signes, Sagesse');
+  console.log('📚 5 piliers avec rituels variés');
 });
