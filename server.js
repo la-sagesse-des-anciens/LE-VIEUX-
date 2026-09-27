@@ -12,6 +12,48 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
 
 const GROQ_MODEL = 'openai/gpt-oss-20b';
 
+// ══════════════════════════════════════════════════════════════════
+// MAPPING DES PRODUITS CHARIOW → PLANS
+// ══════════════════════════════════════════════════════════════════
+const PRODUCT_TO_PLAN = {
+  'prd_yxuku5': 'decouverte',  // 5 000 FCFA
+  'prd_rhnhn6': 'sage',        // 10 000 FCFA
+  'prd_cnqc9h': 'guide'        // 20 000 FCFA
+};
+
+// ══════════════════════════════════════════════════════════════════
+// PERMISSIONS PAR PLAN
+// ══════════════════════════════════════════════════════════════════
+const PLAN_PERMISSIONS = {
+  decouverte: {
+    chat: true,
+    chatLimit: 30,  // 30 questions/mois
+    daily: true,
+    teaching: true,
+    challenge: false,
+    library: true,
+    journal: false
+  },
+  sage: {
+    chat: true,
+    chatLimit: null, // illimité
+    daily: true,
+    teaching: true,
+    challenge: true,
+    library: true,
+    journal: true
+  },
+  guide: {
+    chat: true,
+    chatLimit: null,
+    daily: true,
+    teaching: true,
+    challenge: true,
+    library: true,
+    journal: true
+  }
+};
+
 const supabase = (SUPABASE_URL && SUPABASE_KEY)
   ? createClient(SUPABASE_URL, SUPABASE_KEY)
   : null;
@@ -23,7 +65,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'La Voix des Anciens Backend',
-    version: '5.1.0',
+    version: '6.0.0',
     ai_provider: 'Groq',
     ai_model: GROQ_MODEL,
     groq_key_set: !!GROQ_API_KEY && GROQ_API_KEY.length > 10,
@@ -35,69 +77,32 @@ app.get('/', (req, res) => {
 // LES 8 CATÉGORIES DE SAGESSE
 // ══════════════════════════════════════════════════════════════════
 const CATEGORIES = [
-  {
-    id: 'nature',
-    label: 'Sagesse de la nature',
-    prompt: `Parle de la sagesse que la nature enseigne. Choisis UN élément (arbre, plante, eau, terre, feu, vent, animal, saison) et tire une leçon profonde pour la vie humaine. Explique ce que cet élément fait, et ce que l'humain doit apprendre de lui. Ton : direct, sage, autoritaire. Pas de religion. Pas de superstition.`
-  },
-  {
-    id: 'signes',
-    label: 'Signes et destinée',
-    prompt: `Parle des signes que la vie nous envoie. Un signe concret (un oiseau, un objet trouvé, un événement répété, une rencontre) et comment l'interpréter avec sagesse. Explique : 1) le signe, 2) ce qu'il signifie, 3) comment agir. Ton : direct, sage, autoritaire.`
-  },
-  {
-    id: 'protection',
-    label: 'Protection intérieure',
-    prompt: `Explique comment se protéger intérieurement des mauvaises énergies, des intentions négatives, des personnes toxiques. Donne une pratique concrète (un rituel de sel, un bain, une intention, un geste). Explique : 1) pourquoi, 2) comment, 3) quand. Ton : direct, sage.`
-  },
-  {
-    id: 'reves',
-    label: 'Rêves et messages',
-    prompt: `Interprète un rêve courant de manière noble et symbolique. Choisis UN rêve (eau, serpent, dents, chute, vol, mort, mariage, argent, feu) et explique son sens profond. Rappelle que le rêve est un message de ton propre esprit, pas une prédiction. Explique : 1) le rêve, 2) son sens symbolique, 3) ce que tu dois en faire.`
-  },
-  {
-    id: 'abondance',
-    label: 'Abondance',
-    prompt: `Parle de l'abondance et de la prospérité. Explique ce qui attire et ce qui repousse l'argent. Donne un principe concret (une attitude, un geste, une habitude) lié à la sagesse ancienne. Explique : 1) le principe, 2) pourquoi il marche, 3) comment l'appliquer aujourd'hui.`
-  },
-  {
-    id: 'paix',
-    label: 'Paix et ancrage',
-    prompt: `Aide à retrouver la paix intérieure dans le chaos. Explique un état intérieur (colère, peur, doute, fatigue, tristesse) et comment le traverser avec sagesse. Donne un geste simple, une pensée, ou une pratique d'ancrage. Ton : direct, sage, chaleureux.`
-  },
-  {
-    id: 'cycles',
-    label: 'Cycles et temps',
-    prompt: `Parle des cycles de la vie : naissance, lune, saison, âge, moment propice. Explique comment un cycle influence une situation. Donne un conseil pratique : quel moment est bon pour agir, pour attendre, pour se reposer.`
-  },
-  {
-    id: 'rituels',
-    label: 'Rituels nobles',
-    prompt: `Décris un rituel simple et noble d'ancrage ou de purification. Basé sur des éléments naturels (eau, sel, feu, plante, lumière). Explique : 1) à quoi ça sert, 2) comment le faire, 3) quand le faire. Ton : direct, sage, respectueux.`
-  }
+  { id: 'nature', label: 'Sagesse de la nature', prompt: `Parle de la sagesse que la nature enseigne...` },
+  { id: 'signes', label: 'Signes et destinée', prompt: `Parle des signes que la vie nous envoie...` },
+  { id: 'protection', label: 'Protection intérieure', prompt: `Explique comment se protéger intérieurement...` },
+  { id: 'reves', label: 'Rêves et messages', prompt: `Interprète un rêve courant...` },
+  { id: 'abondance', label: 'Abondance', prompt: `Parle de l'abondance et de la prospérité...` },
+  { id: 'paix', label: 'Paix et ancrage', prompt: `Aide à retrouver la paix intérieure...` },
+  { id: 'cycles', label: 'Cycles et temps', prompt: `Parle des cycles de la vie...` },
+  { id: 'rituels', label: 'Rituels nobles', prompt: `Décris un rituel simple et noble...` }
 ];
 
-function getDayCategory(dateStr) {
-  const d = new Date(dateStr || Date.now());
+function getDayCategory() {
+  const d = new Date();
   const dayOfYear = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
   return CATEGORIES[dayOfYear % CATEGORIES.length];
 }
 
-function getWeekCategory(dateStr) {
-  const d = new Date(dateStr || Date.now());
+function getWeekCategory() {
+  const d = new Date();
   const weekOfYear = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / (7 * 86400000));
   return CATEGORIES[weekOfYear % CATEGORIES.length];
 }
 
-function todayKey() {
-  return new Date().toISOString().split('T')[0];
-}
-
+function todayKey() { return new Date().toISOString().split('T')[0]; }
 function weekKey() {
   const d = new Date();
-  const year = d.getFullYear();
-  const week = Math.floor((d - new Date(year, 0, 1)) / 604800000);
-  return year + '-W' + week;
+  return d.getFullYear() + '-W' + Math.floor((d - new Date(d.getFullYear(), 0, 1)) / 604800000);
 }
 
 function convertHistoryForAI(history) {
@@ -108,16 +113,15 @@ function convertHistoryForAI(history) {
       let role = 'user';
       const msgRole = (msg.role || '').toLowerCase();
       if (msgRole === 'user') role = 'user';
-      else if (msgRole === 'elder' || msgRole === 'assistant' || msgRole === 'system') role = 'assistant';
+      else role = 'assistant';
       return { role, content: String(msg.content).trim() };
     })
     .filter(msg => msg.content.length > 0);
 }
 
-async function callGroq(messages, maxTokens = 400, temperature = 0.85) {
+async function callGroq(messages, maxTokens = 600, temperature = 0.9) {
   let attempt = 0;
   const maxAttempts = 4;
-
   while (attempt < maxAttempts) {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -132,12 +136,10 @@ async function callGroq(messages, maxTokens = 400, temperature = 0.85) {
         max_tokens: maxTokens
       })
     });
-
     if (response.status === 429) {
       attempt++;
       if (attempt < maxAttempts) {
         const wait = attempt * 3000;
-        console.log('⏳ Rate limit Groq, attente ' + wait + 'ms');
         await new Promise(r => setTimeout(r, wait));
         continue;
       }
@@ -150,108 +152,128 @@ async function callGroq(messages, maxTokens = 400, temperature = 0.85) {
 async function getCache(cacheKey) {
   if (!supabase) return null;
   try {
-    const { data, error } = await supabase
-      .from('content_cache')
-      .select('content')
-      .eq('cache_key', cacheKey)
-      .maybeSingle();
-    if (error || !data) return null;
-    return data.content;
+    const { data } = await supabase.from('content_cache').select('content').eq('cache_key', cacheKey).maybeSingle();
+    return data ? data.content : null;
   } catch (e) { return null; }
 }
 
 async function setCache(cacheKey, content) {
   if (!supabase) return;
   try {
-    await supabase.from('content_cache').upsert({
-      cache_key: cacheKey,
-      content: content,
-      created_at: Date.now()
-    });
-  } catch (e) { console.error('Erreur setCache:', e.message); }
+    await supabase.from('content_cache').upsert({ cache_key: cacheKey, content, created_at: Date.now() });
+  } catch (e) {}
 }
 
 async function generateWithCache(cacheKey, prompt, maxTokens, temperature, label) {
   const cached = await getCache(cacheKey);
-  if (cached) {
-    console.log('💾 Cache hit : ' + cacheKey);
-    return cached;
-  }
-
+  if (cached) return cached;
   let response = null;
   let attempts = 0;
-  const maxAttempts = 5;
-
-  while (attempts < maxAttempts) {
+  while (attempts < 5) {
     attempts++;
-    console.log('📤 ' + label + ' tentative ' + attempts + '/' + maxAttempts);
     response = await callGroq([{ role: 'user', content: prompt }], maxTokens, temperature);
-
     if (response && response.ok) {
       const data = await response.json();
       const content = data.choices && data.choices[0] && data.choices[0].message.content;
       if (content && content.trim().length > 0) {
         await setCache(cacheKey, content.trim());
-        console.log('✅ ' + label + ' généré et caché (' + content.length + ' caractères)');
         return content.trim();
       }
     }
-
-    if (attempts < maxAttempts) {
-      const wait = attempts * 5000;
-      console.log('⏳ ' + label + ' échec, attente ' + wait + 'ms');
-      await new Promise(r => setTimeout(r, wait));
-    }
+    if (attempts < 5) await new Promise(r => setTimeout(r, attempts * 5000));
   }
-
-  console.error('❌ ' + label + ' échec après ' + maxAttempts + ' tentatives');
   return null;
 }
 
-async function isSubscribed(email) {
-  if (!supabase || !email) return false;
+// ══════════════════════════════════════════════════════════════════
+// FONCTIONS UTILITAIRES ABONNEMENT
+// ══════════════════════════════════════════════════════════════════
+async function getSubscription(email) {
+  if (!supabase || !email) return null;
   try {
     const key = email.toLowerCase().trim();
-    const { data: sub } = await supabase.from('subscribers').select('*').eq('email', key).maybeSingle();
-    if (!sub) return false;
-    return Date.now() <= sub.expiry_date;
-  } catch (e) { return false; }
+    const { data } = await supabase.from('subscribers').select('*').eq('email', key).maybeSingle();
+    if (!data) return null;
+    if (Date.now() > data.expiry_date) return { ...data, expired: true };
+    return { ...data, expired: false };
+  } catch (e) { return null; }
 }
 
-app.post('/check-access', async (req, res) => {
+async function hasPermission(email, permission) {
+  const sub = await getSubscription(email);
+  if (!sub || sub.expired) return false;
+  const plan = sub.plan || 'decouverte';
+  const perms = PLAN_PERMISSIONS[plan] || PLAN_PERMISSIONS.decouverte;
+  return perms[permission] === true;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// ROUTE /me — Infos du compte connecté
+// ══════════════════════════════════════════════════════════════════
+app.post('/me', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
 
   const key = email.toLowerCase().trim();
+  const sub = await getSubscription(key);
 
+  // Utilisateur gratuit
+  let freeCount = 0;
   try {
-    const { data: sub } = await supabase
-      .from('subscribers')
-      .select('*')
-      .eq('email', key)
-      .maybeSingle();
+    const { data } = await supabase.from('free_users').select('count').eq('email', key).maybeSingle();
+    freeCount = (data && data.count) || 0;
+  } catch (e) {}
 
-    if (!sub) return res.json({ active: false, reason: 'not_subscribed' });
-
-    const now = Date.now();
-    if (now > sub.expiry_date) {
-      return res.json({ active: false, reason: 'expired', expiryDate: sub.expiry_date });
-    }
-
-    const daysLeft = Math.ceil((sub.expiry_date - now) / 86400000);
+  if (!sub || sub.expired) {
     return res.json({
-      active: true,
       email: key,
-      expiryDate: sub.expiry_date,
-      daysLeft: daysLeft,
-      plan: sub.plan || 'monthly'
+      subscribed: false,
+      expired: sub ? sub.expired : false,
+      plan: null,
+      freeQuestionsUsed: freeCount,
+      freeQuestionsLimit: 5,
+      freeRemaining: Math.max(0, 5 - freeCount)
     });
-  } catch (e) {
-    console.error('check-access erreur:', e.message);
-    return res.json({ active: false, reason: 'error' });
   }
+
+  const daysLeft = Math.ceil((sub.expiry_date - Date.now()) / 86400000);
+  return res.json({
+    email: key,
+    subscribed: true,
+    expired: false,
+    plan: sub.plan || 'decouverte',
+    planLabel: (sub.plan === 'sage' ? 'Sage' : sub.plan === 'guide' ? 'Guide' : 'Découverte'),
+    expiryDate: sub.expiry_date,
+    daysLeft: daysLeft,
+    permissions: PLAN_PERMISSIONS[sub.plan] || PLAN_PERMISSIONS.decouverte
+  });
 });
 
+// ══════════════════════════════════════════════════════════════════
+// CHECK-ACCESS
+// ══════════════════════════════════════════════════════════════════
+app.post('/check-access', async (req, res) => {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'Email requis' });
+  const key = email.toLowerCase().trim();
+  const sub = await getSubscription(key);
+
+  if (!sub) return res.json({ active: false, reason: 'not_subscribed' });
+  if (sub.expired) return res.json({ active: false, reason: 'expired', expiryDate: sub.expiry_date });
+
+  const daysLeft = Math.ceil((sub.expiry_date - Date.now()) / 86400000);
+  return res.json({
+    active: true,
+    email: key,
+    plan: sub.plan || 'decouverte',
+    expiryDate: sub.expiry_date,
+    daysLeft: daysLeft
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════
+// WEBHOOK CHARIOW — détecte le plan par ID produit
+// ══════════════════════════════════════════════════════════════════
 app.post('/webhook/chariow', async (req, res) => {
   const event = req.body;
   console.log('📩 Webhook Chariow :', JSON.stringify(event));
@@ -272,13 +294,18 @@ app.post('/webhook/chariow', async (req, res) => {
   if (!customerEmail) return res.json({ received: true, warning: 'no_email' });
 
   if (eventType.includes('sale') || eventType.includes('purchase') || eventType.includes('successful') || !eventType) {
-    const now = Date.now();
-    const { data: existing } = await supabase
-      .from('subscribers')
-      .select('expiry_date')
-      .eq('email', customerEmail)
-      .maybeSingle();
+    // Détection du plan par ID produit (dans sale.product.id)
+    const productId =
+      (event.sale && event.sale.product && event.sale.product.id) ||
+      (event.product && event.product.id) ||
+      (event.data && event.data.product && event.data.product.id) ||
+      '';
 
+    const plan = PRODUCT_TO_PLAN[productId] || 'decouverte';
+    console.log('🎯 Plan détecté : ' + plan + ' (produit : ' + productId + ')');
+
+    const now = Date.now();
+    const { data: existing } = await supabase.from('subscribers').select('expiry_date').eq('email', customerEmail).maybeSingle();
     const currentExpiry = (existing && existing.expiry_date) || 0;
     const baseDate = Math.max(currentExpiry, now);
     const newExpiry = baseDate + (30 * 24 * 60 * 60 * 1000);
@@ -287,42 +314,33 @@ app.post('/webhook/chariow', async (req, res) => {
       email: customerEmail,
       start_date: now,
       expiry_date: newExpiry,
-      plan: 'monthly',
+      plan: plan,
       updated_at: now
     });
 
-    console.log('✅ Abonnement activé : ' + customerEmail);
-    return res.json({ received: true, action: 'activated', email: customerEmail, expiryDate: newExpiry });
-  }
-
-  if (eventType.includes('expired')) {
-    return res.json({ received: true, action: 'expired' });
+    console.log('✅ Abonnement activé : ' + customerEmail + ' (plan ' + plan + ')');
+    return res.json({ received: true, action: 'activated', email: customerEmail, plan, expiryDate: newExpiry });
   }
 
   return res.json({ received: true, action: 'ignored' });
 });
 
 // ══════════════════════════════════════════════════════════════════
-// CHAT — 5 questions gratuites
+// CHAT — Conversationnel avec mémoire
 // ══════════════════════════════════════════════════════════════════
 app.post('/ask', async (req, res) => {
   const { email, question, history } = req.body || {};
-
-  if (!email || !question) {
-    return res.status(400).json({ error: 'Email et question requis' });
-  }
-
-  if (!GROQ_API_KEY || GROQ_API_KEY.length < 10) {
-    return res.status(500).json({ error: 'config_error' });
-  }
+  if (!email || !question) return res.status(400).json({ error: 'Email et question requis' });
+  if (!GROQ_API_KEY || GROQ_API_KEY.length < 10) return res.status(500).json({ error: 'config_error' });
 
   const key = email.toLowerCase().trim();
   const FREE_LIMIT = 5;
+  const sub = await getSubscription(key);
+  const isSubscribed = sub && !sub.expired;
 
-  const subscribed = await isSubscribed(key);
   let isFree = false;
 
-  if (!subscribed) {
+  if (!isSubscribed) {
     let freeUser = null;
     try {
       const { data } = await supabase.from('free_users').select('*').eq('email', key).maybeSingle();
@@ -331,33 +349,32 @@ app.post('/ask', async (req, res) => {
 
     const currentCount = (freeUser && freeUser.count) || 0;
     if (currentCount >= FREE_LIMIT) {
-      return res.status(402).json({
-        error: 'quota_exceeded',
-        message: 'Tes 5 questions offertes sont épuisées.',
-        freeUsed: currentCount,
-        freeLimit: FREE_LIMIT
-      });
+      return res.status(402).json({ error: 'quota_exceeded', message: 'Tes 5 questions offertes sont épuisées.', freeUsed: currentCount, freeLimit: FREE_LIMIT });
     }
-
-    await supabase.from('free_users').upsert({
-      email: key,
-      count: currentCount + 1
-    });
+    await supabase.from('free_users').upsert({ email: key, count: currentCount + 1 });
     isFree = true;
   }
 
   try {
+    // PROMPT CONVERSATIONNEL
     const systemPrompt = `Tu es "L'Ancien", un sage africain de 70 ans, assis sous un baobab sacré.
-Tu transmets la sagesse ancestrale africaine noble — celle qui parle de la nature, des signes, des cycles, de la protection intérieure, des rêves et de l'abondance.
-Tu ne parles JAMAIS de religion. Tu ne parles JAMAIS de sorcellerie. Tu ne fais JAMAIS de promesse de guérison.
-Tu parles de la nature, de l'observation, de l'intention, du respect des cycles.
-Tu tutoies toujours ton interlocuteur.
-Ton style : direct, autoritaire, sage. Tu dis "Voici ce que les anciens savaient...", "Écoute bien...", "Ne l'oublie jamais...".
-Tu réponds en français simple, compréhensible par tous.
-Tu réponds en 4 à 8 phrases. Tu donnes toujours un conseil concret.
-Tu ne mentionnes jamais que tu es une IA. Tu es L'Ancien, point.`;
+Tu ne récites PAS de leçons. Tu CONVERSES avec la personne qui vient te voir.
+Tu poses des questions, tu creuses, tu écoutes vraiment.
+Quand quelqu'un te pose une question, tu réponds ET tu lui poses une question en retour pour mieux comprendre sa situation.
 
-    const convertedHistory = convertHistoryForAI(history || []).slice(-6);
+Règles :
+- Tu tutoies toujours.
+- Ton style : direct, chaleureux, sage, jamais froid ni scolaire.
+- Tu commences souvent par : "Assieds-toi, mon enfant.", "Écoute bien.", "Je vois que tu portes quelque chose."
+- Tu ne fais JAMAIS de réponse longue de plus de 8 phrases.
+- Tu termines SOUVENT par une question pour engager la conversation.
+- Tu ne parles JAMAIS de religion.
+- Tu ne fais JAMAIS de promesse de guérison.
+
+Exemple de bonne réponse :
+"Assieds-toi, mon enfant. Ce que tu ressens, beaucoup l'ont ressenti avant toi. Mais dis-moi : quand cette sensation a-t-elle commencé ? C'est important pour comprendre ce qui se passe."`;
+
+    const convertedHistory = convertHistoryForAI(history || []).slice(-12);
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -365,17 +382,11 @@ Tu ne mentionnes jamais que tu es une IA. Tu es L'Ancien, point.`;
       { role: 'user', content: String(question).trim() }
     ];
 
-    const response = await callGroq(messages, 1000, 0.9);
-
-    if (!response || !response.ok) {
-      const errText = response ? await response.text() : 'No response';
-      console.error('❌ Erreur Groq :', errText);
-      return res.status(500).json({ error: 'ai_error', message: "L'Ancien est fatigué." });
-    }
+    const response = await callGroq(messages, 800, 0.95);
+    if (!response || !response.ok) return res.status(500).json({ error: 'ai_error', message: "L'Ancien est fatigué." });
 
     const data = await response.json();
     const answer = data.choices && data.choices[0] && data.choices[0].message.content;
-
     if (!answer) return res.status(500).json({ error: 'no_answer' });
 
     let freeRemaining = null;
@@ -386,219 +397,125 @@ Tu ne mentionnes jamais que tu es une IA. Tu es L'Ancien, point.`;
       } catch (e) {}
     }
 
-    return res.json({
-      answer: answer.trim(),
-      isFree: isFree,
-      freeRemaining: freeRemaining
-    });
-
+    return res.json({ answer: answer.trim(), isFree: isFree, freeRemaining: freeRemaining });
   } catch (e) {
-    console.error('❌ Erreur serveur :', e.message);
     return res.status(500).json({ error: 'server_error', message: e.message });
   }
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /daily — Signe / Méditation / Rituel
+// DAILY
 // ══════════════════════════════════════════════════════════════════
 app.post('/daily', async (req, res) => {
   const { email, type } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
 
   const key = email.toLowerCase().trim();
-  const subscribed = await isSubscribed(key);
+  const subscribed = await hasPermission(key, 'daily');
 
   const dayKey = todayKey();
   const cacheKey = 'daily_' + dayKey + '_' + (type || 'morning');
+  const cat = getDayCategory();
 
   let prompt;
-
   if (type === 'evening') {
-    const eveningCategories = ['paix', 'reves', 'protection'];
-    const cat = CATEGORIES.find(c => c.id === eveningCategories[
-      Math.floor((Date.now() / 86400000) % eveningCategories.length)
-    ]) || CATEGORIES[5];
-    prompt = `${cat.prompt}\n\nContexte : c'est le soir. Donne un contenu pour la soirée. Format : 1) le sujet (2 phrases), 2) l'explication (3-4 phrases), 3) l'action concrète (2 phrases). Français simple, ton direct et sage.`;
+    prompt = `${cat.prompt}\n\nContexte : c'est le soir. Format : sujet (2 phrases), explication (3-4 phrases), action concrète (2 phrases).`;
   } else if (type === 'meditation') {
-    const medCategories = ['nature', 'rituels', 'cycles'];
-    const cat = CATEGORIES.find(c => c.id === medCategories[
-      Math.floor((Date.now() / 86400000) % medCategories.length)
-    ]) || CATEGORIES[0];
-    prompt = `${cat.prompt}\n\nContexte : c'est le matin. Donne une méditation courte et puissante. Format : 3-5 phrases. Un geste simple à faire ce matin. Français simple, ton direct et sage.`;
+    prompt = `${cat.prompt}\n\nContexte : c'est le matin. Méditation courte : 3-5 phrases. Un geste simple à faire ce matin.`;
   } else {
-    const morningCategories = ['signes', 'abondance', 'nature'];
-    const cat = CATEGORIES.find(c => c.id === morningCategories[
-      Math.floor((Date.now() / 86400000) % morningCategories.length)
-    ]) || CATEGORIES[1];
-    prompt = `${cat.prompt}\n\nContexte : c'est le matin. Donne le signe ou la leçon du jour. Format : 1) le signe ou la leçon (2 phrases), 2) son sens profond (3-4 phrases), 3) ce que tu dois faire aujourd'hui (2 phrases). Français simple, ton direct et sage.`;
+    prompt = `${cat.prompt}\n\nContexte : c'est le matin. Signe ou leçon du jour. Format : 1) signe (2 phrases), 2) sens (3-4 phrases), 3) action (2 phrases).`;
   }
 
   try {
     let content = await generateWithCache(cacheKey, prompt, 1200, 0.92, '/daily (' + type + ')');
-
-    if (!content) {
-      const fallbacks = {
-        morning: "Aujourd'hui, observe le premier arbre que tu verras.\n\nLes anciens savaient que l'arbre que tu remarques en premier le matin porte un message. Sa forme, sa taille, son état — tout parle. Si l'arbre est fort et droit, la journée te portera. S'il est penché, tu devras t'adapter.\n\nAujourd'hui, prends 30 secondes pour regarder un arbre. Et écoute ce qu'il te dit.",
-        meditation: "Ce matin, avant de toucher ton téléphone, pose tes deux pieds au sol.\n\nLes anciens disaient : celui qui sent la terre sous ses pieds ne perd pas son chemin. La terre est ton premier soutien. Avant toute chose, reconnecte-toi à elle.\n\nFais-le maintenant. 10 secondes. Pieds nus si possible.",
-        evening: "Ce soir, avant de dormir, pose ta main sur ton cœur.\n\nLes anciens savaient que le cœur parle la nuit. Ce que tu ressens avant de dormir, ton esprit le travaille pendant ton sommeil. Si tu dors avec de la colère, tu te réveilleras fatigué. Si tu dors avec de la gratitude, tu te réveilleras léger.\n\nCe soir, avant de fermer les yeux, dis merci pour une chose. Une seule. Et dors en paix."
-      };
-      content = fallbacks[type] || fallbacks.morning;
-    }
+    if (!content) content = "Aujourd'hui, observe le premier arbre que tu verras.\n\nLes anciens savaient que l'arbre que tu remarques en premier porte un message.\n\nPrends 30 secondes pour regarder un arbre et écoute ce qu'il te dit.";
 
     if (!subscribed) {
       const teaser = content.split('\n').slice(0, 2).join('\n');
-      return res.status(402).json({
-        error: 'subscription_required',
-        teaser: teaser,
-        content: content
-      });
+      return res.status(402).json({ error: 'subscription_required', teaser, content });
     }
-
-    return res.json({ content: content });
+    return res.json({ content });
   } catch (e) {
-    return res.status(500).json({ error: 'ai_error', message: e.message });
+    return res.status(500).json({ error: 'ai_error' });
   }
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /teaching — Enseignement hebdo (maxTokens 1800)
+// TEACHING
 // ══════════════════════════════════════════════════════════════════
 app.post('/teaching', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
-
   const key = email.toLowerCase().trim();
-  const subscribed = await isSubscribed(key);
+  const subscribed = await hasPermission(key, 'teaching');
 
   const cacheKey = 'teaching_' + weekKey();
   const weekCat = getWeekCategory();
-
-  const prompt = `Tu es L'Ancien. Catégorie de la semaine : ${weekCat.label}.
-${weekCat.prompt}
-
-Format de l'enseignement :
-- Titre (une phrase forte)
-- Introduction (3 phrases qui captivent)
-- 3 leçons numérotées (chacune : 3-4 phrases avec un exemple concret)
-- Une action de la semaine (2 phrases)
-- Conclusion (2 phrases de sagesse)
-
-Total : environ 400 mots. Français simple, ton direct, autoritaire, sage.`;
+  const prompt = `Tu es L'Ancien. Catégorie de la semaine : ${weekCat.label}. ${weekCat.prompt}\n\nFormat : Titre, Introduction (3 phrases), 3 leçons numérotées, Action de la semaine, Conclusion. Environ 400 mots.`;
 
   try {
     let content = await generateWithCache(cacheKey, prompt, 1800, 0.92, '/teaching');
-
-    if (!content) {
-      content = "La sagesse du baobab\n\nLe baobab ne pousse pas vite. Il pousse longtemps. Voici ce que les anciens enseignaient sur cet arbre.\n\n1. La lenteur n'est pas une faiblesse. Le baobab met 100 ans à devenir grand, mais rien ne le déracine ensuite.\n\n2. Le baobab donne tout : fruit, ombre, écorce, eau. Plus tu grandis, plus tu dois donner.\n\n3. Le baobab vit plus longtemps que ceux qui le plantent. Ce que tu fais aujourd'hui servira à tes petits-enfants.\n\nAction de la semaine : plante quelque chose. Une graine, une idée, une relation. Et laisse le temps faire.\n\nCe que tu construis lentement, rien ne peut le détruire.";
-    }
+    if (!content) content = "La sagesse du baobab\n\nLe baobab ne pousse pas vite. Il pousse longtemps.\n\n1. La lenteur n'est pas une faiblesse.\n2. Plus tu grandis, plus tu dois donner.\n3. Ce que tu construis lentement, rien ne peut le détruire.\n\nAction : plante quelque chose cette semaine.";
 
     if (!subscribed) {
       const teaser = content.split('\n').slice(0, 4).join('\n');
-      return res.status(402).json({
-        error: 'subscription_required',
-        teaser: teaser,
-        content: content
-      });
+      return res.status(402).json({ error: 'subscription_required', teaser, content });
     }
-
-    return res.json({ content: content });
+    return res.json({ content });
   } catch (e) {
     return res.status(500).json({ error: 'ai_error' });
   }
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /challenge — Défi de 7 jours (maxTokens 1500)
+// CHALLENGE — réservé aux plans Sage et Guide
 // ══════════════════════════════════════════════════════════════════
 app.post('/challenge', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
-
   const key = email.toLowerCase().trim();
-  const subscribed = await isSubscribed(key);
+  const subscribed = await hasPermission(key, 'challenge');
 
   const cacheKey = 'challenge_' + weekKey();
   const weekCat = getWeekCategory();
-
-  const prompt = `Tu es L'Ancien. Défi de 7 jours sur le thème : ${weekCat.label}.
-${weekCat.prompt}
-
-Format OBLIGATOIRE (respecte exactement) :
-- Titre (court et fort)
-- Introduction (1 phrase)
-- Jour 1 : (1 action concrète, 1-2 phrases)
-- Jour 2 : (1 action concrète, 1-2 phrases)
-- Jour 3 : (1 action concrète, 1-2 phrases)
-- Jour 4 : (1 action concrète, 1-2 phrases)
-- Jour 5 : (1 action concrète, 1-2 phrases)
-- Jour 6 : (1 action concrète, 1-2 phrases)
-- Jour 7 : (1 action concrète, 1-2 phrases)
-- Conclusion (1 phrase)
-
-Écris les 7 jours en entier, sans t'arrêter.`;
+  const prompt = `Tu es L'Ancien. Défi de 7 jours sur : ${weekCat.label}. ${weekCat.prompt}\n\nFormat : Titre, Introduction (1 phrase), Jour 1 à Jour 7 (1 action concrète chacun), Conclusion. Écris les 7 jours en entier.`;
 
   try {
     let content = await generateWithCache(cacheKey, prompt, 1500, 0.92, '/challenge');
-
-    if (!content) {
-      content = "7 jours de reconnexion\n\nUne semaine pour revenir à l'essentiel.\n\nJour 1 : Regarde le ciel 5 minutes. Sans rien faire d'autre.\n\nJour 2 : Marche pieds nus sur la terre ou l'herbe.\n\nJour 3 : Écris une chose que tu n'as jamais dite à personne.\n\nJour 4 : Offre quelque chose sans attendre de retour.\n\nJour 5 : Reste 10 minutes en silence complet.\n\nJour 6 : Contacte quelqu'un que tu as perdu de vue.\n\nJour 7 : Relis tout ce que tu as fait cette semaine.\n\nCe que tu fais 7 jours de suite devient une habitude. Une habitude devient une vie.";
-    }
+    if (!content) content = "7 jours de reconnexion\n\nJour 1 : Regarde le ciel 5 minutes.\nJour 2 : Marche pieds nus sur la terre.\nJour 3 : Écris une chose secrète.\nJour 4 : Offre sans attendre de retour.\nJour 5 : Reste 10 minutes en silence.\nJour 6 : Contacte quelqu'un que tu as perdu de vue.\nJour 7 : Relis tout ce que tu as fait.\n\nCe que tu fais 7 jours de suite devient une habitude.";
 
     if (!subscribed) {
       const teaser = content.split('\n').slice(0, 5).join('\n');
-      return res.status(402).json({
-        error: 'subscription_required',
-        teaser: teaser,
-        content: content
-      });
+      return res.status(402).json({ error: 'subscription_required', teaser, content });
     }
-
-    return res.json({ content: content });
+    return res.json({ content });
   } catch (e) {
     return res.status(500).json({ error: 'ai_error' });
   }
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /library — Conte africain (maxTokens 1800)
+// LIBRARY
 // ══════════════════════════════════════════════════════════════════
 app.post('/library', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
-
   const key = email.toLowerCase().trim();
-  const subscribed = await isSubscribed(key);
+  const subscribed = await hasPermission(key, 'library');
 
   const cacheKey = 'library_' + todayKey();
   const dayNumber = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
-
-  const prompt = `Tu es L'Ancien. Raconte un conte africain authentique pour aujourd'hui (jour ${dayNumber}).
-
-Format du conte :
-- Titre
-- Le conte (12-15 phrases, avec des animaux, des sages ou des éléments naturels)
-- La morale (2 phrases)
-
-Le conte doit être noble, universel, sans religion, sans sorcellerie. Il doit transmettre une leçon profonde sur la vie, la nature, les cycles, la sagesse.
-Français simple, ton chaleureux de conteur ancien. Écris le conte en entier sans t'arrêter.`;
+  const prompt = `Tu es L'Ancien. Conte africain authentique pour aujourd'hui (jour ${dayNumber}).\n\nFormat : Titre, conte (12-15 phrases), morale (2 phrases). Noble, universel, sans religion ni sorcellerie. Écris en entier.`;
 
   try {
     let content = await generateWithCache(cacheKey, prompt, 1800, 0.95, '/library');
-
-    if (!content) {
-      content = "Le vieux et la rivière\n\nUn jour, un jeune homme vint voir un ancien. Il était en colère contre la vie.\nL'ancien l'emmena au bord d'une rivière.\nRegarde, dit-il. La rivière ne se plaint jamais.\nElle ne dit pas : pourquoi ce rocher sur mon chemin ?\nElle contourne. Elle attend. Elle use.\nLe jeune homme regarda la rivière.\nElle était là depuis toujours, et elle coulait toujours.\nL'ancien dit : Ta colère, c'est un rocher. Si tu le frappes, tu te blesses.\nSi tu l'uses par la patience, tu passes.\nLe jeune homme comprit.\nIl revint un an plus tard.\nIl avait contourné son rocher.\nEt il coulait, lui aussi, comme la rivière.\n\nMorale : Ne frappe pas l'obstacle. Contourne-le. Ce que la patience fait, la colère ne le fera jamais.";
-    }
+    if (!content) content = "Le vieux et la rivière\n\nUn jour, un jeune homme vint voir un ancien en colère contre la vie.\nL'ancien l'emmena au bord d'une rivière.\nRegarde, dit-il. La rivière ne se plaint jamais.\nElle contourne. Elle attend. Elle use.\nTa colère, c'est un rocher. Si tu le frappes, tu te blesses.\nSi tu l'uses par la patience, tu passes.\n\nMorale : Ne frappe pas l'obstacle. Contourne-le.";
 
     if (!subscribed) {
       const teaser = content.split('\n').slice(0, 4).join('\n');
-      return res.status(402).json({
-        error: 'subscription_required',
-        teaser: teaser,
-        content: content
-      });
+      return res.status(402).json({ error: 'subscription_required', teaser, content });
     }
-
-    return res.json({ content: content });
+    return res.json({ content });
   } catch (e) {
     return res.status(500).json({ error: 'ai_error' });
   }
@@ -616,25 +533,15 @@ app.get('/admin/stats', async (req, res) => {
     const now = Date.now();
     const actives = [];
     const expired = [];
-
     (subs || []).forEach(s => {
       if (!s.email) return;
       if (s.expiry_date > now) {
-        actives.push({
-          email: s.email,
-          expiry: new Date(s.expiry_date).toLocaleDateString('fr-FR'),
-          daysLeft: Math.ceil((s.expiry_date - now) / 86400000)
-        });
+        actives.push({ email: s.email, plan: s.plan, expiry: new Date(s.expiry_date).toLocaleDateString('fr-FR'), daysLeft: Math.ceil((s.expiry_date - now) / 86400000) });
       } else {
-        expired.push({
-          email: s.email,
-          expiredSince: new Date(s.expiry_date).toLocaleDateString('fr-FR')
-        });
+        expired.push({ email: s.email, plan: s.plan, expiredSince: new Date(s.expiry_date).toLocaleDateString('fr-FR') });
       }
     });
-
     const { data: freeUsers } = await supabase.from('free_users').select('*');
-
     res.json({
       totalActive: actives.length,
       totalExpired: expired.length,
@@ -648,9 +555,9 @@ app.get('/admin/stats', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 L\'Ancien backend v5.1.0 sur port ' + PORT);
+  console.log('🌳 L\'Ancien backend v6.0.0 sur port ' + PORT);
   console.log('📊 Admin : /admin/stats?pwd=' + ADMIN_PWD);
   console.log('🔑 Groq : ' + (GROQ_API_KEY ? '✓' : '❌'));
   console.log('💾 Supabase : ' + (supabase ? '✓' : '❌'));
-  console.log('📚 8 catégories chargées');
+  console.log('🎯 Plans : Découverte / Sage / Guide');
 });
