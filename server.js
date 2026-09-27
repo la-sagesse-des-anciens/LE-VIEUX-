@@ -32,7 +32,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 app.get('/', (req, res) => {
-  res.json({ status: 'ok', service: 'La Voix des Anciens Backend', version: '9.2.0', supabase_set: !!supabase });
+  res.json({ status: 'ok', service: 'La Voix des Anciens Backend', version: '9.3.0', supabase_set: !!supabase });
 });
 
 const PILIERS = [
@@ -41,29 +41,29 @@ const PILIERS = [
     label: 'Abondance & Commerce',
     theme: 'débloquer le flux de l\'argent et des clients',
     rituels: [
-      'le premier billet de la journée qu\'on ne dépense pas tout de suite, on le garde 24 heures',
-      'la porte de la boutique ouverte avec la main droite le matin',
-      'un verre d\'eau propre posé sur le comptoir avant d\'ouvrir',
-      'le riz cru qu\'on jette dehors après une vente difficile',
-      'un peu de miel sur la langue avant de parler à un client important',
-      'la cannelle qu\'on garde dans la poche quand on va au marché',
-      'le chiffon qu\'on lave avec du gros sel pour nettoyer la caisse',
-      'le geste de toucher la marchandise avant de la vendre au client',
-      'une pièce qu\'on donne à un pauvre avant de commencer la journée'
+      'Le premier billet de la journée, tu ne le dépenses pas tout de suite. Tu le gardes 24 heures.',
+      'Le matin, tu ouvres ta porte avec la main droite.',
+      'Avant d\'ouvrir ta boutique, tu poses un verre d\'eau propre sur le comptoir.',
+      'Après une vente difficile, tu jettes une poignée de riz cru dehors.',
+      'Avant de parler à un client important, tu passes un peu de miel sur ta langue.',
+      'Quand tu vas au marché, tu gardes un bâton de cannelle dans ta poche.',
+      'Tu laves ton chiffon de caisse avec du gros sel.',
+      'Avant de vendre une marchandise, tu la touches avec la main droite.',
+      'Avant de commencer ta journée, tu donnes une pièce à quelqu\'un qui en a besoin.'
     ],
     signes: [
-      'voir un oiseau qui vole vers toi quand tu sors le matin',
-      'rêver d\'eau claire qui coule vers toi',
-      'sentir une odeur de cuisine sans raison',
-      'recevoir un cadeau inattendu d\'un inconnu',
-      'voir un enfant sourire à ton passage',
-      'trouver une pièce par terre en sortant de chez toi'
+      'Quand tu sors le matin, si un oiseau vole vers toi, c\'est un bon signe.',
+      'Si tu rêves d\'eau claire qui coule vers toi, l\'argent arrive.',
+      'Si tu sens une odeur de cuisine sans raison, quelqu\'un pense à toi.',
+      'Recevoir un cadeau d\'un inconnu, c\'est un signe de chance.',
+      'Si un enfant te sourit au passage, ta journée sera bonne.',
+      'Trouver une pièce par terre en sortant, c\'est le flux qui s\'ouvre.'
     ],
     sagesse: [
-      'l\'argent qui dort attire l\'argent qui travaille',
-      'le premier client de la journée porte la chance du jour',
-      'celui qui partage son pain ne manque jamais de farine',
-      'ne dépense pas ton premier billet avant d\'avoir vu le soleil se lever'
+      'L\'argent qui dort attire l\'argent qui travaille. Ne laisse pas ton argent s\'endormir.',
+      'Le premier client de la journée porte la chance des autres. Reçois-le bien.',
+      'Celui qui partage son pain ne manque jamais de farine.',
+      'Ne dépense pas ton premier billet avant d\'avoir vu le soleil se lever.'
     ]
   },
   {
@@ -71,29 +71,29 @@ const PILIERS = [
     label: 'Protection & Foyer',
     theme: 'se protéger du mauvais œil et purifier la maison',
     rituels: [
-      'un bain d\'eau salée le samedi soir après une semaine difficile',
-      'le seuil de la porte nettoyé à l\'eau vinaigrée',
-      'l\'encens naturel brûlé dans la chambre une fois par semaine',
-      'le miroir retourné face au mur quand on reçoit des invités lourds',
-      'une orange piquée de clous de girofle dans la cuisine',
-      'les cheveux coupés qu\'on ne laisse pas traîner dehors',
-      'la lumière de la maison éteinte avant de dormir, fenêtres fermées',
-      'un verre d\'eau claire posé sous le lit pour absorber la lourdeur',
-      'le lavage des pieds avec des feuilles de basilic après une visite'
+      'Le samedi soir, après une semaine difficile, tu prends un bain d\'eau salée.',
+      'Tu nettoies le seuil de ta porte avec de l\'eau vinaigrée.',
+      'Une fois par semaine, tu brûles de l\'encens naturel dans ta chambre.',
+      'Quand tu reçois quelqu\'un de lourd, tu retournes ton miroir face au mur.',
+      'Dans ta cuisine, tu piques une orange avec des clous de girofle.',
+      'Tu ne laisses pas tes cheveux coupés traîner dehors.',
+      'Avant de dormir, tu éteins la lumière, tu fermes les fenêtres.',
+      'Sous ton lit, tu poses un verre d\'eau claire pour absorber la lourdeur.',
+      'Après une visite, tu laves tes pieds avec des feuilles de basilic.'
     ],
     signes: [
-      'sentir une fatigue soudaine après avoir reçu quelqu\'un',
-      'entendre des bruits la nuit sans explication',
-      'rêver d\'un serpent qui entre dans la maison',
-      'voir souvent un chat noir passer devant la porte',
-      'avoir toujours mal à la même heure de la journée',
-      'sentir une odeur désagréable qui apparaît sans raison'
+      'Si tu sens une fatigue soudaine après avoir reçu quelqu\'un, c\'est un signe.',
+      'Si tu entends des bruits la nuit sans explication, veille.',
+      'Si tu rêves d\'un serpent qui entre dans la maison, quelqu\'un te veut du mal.',
+      'Si un chat noir passe souvent devant ta porte, fais attention.',
+      'Si tu as toujours mal à la même heure, c\'est un signal.',
+      'Si une odeur désagréable apparaît sans raison, purifie ta maison.'
     ],
     sagesse: [
-      'celui qui laisse sa porte ouverte à tout le monde reçoit aussi le vent',
-      'le silence de la maison est le premier signe de paix',
-      'ce que tu dis le matin peut te suivre toute la journée',
-      'on ne laisse pas entrer chez soi ce qu\'on ne veut pas voir dans son lit'
+      'Celui qui laisse sa porte ouverte à tout le monde reçoit aussi le vent.',
+      'Le silence de la maison est le premier signe de paix.',
+      'Ce que tu dis le matin peut te suivre toute la journée. Parle bien.',
+      'On ne laisse pas entrer chez soi ce qu\'on ne veut pas voir dans son lit.'
     ]
   },
   {
@@ -101,29 +101,29 @@ const PILIERS = [
     label: 'Santé & Vitalité',
     theme: 'remèdes naturels et force du corps',
     rituels: [
-      'le citron chaud avec du miel le matin à jeun',
-      'l\'ail écrasé dans un verre d\'eau tiède avant de dormir',
-      'le gingembre en tisane après un repas lourd',
-      'les feuilles de moringa séchées ajoutées à la sauce du dimanche',
-      'l\'eau de coco fraîche quand on sent la fatigue de la journée',
-      'le clou de girofle mâché après le repas du soir',
-      'les pieds dans l\'eau chaude avec du gros sel le soir',
-      'le thé de citronnelle après un repas gras',
-      'l\'huile de palme rouge crue dans un plat le vendredi'
+      'Le matin à jeun, tu bois un citron chaud avec du miel.',
+      'Avant de dormir, tu écrases une gousse d\'ail dans un verre d\'eau tiède.',
+      'Après un repas lourd, tu prends une tisane de gingembre.',
+      'Le dimanche, tu ajoutes des feuilles de moringa séchées dans ta sauce.',
+      'Quand tu sens la fatigue, tu bois de l\'eau de coco fraîche.',
+      'Après le repas du soir, tu mâches un clou de girofle.',
+      'Le soir, tu trempes tes pieds dans de l\'eau chaude avec du gros sel.',
+      'Après un repas gras, tu bois un thé de citronnelle.',
+      'Le vendredi, tu manges un plat à l\'huile de palme rouge crue.'
     ],
     signes: [
-      'rêver de sang ou de dents qui tombent',
-      'se réveiller à la même heure chaque nuit sans raison',
-      'avoir toujours froid aux pieds même en journée',
-      'avoir la bouche amère le matin',
-      'perdre souvent l\'appétit sans raison apparente',
-      'sentir une lourdeur dans le corps après avoir mangé'
+      'Si tu rêves de sang ou de dents qui tombent, ton corps te parle.',
+      'Si tu te réveilles à la même heure chaque nuit, écoute ton corps.',
+      'Si tu as toujours froid aux pieds, ton sang circule mal.',
+      'Si tu as la bouche amère le matin, ton foie travaille trop.',
+      'Si tu perds l\'appétit sans raison, repose-toi.',
+      'Si tu sens une lourdeur après avoir mangé, allège ton repas.'
     ],
     sagesse: [
-      'ce que tu mets dans ton ventre, tu le portes toute la journée',
-      'le repos du corps n\'est pas une paresse',
-      'un corps fatigué ne peut pas porter une tête claire',
-      'la nature a déjà ce qu\'il faut pour te soulager, il faut juste savoir où regarder'
+      'Ce que tu mets dans ton ventre, tu le portes toute la journée.',
+      'Le repos du corps n\'est pas une paresse.',
+      'Un corps fatigué ne peut pas porter une tête claire.',
+      'La nature a déjà ce qu\'il faut pour te soulager. Regarde autour de toi.'
     ]
   },
   {
@@ -131,29 +131,29 @@ const PILIERS = [
     label: 'Signes & Présages',
     theme: 'décoder les signes de la vie quotidienne',
     rituels: [
-      'écrire ses rêves dès le réveil dans un cahier',
-      'saluer le premier oiseau qu\'on voit en sortant',
-      'observer la lune le soir pour préparer le lendemain',
-      'regarder la direction de la fumée qui sort de la maison',
-      'noter les dates de naissance de la famille sur un papier',
-      'saluer l\'eau avant de la boire le matin',
-      'se souvenir de la première personne qu\'on voit après un rêve important',
-      'compter les jours entre deux signes qui se répètent'
+      'Dès ton réveil, tu écris tes rêves dans un cahier.',
+      'En sortant, tu salues le premier oiseau que tu vois.',
+      'Le soir, tu observes la lune pour préparer le lendemain.',
+      'Tu regardes la direction de la fumée qui sort de ta maison.',
+      'Tu notes les dates de naissance de ta famille sur un papier.',
+      'Le matin, tu salues l\'eau avant de la boire.',
+      'Après un rêve important, tu retiens la première personne que tu vois.',
+      'Tu comptes les jours entre deux signes qui se répètent.'
     ],
     signes: [
-      'rêver d\'eau trouble : attention aux palabres qui viennent',
-      'rêver de fidélité : ce n\'est pas toujours la tromperie, c\'est un manque de confiance en soi',
-      'rêver de dents qui tombent : perte d\'énergie, fatigue à venir',
-      'rêver de serpent qui entre : quelqu\'un parle mal de toi en ce moment',
-      'rêver d\'un défunt qui parle : un message, une attention à lui donner',
-      'voir un oiseau frapper à la fenêtre : une visite approche',
-      'voir deux fois de suite le même chiffre : un cycle qui revient dans ta vie'
+      'Si tu rêves d\'eau trouble, attention aux palabres qui viennent.',
+      'Si tu rêves de fidélité, ce n\'est pas la tromperie. C\'est un manque de confiance en toi.',
+      'Si tu rêves de dents qui tombent, tu perds de l\'énergie.',
+      'Si tu rêves d\'un serpent qui entre, quelqu\'un parle mal de toi.',
+      'Si un défunt te parle en rêve, c\'est un message. Donne-lui une attention.',
+      'Si un oiseau frappe à ta fenêtre, une visite approche.',
+      'Si tu vois deux fois le même chiffre, un cycle revient dans ta vie.'
     ],
     sagesse: [
-      'le signe n\'est pas la peur, c\'est une information',
-      'celui qui écoute la nature n\'a pas besoin qu\'on lui parle',
-      'le rêve parle à celui qui prend le temps de l\'écouter',
-      'ce que tu vois le matin en sortant porte le message de ta journée'
+      'Le signe n\'est pas la peur, c\'est une information. Prends-le comme tel.',
+      'Celui qui écoute la nature n\'a pas besoin qu\'on lui parle.',
+      'Le rêve parle à celui qui prend le temps de l\'écouter.',
+      'Ce que tu vois le matin en sortant porte le message de ta journée.'
     ]
   },
   {
@@ -161,29 +161,29 @@ const PILIERS = [
     label: 'Sagesse de Vie',
     theme: 'élever son caractère et son aura',
     rituels: [
-      'rester 10 minutes en silence chaque matin avant de parler à qui que ce soit',
-      'dire merci avant de toucher son téléphone au réveil',
-      'faire un geste de respect à un ancien une fois par semaine',
-      'ne pas répondre à une provocation pendant 24 heures',
-      'offrir quelque chose sans attendre un retour',
-      'marcher pieds nus sur la terre 5 minutes par jour',
-      'saluer les voisins avant qu\'ils ne te saluent',
-      'regarder le ciel 3 minutes chaque soir avant de dormir',
-      'ne pas parler de ses projets avant qu\'ils ne soient réalisés'
+      'Chaque matin, tu restes 10 minutes en silence avant de parler à qui que ce soit.',
+      'Au réveil, tu dis merci avant de toucher ton téléphone.',
+      'Une fois par semaine, tu fais un geste de respect à un ancien.',
+      'Quand on te provoque, tu ne réponds pas pendant 24 heures.',
+      'Tu offres quelque chose sans attendre un retour.',
+      'Chaque jour, tu marches pieds nus sur la terre 5 minutes.',
+      'Tu salues tes voisins avant qu\'ils ne te saluent.',
+      'Chaque soir, tu regardes le ciel 3 minutes avant de dormir.',
+      'Tu ne parles pas de tes projets avant qu\'ils ne soient réalisés.'
     ],
     signes: [
-      'sentir un calme intérieur inhabituel',
-      'voir quelqu\'un qui te sourit sans raison',
-      'ressentir qu\'une personne te veut du mal avant même qu\'elle parle',
-      'avoir envie de silence tout à coup',
-      'pleurer sans raison apparente',
-      'avoir envie de faire le bien sans qu\'on te le demande'
+      'Si tu sens un calme intérieur inhabituel, tu es sur le bon chemin.',
+      'Si quelqu\'un te sourit sans raison, ton aura attire.',
+      'Si tu sens qu\'une personne te veut du mal avant même qu\'elle parle, fais attention à elle.',
+      'Si tu as envie de silence tout à coup, écoute ce besoin.',
+      'Si tu pleures sans raison, libère ce qui est lourd en toi.',
+      'Si tu as envie de faire le bien sans qu\'on te le demande, tu grandis.'
     ],
     sagesse: [
-      'celui qui parle moins entend plus',
-      'la patience n\'est pas de l\'attente, c\'est une force',
-      'ne laisse personne entrer dans ta tête sans invitation',
-      'ce que tu donnes sans rien attendre te revient toujours autrement'
+      'Celui qui parle moins entend plus. Écoute avant de parler.',
+      'La patience n\'est pas de l\'attente, c\'est une force.',
+      'Ne laisse personne entrer dans ta tête sans invitation.',
+      'Ce que tu donnes sans rien attendre te revient toujours autrement.'
     ]
   }
 ];
@@ -214,7 +214,7 @@ function convertHistoryForAI(history) {
   }).filter(m => m.content.length > 0);
 }
 
-async function callGroq(messages, maxTokens = 1200, temperature = 0.95) {
+async function callGroq(messages, maxTokens = 1500, temperature = 0.95) {
   let attempt = 0;
   while (attempt < 4) {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -270,27 +270,41 @@ async function getPlan(email) { const sub = await getSubscription(email); if (!s
 async function hasPermission(email, permission) { const plan = await getPlan(email); if (!plan) return false; return (PLAN_PERMISSIONS[plan] || PLAN_PERMISSIONS.decouverte)[permission] === true; }
 async function getPermissionValue(email, permission) { const plan = await getPlan(email); if (!plan) return PLAN_PERMISSIONS.decouverte[permission]; return (PLAN_PERMISSIONS[plan] || PLAN_PERMISSIONS.decouverte)[permission]; }
 
+// ══════════════════════════════════════════════════════════════════
+// LE PROMPT MAÎTRE — règle absolue du "tu"
+// ══════════════════════════════════════════════════════════════════
 const SYSTEM_PROMPT = `Tu es "Le Vieux", un sage africain de 70 ans. Tu es assis devant ta maison, sous un vieux manguier.
 
-TON CARACTÈRE :
-- Tu es bienveillant, digne, chaleureux, direct.
-- Tu parles à la première personne : "je", "mon", "ma".
-- Tu tutoies toujours ton interlocuteur.
-- Tu parles comme au marché, dans le quartier. Langage parlé, simple, populaire, authentique.
-- Tu n'es PAS un marabout, PAS un féticheur, PAS un voyant, PAS un prêtre.
+RÈGLE ABSOLUE N°1 — TU T'ADRESSES À LA PERSONNE :
+- Tu parles DIRECTEMENT à celui qui te lit.
+- Tu utilises TOUJOURS "tu", "toi", "ton", "ta", "tes".
+- Tu ne dis JAMAIS "je pense", "je crois", "je vais te dire". Tu dis : "Écoute, mon enfant.", "Voici ce que tu dois faire.", "Toi, tu vas...", "Ton chemin...", "Ta vie..."
+- Tu NE PARLES PAS de toi. Tu PARLES À l'autre.
 
-TON LANGAGE :
-- Français parlé, fluide, naturel. Phrases courtes (8 à 12 mots max).
-- Mots de la rue et du marché : "gâté", "poisse", "blinder", "laver l'intérieur", "lourdeur", "palabres".
+Exemples de phrases CORRECTES :
+- "Assieds-toi, mon enfant. Aujourd'hui, tu dois faire attention."
+- "Quand tu sors, regarde le premier oiseau que tu vois."
+- "Ta maison doit être propre ce soir."
 
-MOTS PROHIBÉS (RÈGLE ABSOLUE) :
-❌ Ne jamais dire : "guérir", "magie", "sortilège", "marabout", "féticheur", "envoûtement", "sorcellerie".
-✅ Dire : "soulager", "purifier", "sagesse ancienne", "pratique ancestrale", "tradition", "débloquer", "prospérité", "harmonie".
+Exemples de phrases INTERDITES :
+- ❌ "Je vais te dire une chose." (parle de soi)
+- ❌ "Je pense que tu dois..." (parle de soi)
+- ❌ "Je te conseille de..." (parle de soi)
 
-RÈGLE ABSOLUE DE FORMAT :
-- Chaque phrase doit être COMPLÈTE. Ne JAMAIS couper au milieu.
-- Termine TOUJOURS par un point final.
-- Si tu sens que tu manques de place, raccourcis la dernière phrase pour qu'elle soit complète.`;
+RÈGLE ABSOLUE N°2 — STYLE :
+- Tu parles comme au marché. Français parlé, simple, populaire.
+- Phrases courtes : 8 à 15 mots. Pas plus.
+- Mots de la rue : "gâté", "poisse", "blinder", "laver l'intérieur", "lourdeur", "palabres".
+
+MOTS PROHIBÉS :
+❌ "guérir", "magie", "sortilège", "marabout", "féticheur", "envoûtement", "sorcellerie"
+✅ "soulager", "purifier", "sagesse ancienne", "tradition", "débloquer", "prospérité"
+
+RÈGLE ABSOLUE N°3 — LONGUEUR ET FIN DE PHRASE :
+- Chaque phrase doit être COMPLÈTE.
+- Tu ne coupes JAMAIS au milieu.
+- Tu termines TOUJOURS par un point, une question, ou une phrase complète.
+- Tu écris des textes COMPLETS, pas des fragments.`;
 
 app.post('/me', async (req, res) => {
   const { email } = req.body || {};
@@ -394,7 +408,7 @@ app.post('/ask', async (req, res) => {
       { role: 'user', content: String(question).trim() }
     ];
 
-    const response = await callGroq(messages, 1200, 0.95);
+    const response = await callGroq(messages, 1500, 0.95);
     if (!response || !response.ok) return res.status(500).json({ error: 'ai_error', message: "Le Vieux est fatigué." });
 
     const data = await response.json();
@@ -410,7 +424,7 @@ app.post('/ask', async (req, res) => {
   }
 });
 
-// DAILY — maxTokens 1200 + courtes réponses propres
+// DAILY — texte complet, ton "tu"
 app.post('/daily', async (req, res) => {
   const { email, type } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -438,18 +452,18 @@ app.post('/daily', async (req, res) => {
 
   if (type === 'evening') {
     const rituel = pilier.rituels[dayIdx % pilier.rituels.length];
-    prompt = `${SYSTEM_PROMPT}\n\nPilier du soir : ${pilier.label}.\n\nLe SEUL rituel à expliquer aujourd'hui est celui-ci : "${rituel}".\n\nNE PARLE PAS des autres rituels.\n\nFormat : 1) le rituel (1 phrase), 2) pourquoi ça marche (2 phrases), 3) comment le faire concrètement (2 phrases).\n\nRÈGLE ABSOLUE : 5 à 7 phrases MAXIMUM. Chaque phrase est complète. Termine par un point final.`;
+    prompt = `${SYSTEM_PROMPT}\n\nPilier du soir : ${pilier.label}.\n\nLe rituel du soir à expliquer est : "${rituel}"\n\nÉcris un texte COMPLET en t'adressant à la personne avec "tu".\n\nFormat :\n- Phrase d'accroche (1 phrase avec "tu")\n- Explication du rituel (3 phrases avec "tu")\n- Pourquoi ça marche (2 phrases)\n- Comment le faire concrètement (2 phrases avec "tu")\n\nTotal : 8 à 10 phrases. Chaque phrase est complète et se termine par un point.`;
   } else if (type === 'meditation') {
     const sagesse = pilier.sagesse[dayIdx % pilier.sagesse.length];
-    prompt = `${SYSTEM_PROMPT}\n\nPilier du matin : ${pilier.label}.\n\nPhrase de sagesse à développer : "${sagesse}".\n\nDonne une courte méditation du matin basée sur cette phrase.\n\nRÈGLE ABSOLUE : 4 à 5 phrases MAXIMUM. Chaque phrase est complète. Termine par un point final.`;
+    prompt = `${SYSTEM_PROMPT}\n\nPilier du matin : ${pilier.label}.\n\nPhrase de sagesse : "${sagesse}"\n\nÉcris une méditation COMPLÈTE en t'adressant à la personne avec "tu".\n\nFormat :\n- Accroche (1 phrase avec "tu")\n- Développement de la sagesse (3 phrases avec "tu")\n- Conseil concret (2 phrases avec "tu")\n- Question finale (1 phrase)\n\nTotal : 6 à 8 phrases. Chaque phrase est complète.`;
   } else {
     const signe = pilier.signes[dayIdx % pilier.signes.length];
-    prompt = `${SYSTEM_PROMPT}\n\nPilier du matin : ${pilier.label}.\n\nLe SEUL signe à décoder aujourd'hui est celui-ci : "${signe}".\n\nFormat : 1) décris le signe (2 phrases), 2) ce que ça veut dire (2 phrases), 3) ce que la personne doit faire aujourd'hui (2 phrases).\n\nRÈGLE ABSOLUE : 5 à 6 phrases MAXIMUM. Chaque phrase est complète. Termine par un point final.`;
+    prompt = `${SYSTEM_PROMPT}\n\nPilier du matin : ${pilier.label}.\n\nLe signe à décoder : "${signe}"\n\nÉcris un texte COMPLET en t'adressant à la personne avec "tu".\n\nFormat :\n- Accroche (1 phrase avec "tu")\n- Description du signe (2 phrases avec "tu")\n- Signification (3 phrases avec "tu")\n- Action concrète (2 phrases avec "tu")\n\nTotal : 7 à 9 phrases. Chaque phrase est complète.`;
   }
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 1200, 0.95, '/daily ' + type);
-    if (!content) content = "Assieds-toi, mon enfant. Aujourd'hui, écoute le vent. Ce qu'il dit ce matin porte le message de ta journée. Prends le temps de respirer.";
+    let content = await generateWithCache(cacheKey, prompt, 2000, 0.95, '/daily ' + type);
+    if (!content) content = "Assieds-toi, mon enfant. Aujourd'hui, tu dois écouter le vent. Ce qu'il dit ce matin porte le message de ta journée. Prends le temps de respirer avant de commencer. Tu verras la différence.";
 
     if (!isSubscribed) {
       const teaser = content.split('\n').slice(0, 2).join('\n');
@@ -461,7 +475,7 @@ app.post('/daily', async (req, res) => {
   }
 });
 
-// TEACHING — maxTokens 1500 + 250-300 mots max
+// TEACHING — texte complet, ton "tu", 300-350 mots
 app.post('/teaching', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -483,28 +497,27 @@ app.post('/teaching', async (req, res) => {
 
 PILIER DE LA SEMAINE : ${pilier.label}
 
-Les 3 gestes de la semaine (utilise UNIQUEMENT ceux-là) :
+Les 3 gestes de la semaine :
 1. ${r1}
 2. ${r2}
 3. ${r3}
 
-Écris un ENSEIGNEMENT COURT de la semaine.
+Écris un ENSEIGNEMENT COMPLET de la semaine. Adresse-toi à la personne avec "tu".
 
-FORMAT (court et propre) :
-- Titre fort (1 phrase)
-- Introduction (2 phrases)
-- Leçon 1 (2 phrases sur le geste 1)
-- Leçon 2 (2 phrases sur le geste 2)
-- Leçon 3 (2 phrases sur le geste 3)
-- Conclusion (1 phrase)
+FORMAT :
+- Titre (1 phrase forte)
+- Introduction (3 phrases qui interpellent la personne)
+- Leçon 1 : développe le geste 1 (4 phrases avec "tu")
+- Leçon 2 : développe le geste 2 (4 phrases avec "tu")
+- Leçon 3 : développe le geste 3 (4 phrases avec "tu")
+- Action de la semaine (3 phrases avec "tu")
+- Conclusion (2 phrases avec "tu")
 
-TOTAL : 200 à 250 MOTS MAXIMUM. Pas plus.
-
-RÈGLE ABSOLUE : chaque phrase doit être complète. Termine TOUJOURS ta dernière phrase par un point final.`;
+TOTAL : 300 à 350 mots. Chaque phrase est complète et se termine par un point.`;
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 1500, 0.95, '/teaching');
-    if (!content) content = "Les 3 gestes de la semaine\n\nCette semaine, écoute bien.\n\nLe premier billet. Tu ne le dépenses pas tout de suite.\nLa porte. Tu l'ouvres avec la main droite.\nLe seuil. Tu le touches avant de sortir.\n\nFais-les 7 jours. Tu verras.";
+    let content = await generateWithCache(cacheKey, prompt, 2500, 0.95, '/teaching');
+    if (!content) content = "Cette semaine, tu vas apprendre 3 gestes.\n\nLe premier billet, tu ne le dépenses pas tout de suite. Tu le gardes 24 heures.\nLa porte, tu l'ouvres avec la main droite le matin.\nLe seuil, tu le touches avant de sortir.\n\nFais-les 7 jours. Tu sentiras la différence dans ton argent et dans ta paix. Voilà ce que les anciens savaient.";
     return res.json({ content, nextUpdate: 'weekly' });
   } catch (e) {
     return res.status(500).json({ error: 'ai_error' });
@@ -523,7 +536,7 @@ app.post('/teaching/archives', async (req, res) => {
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
-// CHALLENGE — maxTokens 1500 + 1 phrase par jour
+// CHALLENGE — texte complet, ton "tu"
 app.post('/challenge', async (req, res) => {
   const { email, custom, need } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -537,10 +550,10 @@ app.post('/challenge', async (req, res) => {
     if (!canCustom) return res.status(402).json({ error: 'custom_required' });
     if (!need || !need.trim()) return res.status(400).json({ error: 'need_required' });
 
-    const prompt = `${SYSTEM_PROMPT}\n\nDéfi de 7 jours SUR MESURE pour quelqu'un qui a dit : "${need}".\n\nFormat : Titre (1 phrase), Introduction (1 phrase), Jour 1 à Jour 7 (1 PHRASE courte par jour), Conclusion (1 phrase).\n\nRÈGLE ABSOLUE : chaque jour = 1 phrase courte et complète. Total 150 mots MAX.`;
+    const prompt = `${SYSTEM_PROMPT}\n\nDéfi de 7 jours SUR MESURE pour quelqu'un qui a dit : "${need}".\n\nAdresse-toi à la personne avec "tu".\n\nFormat :\n- Titre (1 phrase forte)\n- Introduction (2 phrases avec "tu")\n- Jour 1 à Jour 7 : 1 geste concret par jour, 2 phrases par jour avec "tu"\n- Conclusion (2 phrases avec "tu")\n\nTotal : 200 mots. Chaque phrase est complète.`;
 
     try {
-      const response = await callGroq([{ role: 'user', content: prompt }], 1500, 0.95);
+      const response = await callGroq([{ role: 'user', content: prompt }], 2000, 0.95);
       if (!response || !response.ok) return res.status(500).json({ error: 'ai_error' });
       const data = await response.json();
       const content = data.choices && data.choices[0] && data.choices[0].message.content;
@@ -555,16 +568,16 @@ app.post('/challenge', async (req, res) => {
   const rituelsSemaine = [];
   for (let i = 0; i < 7; i++) rituelsSemaine.push(pilier.rituels[(weekIdx + i) % pilier.rituels.length]);
 
-  const prompt = `${SYSTEM_PROMPT}\n\nDéfi de 7 jours sur : ${pilier.label}.\n\nUtilise EXACTEMENT ces 7 gestes (dans l'ordre) :\n${rituelsSemaine.map((r, i) => 'Jour ' + (i+1) + ' : ' + r).join('\n')}\n\nFORMAT : Titre (1 phrase), Jour 1 à Jour 7 (1 PHRASE courte par jour), Conclusion (1 phrase).\n\nRÈGLE ABSOLUE : total 150 mots MAX. Chaque jour = 1 phrase complète. Termine par un point final.`;
+  const prompt = `${SYSTEM_PROMPT}\n\nDéfi de 7 jours sur : ${pilier.label}.\n\nAdresse-toi à la personne avec "tu".\n\nLes 7 gestes à utiliser (dans l'ordre) :\n${rituelsSemaine.map((r, i) => 'Jour ' + (i+1) + ' : ' + r).join('\n')}\n\nFORMAT : Titre, Introduction (1 phrase), Jour 1 à Jour 7 (reprends le geste et développe en 2 phrases avec "tu"), Conclusion (1 phrase).\n\nTotal : 200 mots. Chaque phrase est complète.`;
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 1500, 0.95, '/challenge');
-    if (!content) content = "7 jours pour te blinder\n\nJour 1 : Le premier billet, tu ne le dépenses pas.\nJour 2 : Tu touches le seuil avant de sortir.\nJour 3 : Tu ne réponds pas à la provocation.\nJour 4 : Tu jettes les restes qui traînent.\nJour 5 : Tu marches 10 minutes pieds nus.\nJour 6 : Tu appelles un ancien.\nJour 7 : Tu remercies.\n\nFais-les 7 jours.";
+    let content = await generateWithCache(cacheKey, prompt, 2000, 0.95, '/challenge');
+    if (!content) content = "7 jours pour te blinder.\n\nJour 1 : Le premier billet, tu ne le dépenses pas.\nJour 2 : Tu touches le seuil avant de sortir.\nJour 3 : Tu ne réponds pas à la provocation.\nJour 4 : Tu jettes les restes qui traînent.\nJour 5 : Tu marches 10 minutes pieds nus.\nJour 6 : Tu appelles un ancien.\nJour 7 : Tu remercies.\n\nFais-les 7 jours. Tu verras.";
     return res.json({ content, nextUpdate: 'weekly' });
   } catch (e) { return res.status(500).json({ error: 'ai_error' }); }
 });
 
-// LIBRARY — maxTokens 1800 + conte 8-10 phrases courtes
+// LIBRARY — conte complet, ton "tu"
 app.post('/library', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -582,11 +595,11 @@ app.post('/library', async (req, res) => {
   const dayIdx = new Date().getDate() + new Date().getMonth() * 31;
   const sagesse = pilier.sagesse[dayIdx % pilier.sagesse.length];
 
-  const prompt = `${SYSTEM_PROMPT}\n\nConte africain court (jour ${dayNumber}).\nPilier : ${pilier.label}.\nMorale : "${sagesse}".\n\nFORMAT : Titre (1 phrase), conte (8 phrases COURTES), morale (2 phrases).\n\nRÈGLE ABSOLUE : 8 phrases de conte MAX. Chaque phrase est complète. Termine TOUJOURS par la morale complète.`;
+  const prompt = `${SYSTEM_PROMPT}\n\nConte africain pour aujourd'hui.\nPilier : ${pilier.label}.\nMorale : "${sagesse}"\n\nÉcris un conte COMPLET.\n\nFormat :\n- Titre\n- Conte (12 à 15 phrases courtes et COMPLÈTES) avec des animaux, des vieux, des éléments naturels\n- Morale (2 phrases qui s'adressent à la personne avec "tu")\n\nChaque phrase est complète. Termine par la morale complète.`;
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 1800, 0.95, '/library');
-    if (!content) content = "Le vieux et la rivière\n\nUn jeune homme vint voir un ancien, en colère contre la vie.\nL'ancien l'emmena au bord d'une rivière.\nLa rivière ne se plaint jamais.\nElle contourne. Elle attend. Elle use.\nTa colère, c'est un rocher.\nSi tu le frappes, tu te blesses.\nSi tu l'uses par la patience, tu passes.\nLe jeune homme comprit.\n\nMorale : Ce que la patience fait, la colère ne le fera jamais.";
+    let content = await generateWithCache(cacheKey, prompt, 2500, 0.95, '/library');
+    if (!content) content = "Le vieux et la rivière\n\nUn jeune homme vint voir un ancien, en colère contre la vie.\nL'ancien l'emmena au bord d'une rivière.\nRegarde, dit-il. La rivière ne se plaint jamais.\nElle contourne. Elle attend. Elle use.\nTa colère, c'est un rocher. Si tu le frappes, tu te blesses.\nSi tu l'uses par la patience, tu passes.\nLe jeune homme comprit.\nIl revint un an plus tard, apaisé.\n\nMorale : Ne frappe pas l'obstacle, mon enfant. Contourne-le avec patience. Ce que la patience fait, la colère ne le fera jamais.";
 
     if (!isSubscribed) {
       const teaser = content.split('\n').slice(0, 4).join('\n');
@@ -627,7 +640,7 @@ app.get('/admin/stats', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend v9.2.0 sur port ' + PORT);
+  console.log('🌳 Le Vieux backend v9.3.0 sur port ' + PORT);
   console.log('💾 Supabase : ' + (supabase ? '✓' : '❌'));
-  console.log('✅ Contenus courts et propres');
+  console.log('✅ Contenus complets, ton "tu", style populaire');
 });
