@@ -16,18 +16,12 @@ const supabase = (SUPABASE_URL && SUPABASE_KEY)
   ? createClient(SUPABASE_URL, SUPABASE_KEY)
   : null;
 
-// ══════════════════════════════════════════════════════════════════
-// MAPPING PRODUITS CHARIOW → PLANS
-// ══════════════════════════════════════════════════════════════════
 const PRODUCT_TO_PLAN = {
   'prd_yxuku5': 'decouverte',
   'prd_rhnhn6': 'sage',
   'prd_cnqc9h': 'guide'
 };
 
-// ══════════════════════════════════════════════════════════════════
-// PERMISSIONS PAR PLAN
-// ══════════════════════════════════════════════════════════════════
 const PLAN_PERMISSIONS = {
   decouverte: {
     chatLimit: 30,
@@ -37,20 +31,20 @@ const PLAN_PERMISSIONS = {
     teaching: true,
     challenge: false,
     journal: false,
-    library: 'weekly',  // 1 par semaine
+    library: 'weekly',
     archives: false,
     customChallenge: false,
     personalizedChat: false
   },
   sage: {
-    chatLimit: null,  // illimité
+    chatLimit: null,
     daily: true,
     meditation: true,
     evening: true,
     teaching: true,
     challenge: true,
     journal: true,
-    library: 'daily',  // 1 par jour
+    library: 'daily',
     archives: false,
     customChallenge: false,
     personalizedChat: false
@@ -64,9 +58,9 @@ const PLAN_PERMISSIONS = {
     challenge: true,
     journal: true,
     library: 'daily',
-    archives: true,       // ← accès aux archives
-    customChallenge: true, // ← défi sur mesure
-    personalizedChat: true // ← chat personnalisé
+    archives: true,
+    customChallenge: true,
+    personalizedChat: true
   }
 };
 
@@ -77,15 +71,12 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'La Voix des Anciens Backend',
-    version: '7.0.0',
+    version: '7.1.0',
     ai_provider: 'Groq',
     supabase_set: !!supabase
   });
 });
 
-// ══════════════════════════════════════════════════════════════════
-// CATÉGORIES
-// ══════════════════════════════════════════════════════════════════
 const CATEGORIES = [
   { id: 'nature', label: 'Sagesse de la nature', prompt: `Parle de la sagesse que la nature enseigne. Choisis UN élément (arbre, plante, eau, terre, feu, vent, animal, saison) et tire une leçon profonde pour la vie humaine.` },
   { id: 'signes', label: 'Signes et destinée', prompt: `Parle des signes que la vie nous envoie. Un signe concret et comment l'interpréter avec sagesse. Explique : 1) le signe, 2) ce qu'il signifie, 3) comment agir.` },
@@ -173,9 +164,6 @@ async function generateWithCache(cacheKey, prompt, maxTokens, temperature, label
   return null;
 }
 
-// ══════════════════════════════════════════════════════════════════
-// UTILITAIRES ABONNEMENT
-// ══════════════════════════════════════════════════════════════════
 async function getSubscription(email) {
   if (!supabase || !email) return null;
   try {
@@ -206,9 +194,6 @@ async function getPermissionValue(email, permission) {
   return (PLAN_PERMISSIONS[plan] || PLAN_PERMISSIONS.decouverte)[permission];
 }
 
-// ══════════════════════════════════════════════════════════════════
-// /me — Infos du compte
-// ══════════════════════════════════════════════════════════════════
 app.post('/me', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -248,9 +233,6 @@ app.post('/me', async (req, res) => {
   });
 });
 
-// ══════════════════════════════════════════════════════════════════
-// CHECK-ACCESS
-// ══════════════════════════════════════════════════════════════════
 app.post('/check-access', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -262,9 +244,6 @@ app.post('/check-access', async (req, res) => {
   return res.json({ active: true, email: key, plan: sub.plan, expiryDate: sub.expiry_date, daysLeft });
 });
 
-// ══════════════════════════════════════════════════════════════════
-// WEBHOOK CHARIOW
-// ══════════════════════════════════════════════════════════════════
 app.post('/webhook/chariow', async (req, res) => {
   const event = req.body;
   console.log('📩 Webhook Chariow :', JSON.stringify(event).slice(0, 300));
@@ -301,9 +280,6 @@ app.post('/webhook/chariow', async (req, res) => {
   return res.json({ received: true, action: 'ignored' });
 });
 
-// ══════════════════════════════════════════════════════════════════
-// CHAT — Personnalisé pour Guide
-// ══════════════════════════════════════════════════════════════════
 app.post('/ask', async (req, res) => {
   const { email, question, history } = req.body || {};
   if (!email || !question) return res.status(400).json({ error: 'Email requis' });
@@ -315,10 +291,8 @@ app.post('/ask', async (req, res) => {
   const isSubscribed = !!plan;
 
   let isFree = false;
-  let chatLimitReached = false;
 
   if (!isSubscribed) {
-    // Utilisateur gratuit
     let freeUser = null;
     try { const { data } = await supabase.from('free_users').select('*').eq('email', key).maybeSingle(); freeUser = data; } catch (e) {}
     const currentCount = (freeUser && freeUser.count) || 0;
@@ -328,10 +302,8 @@ app.post('/ask', async (req, res) => {
     await supabase.from('free_users').upsert({ email: key, count: currentCount + 1 });
     isFree = true;
   } else {
-    // Abonné Découverte : limite 30/mois
     const chatLimit = await getPermissionValue(key, 'chatLimit');
     if (chatLimit !== null) {
-      // Compter les questions du mois
       const monthKey = 'chat_' + key + '_' + new Date().toISOString().slice(0, 7);
       const currentCount = parseInt(await getCache(monthKey) || '0', 10);
       if (currentCount >= chatLimit) {
@@ -386,9 +358,6 @@ Règles :
   }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// /daily — Signe / Méditation / Rituel (par plan)
-// ══════════════════════════════════════════════════════════════════
 app.post('/daily', async (req, res) => {
   const { email, type } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -397,14 +366,12 @@ app.post('/daily', async (req, res) => {
   const plan = await getPlan(key);
   const isSubscribed = !!plan;
 
-  // Vérifier permission
   let allowed = false;
   if (plan) {
     if (type === 'evening') allowed = await getPermissionValue(key, 'evening');
     else if (type === 'meditation') allowed = await getPermissionValue(key, 'meditation');
     else allowed = await getPermissionValue(key, 'daily');
   } else {
-    // Gratuit : seulement signe du matin et méditation
     allowed = (type === 'morning' || type === 'meditation');
   }
 
@@ -429,7 +396,6 @@ app.post('/daily', async (req, res) => {
     let content = await generateWithCache(cacheKey, prompt, 1200, 0.92, '/daily ' + type);
     if (!content) content = "Aujourd'hui, observe le premier arbre que tu verras.\n\nLes anciens savaient que l'arbre que tu remarques porte un message.\n\nPrends 30 secondes pour le regarder.";
 
-    // Si non abonné, teaser
     if (!isSubscribed) {
       const teaser = content.split('\n').slice(0, 2).join('\n');
       return res.json({ content, teaser: teaser, isTeaser: true });
@@ -440,9 +406,6 @@ app.post('/daily', async (req, res) => {
   }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// /teaching — Enseignement hebdo (avec archives pour Guide)
-// ══════════════════════════════════════════════════════════════════
 app.post('/teaching', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -450,9 +413,7 @@ app.post('/teaching', async (req, res) => {
   const plan = await getPlan(key);
   const isSubscribed = !!plan;
 
-  if (!isSubscribed) {
-    return res.status(402).json({ error: 'subscription_required' });
-  }
+  if (!isSubscribed) return res.status(402).json({ error: 'subscription_required' });
   const teachingAllowed = await getPermissionValue(key, 'teaching');
   if (!teachingAllowed) return res.status(402).json({ error: 'subscription_required' });
 
@@ -463,13 +424,12 @@ app.post('/teaching', async (req, res) => {
   try {
     let content = await generateWithCache(cacheKey, prompt, 1800, 0.92, '/teaching');
     if (!content) content = "La sagesse du baobab\n\nLe baobab ne pousse pas vite. Il pousse longtemps.\n\n1. La lenteur n'est pas une faiblesse.\n2. Plus tu grandis, plus tu dois donner.\n3. Ce que tu construis lentement, rien ne peut le détruire.\n\nAction : plante quelque chose cette semaine.";
-    return res.json({ content });
+    return res.json({ content, nextUpdate: 'weekly' });
   } catch (e) {
     return res.status(500).json({ error: 'ai_error' });
   }
 });
 
-// Archives des enseignements (Guide uniquement)
 app.post('/teaching/archives', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -480,7 +440,7 @@ app.post('/teaching/archives', async (req, res) => {
   try {
     const { data } = await supabase
       .from('content_cache')
-      .select('cache_key, content')
+      .select('cache_key, content, created_at')
       .like('cache_key', 'teaching_%')
       .order('created_at', { ascending: false })
       .limit(20);
@@ -490,9 +450,6 @@ app.post('/teaching/archives', async (req, res) => {
   }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// /challenge — Défi (standard + sur mesure pour Guide)
-// ══════════════════════════════════════════════════════════════════
 app.post('/challenge', async (req, res) => {
   const { email, custom, need } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -501,21 +458,12 @@ app.post('/challenge', async (req, res) => {
   const hasAccess = await hasPermission(key, 'challenge');
   if (!hasAccess) return res.status(402).json({ error: 'subscription_required' });
 
-  // Défi sur mesure pour Guide
   if (custom) {
     const canCustom = await hasPermission(key, 'customChallenge');
     if (!canCustom) return res.status(402).json({ error: 'custom_required' });
     if (!need || !need.trim()) return res.status(400).json({ error: 'need_required' });
 
-    const prompt = `Tu es L'Ancien. Crée un défi de 7 jours SUR MESURE pour quelqu'un qui a besoin de : "${need}".
-
-Format :
-- Titre personnalisé
-- Introduction (2 phrases)
-- Jour 1 à Jour 7 (1 action concrète chacun, 2 phrases)
-- Conclusion (1 phrase)
-
-Français simple, ton direct et sage.`;
+    const prompt = `Tu es L'Ancien. Crée un défi de 7 jours SUR MESURE pour quelqu'un qui a besoin de : "${need}".\n\nFormat : Titre personnalisé, Introduction (2 phrases), Jour 1 à Jour 7 (1 action concrète chacun, 2 phrases), Conclusion (1 phrase).`;
 
     try {
       const response = await callGroq([{ role: 'user', content: prompt }], 1500, 0.95);
@@ -528,7 +476,6 @@ Français simple, ton direct et sage.`;
     }
   }
 
-  // Défi standard
   const cacheKey = 'challenge_' + weekKey();
   const weekCat = getWeekCategory();
   const prompt = `Tu es L'Ancien. Défi de 7 jours sur : ${weekCat.label}. ${weekCat.prompt}\n\nFormat : Titre, Introduction (1 phrase), Jour 1 à Jour 7 (1 action concrète chacun), Conclusion. Écris en entier.`;
@@ -536,37 +483,54 @@ Français simple, ton direct et sage.`;
   try {
     let content = await generateWithCache(cacheKey, prompt, 1500, 0.92, '/challenge');
     if (!content) content = "7 jours de reconnexion\n\nJour 1 : Regarde le ciel 5 minutes.\nJour 2 : Marche pieds nus sur la terre.\nJour 3 : Écris une chose secrète.\nJour 4 : Offre sans attendre de retour.\nJour 5 : Reste 10 minutes en silence.\nJour 6 : Contacte quelqu'un que tu as perdu de vue.\nJour 7 : Relis tout ce que tu as fait.";
-    return res.json({ content });
+    return res.json({ content, nextUpdate: 'weekly' });
   } catch (e) {
     return res.status(500).json({ error: 'ai_error' });
   }
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /library — Conte (avec archives pour Guide)
+// /library — RÉÉCRITURE COMPLÈTE
 // ══════════════════════════════════════════════════════════════════
 app.post('/library', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
   const key = email.toLowerCase().trim();
+  const plan = await getPlan(key);
+  const isSubscribed = !!plan;
 
   const libraryLevel = await getPermissionValue(key, 'library');
-  if (!libraryLevel || libraryLevel === false) return res.status(402).json({ error: 'subscription_required' });
+  const allowed = libraryLevel !== false && libraryLevel !== null;
 
-  const cacheKey = 'library_' + todayKey();
+  if (!allowed) {
+    return res.status(402).json({ error: 'subscription_required', message: 'Les contes sont réservés aux abonnés.' });
+  }
+
+  const cacheKey = (libraryLevel === 'weekly')
+    ? 'library_week_' + weekKey()
+    : 'library_' + todayKey();
+
   const dayNumber = Math.floor((Date.now() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
-  const prompt = `Tu es L'Ancien. Conte africain authentique pour aujourd'hui (jour ${dayNumber}).\n\nFormat : Titre, conte (12-15 phrases), morale (2 phrases). Noble, universel, sans religion. Écris en entier.`;
+  const prompt = `Tu es L'Ancien. Raconte un conte africain authentique (jour ${dayNumber}).\n\nFormat : Titre, conte (12-15 phrases), morale (2 phrases). Noble, universel, sans religion ni sorcellerie. Écris en entier.`;
 
   try {
     let content = await generateWithCache(cacheKey, prompt, 1800, 0.95, '/library');
-    if (!content) content = "Le vieux et la rivière\n\nUn jeune homme vint voir un ancien en colère.\nL'ancien l'emmena au bord d'une rivière.\nLa rivière ne se plaint jamais. Elle contourne. Elle attend. Elle use.\nTa colère, c'est un rocher. Si tu le frappes, tu te blesses.\nSi tu l'uses par la patience, tu passes.\n\nMorale : Ne frappe pas l'obstacle. Contourne-le.";
-    return res.json({ content });
+    if (!content) {
+      content = "Le vieux et la rivière\n\nUn jour, un jeune homme vint voir un ancien en colère contre la vie.\nL'ancien l'emmena au bord d'une rivière.\nRegarde, dit-il. La rivière ne se plaint jamais.\nElle contourne. Elle attend. Elle use.\nTa colère, c'est un rocher. Si tu le frappes, tu te blesses.\nSi tu l'uses par la patience, tu passes.\nLe jeune homme comprit.\nIl revint un an plus tard. Il avait contourné son rocher.\n\nMorale : Ne frappe pas l'obstacle. Contourne-le. Ce que la patience fait, la colère ne le fera jamais.";
+    }
+
+    if (!isSubscribed) {
+      const teaser = content.split('\n').slice(0, 4).join('\n');
+      return res.json({ content, teaser: teaser, isTeaser: true });
+    }
+
+    const nextUpdate = (libraryLevel === 'weekly') ? 'weekly' : 'daily';
+    return res.json({ content, nextUpdate });
   } catch (e) {
     return res.status(500).json({ error: 'ai_error' });
   }
 });
 
-// Archives contes (Guide uniquement)
 app.post('/library/archives', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -577,7 +541,7 @@ app.post('/library/archives', async (req, res) => {
   try {
     const { data } = await supabase
       .from('content_cache')
-      .select('cache_key, content')
+      .select('cache_key, content, created_at')
       .like('cache_key', 'library_%')
       .order('created_at', { ascending: false })
       .limit(30);
@@ -587,9 +551,6 @@ app.post('/library/archives', async (req, res) => {
   }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// ADMIN
-// ══════════════════════════════════════════════════════════════════
 app.get('/admin/stats', async (req, res) => {
   const pwd = req.query.pwd;
   if (pwd !== ADMIN_PWD) return res.status(401).json({ error: 'unauthorized' });
@@ -608,7 +569,7 @@ app.get('/admin/stats', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 L\'Ancien backend v7.0.0 sur port ' + PORT);
+  console.log('🌳 L\'Ancien backend v7.1.0 sur port ' + PORT);
   console.log('💾 Supabase : ' + (supabase ? '✓' : '❌'));
-  console.log('🎯 Plans : Découverte / Sage / Guide');
+  console.log('🎯 Plans : Découverte (5k) / Sage (10k) / Guide (15k)');
 });
