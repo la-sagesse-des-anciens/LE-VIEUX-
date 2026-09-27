@@ -10,7 +10,7 @@ const ADMIN_PWD = process.env.ADMIN_PWD || 'levieux2026';
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
 
-const GROQ_MODEL = 'openai/gpt-oss-120b';
+const GROQ_MODEL = 'llama-3.3-70b-versatile';
 
 const supabase = (SUPABASE_URL && SUPABASE_KEY)
   ? createClient(SUPABASE_URL, SUPABASE_KEY)
@@ -32,7 +32,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 app.get('/', (req, res) => {
-  res.json({ status: 'ok', service: 'La Voix des Anciens Backend', version: '11.0.0', model: GROQ_MODEL, supabase_set: !!supabase });
+  res.json({ status: 'ok', service: 'La Voix des Anciens Backend', version: '12.0.0', model: GROQ_MODEL, supabase_set: !!supabase });
 });
 
 const PILIERS = [
@@ -209,7 +209,7 @@ function convertHistoryForAI(history) {
   }).filter(m => m.content.length > 0);
 }
 
-async function callGroq(messages, maxTokens = 2000, temperature = 0.95) {
+async function callGroq(messages, maxTokens = 2000, temperature = 0.9) {
   let attempt = 0;
   while (attempt < 4) {
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -341,9 +341,6 @@ app.post('/webhook/chariow', async (req, res) => {
   return res.json({ received: true, action: 'ignored' });
 });
 
-// ══════════════════════════════════════════════════════════════════
-// /preload — Précharge 6 contenus en arrière-plan
-// ══════════════════════════════════════════════════════════════════
 app.post('/preload', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -351,7 +348,6 @@ app.post('/preload', async (req, res) => {
   const plan = await getPlan(key);
   if (!plan) return res.json({ preloaded: false });
 
-  // Répondre tout de suite
   res.json({ preloaded: true, message: 'Préchargement lancé en arrière-plan' });
 
   const pilier = getDayPilier();
@@ -360,37 +356,31 @@ app.post('/preload', async (req, res) => {
   const weekK = weekKey();
   const weekIdx = Math.floor(Date.now() / (7 * 86400000));
 
-  // 1. Signe du matin
   const signe = pilier.signes[dayIdx % pilier.signes.length];
   const promptMorning = `${SYSTEM_PROMPT}\n\nPilier : ${pilier.label}.\nSigne : "${signe}"\n\nÉcris 6 phrases en tutoyant. Phrases courtes et complètes.`;
-  generateWithCache('daily_' + dayKey + '_morning', promptMorning, 1500, 0.95, '/preload morning').catch(() => {});
+  generateWithCache('daily_' + dayKey + '_morning', promptMorning, 1500, 0.9, '/preload morning').catch(() => {});
 
-  // 2. Méditation
   const sagesse = pilier.sagesse[dayIdx % pilier.sagesse.length];
   const promptMed = `${SYSTEM_PROMPT}\n\nPilier : ${pilier.label}.\nSagesse : "${sagesse}"\n\nÉcris 5 phrases en tutoyant. Phrases courtes et complètes.`;
-  generateWithCache('daily_' + dayKey + '_meditation', promptMed, 1500, 0.95, '/preload meditation').catch(() => {});
+  generateWithCache('daily_' + dayKey + '_meditation', promptMed, 1500, 0.9, '/preload meditation').catch(() => {});
 
-  // 3. Rituel du soir
   const rituel = pilier.rituels[dayIdx % pilier.rituels.length];
   const promptEve = `${SYSTEM_PROMPT}\n\nPilier : ${pilier.label}.\nRituel : "${rituel}"\n\nÉcris 6 phrases en tutoyant. Phrases courtes et complètes.`;
-  generateWithCache('daily_' + dayKey + '_evening', promptEve, 1500, 0.95, '/preload evening').catch(() => {});
+  generateWithCache('daily_' + dayKey + '_evening', promptEve, 1500, 0.9, '/preload evening').catch(() => {});
 
-  // 4. Enseignement
   const r1 = pilier.rituels[weekIdx % pilier.rituels.length];
   const r2 = pilier.rituels[(weekIdx + 1) % pilier.rituels.length];
   const r3 = pilier.rituels[(weekIdx + 2) % pilier.rituels.length];
   const promptTeach = `${SYSTEM_PROMPT}\n\nPilier : ${pilier.label}.\n\nGestes :\n1. ${r1}\n2. ${r2}\n3. ${r3}\n\nÉcris : Titre, Intro (2 phrases), Leçon 1 (3 phrases), Leçon 2 (3 phrases), Leçon 3 (3 phrases), Action (2 phrases), Conclusion (2 phrases). Tutoiement partout.`;
-  generateWithCache('teaching_' + weekK, promptTeach, 2000, 0.95, '/preload teaching').catch(() => {});
+  generateWithCache('teaching_' + weekK, promptTeach, 2000, 0.9, '/preload teaching').catch(() => {});
 
-  // 5. Défi
   const rituelsSemaine = [];
   for (let i = 0; i < 7; i++) rituelsSemaine.push(pilier.rituels[(weekIdx + i) % pilier.rituels.length]);
-  const promptChall = `${SYSTEM_PROMPT}\n\nPilier : ${pilier.label}.\n\nGestes :\n${rituelsSemaine.map((r, i) => 'Jour ' + (i+1) + ' : ' + r).join('\n')}\n\nÉcris : Titre, 7 jours (1 phrase par jour), Conclusion. Tutoiement.`;
-  generateWithCache('challenge_' + weekK, promptChall, 2000, 0.95, '/preload challenge').catch(() => {});
+  const promptChall = `${SYSTEM_PROMPT}\n\nDéfi 7 jours sur : ${pilier.label}.\n\nGestes :\n${rituelsSemaine.map((r, i) => 'Jour ' + (i+1) + ' : ' + r).join('\n')}\n\nÉcris : Titre, 7 jours (1 phrase par jour), Conclusion. Tutoiement.`;
+  generateWithCache('challenge_' + weekK, promptChall, 2000, 0.9, '/preload challenge').catch(() => {});
 
-  // 6. Conte
   const promptLib = `${SYSTEM_PROMPT}\n\nConte africain.\nPilier : ${pilier.label}.\nMorale : "${sagesse}"\n\nÉcris : Titre, 8 phrases de conte, 2 phrases de morale avec "tu". Phrases courtes.`;
-  generateWithCache('library_' + dayKey, promptLib, 2000, 0.95, '/preload library').catch(() => {});
+  generateWithCache('library_' + dayKey, promptLib, 2000, 0.9, '/preload library').catch(() => {});
 });
 
 app.post('/ask', async (req, res) => {
@@ -430,7 +420,7 @@ app.post('/ask', async (req, res) => {
       { role: 'user', content: String(question).trim() }
     ];
 
-    const response = await callGroq(messages, 1500, 0.95);
+    const response = await callGroq(messages, 1500, 0.9);
     if (!response || !response.ok) return res.status(500).json({ error: 'ai_error', message: "Le Vieux est fatigué." });
 
     const data = await response.json();
@@ -483,7 +473,7 @@ app.post('/daily', async (req, res) => {
   }
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 1500, 0.95, '/daily ' + type);
+    let content = await generateWithCache(cacheKey, prompt, 1500, 0.9, '/daily ' + type);
     if (!content) content = "Assieds-toi, mon enfant. Écoute le vent ce matin. Il porte le message de ta journée. Prends le temps de respirer avant de commencer.";
 
     if (!isSubscribed) {
@@ -525,7 +515,7 @@ Gestes :
 Écris : Titre, Intro (2 phrases), Leçon 1 (3 phrases), Leçon 2 (3 phrases), Leçon 3 (3 phrases), Action (2 phrases), Conclusion (2 phrases). Tutoiement partout.`;
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 2000, 0.95, '/teaching');
+    let content = await generateWithCache(cacheKey, prompt, 2000, 0.9, '/teaching');
     if (!content) content = "Cette semaine, tu vas apprendre 3 gestes.\n\nLe premier billet, tu ne le dépenses pas tout de suite.\nLa porte, tu l'ouvres avec la main droite le matin.\nLe seuil, tu le touches avant de sortir.\n\nFais-les 7 jours. Tu sentiras la différence dans ton argent et dans ta paix.";
     return res.json({ content, nextUpdate: 'weekly' });
   } catch (e) {
@@ -561,7 +551,7 @@ app.post('/challenge', async (req, res) => {
     const prompt = `${SYSTEM_PROMPT}\n\nDéfi 7 jours pour : "${need}"\n\nÉcris : Titre, Intro (1 phrase), Jour 1 à 7 (1 phrase par jour), Conclusion (1 phrase). Tutoiement.`;
 
     try {
-      const response = await callGroq([{ role: 'user', content: prompt }], 1500, 0.95);
+      const response = await callGroq([{ role: 'user', content: prompt }], 1500, 0.9);
       if (!response || !response.ok) return res.status(500).json({ error: 'ai_error' });
       const data = await response.json();
       const content = data.choices && data.choices[0] && data.choices[0].message.content;
@@ -579,7 +569,7 @@ app.post('/challenge', async (req, res) => {
   const prompt = `${SYSTEM_PROMPT}\n\nDéfi 7 jours sur : ${pilier.label}\n\nGestes :\n${rituelsSemaine.map((r, i) => 'Jour ' + (i+1) + ' : ' + r).join('\n')}\n\nÉcris : Titre, 7 jours (1 phrase par jour), Conclusion. Tutoiement.`;
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 1500, 0.95, '/challenge');
+    let content = await generateWithCache(cacheKey, prompt, 2000, 0.9, '/challenge');
     if (!content) content = "7 jours pour te blinder.\n\nJour 1 : Le premier billet, tu ne le dépenses pas.\nJour 2 : Tu touches le seuil avant de sortir.\nJour 3 : Tu ne réponds pas à la provocation.\nJour 4 : Tu jettes les restes.\nJour 5 : Tu marches pieds nus.\nJour 6 : Tu appelles un ancien.\nJour 7 : Tu remercies.";
     return res.json({ content, nextUpdate: 'weekly' });
   } catch (e) { return res.status(500).json({ error: 'ai_error' }); }
@@ -604,7 +594,7 @@ app.post('/library', async (req, res) => {
   const prompt = `${SYSTEM_PROMPT}\n\nConte africain.\nPilier : ${pilier.label}.\nMorale : "${sagesse}"\n\nÉcris : Titre, 8 phrases de conte, 2 phrases de morale avec "tu". Phrases courtes.`;
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 2000, 0.95, '/library');
+    let content = await generateWithCache(cacheKey, prompt, 2000, 0.9, '/library');
     if (!content) content = "Le vieux et la rivière\n\nUn jeune homme vint voir un ancien, en colère.\nL'ancien l'emmena au bord d'une rivière.\nLa rivière ne se plaint jamais.\nElle contourne. Elle attend. Elle use.\nTa colère, c'est un rocher.\nSi tu le frappes, tu te blesses.\nSi tu l'uses par la patience, tu passes.\n\nMorale : Ne frappe pas l'obstacle. Contourne-le avec patience.";
 
     if (!isSubscribed) {
@@ -646,7 +636,7 @@ app.get('/admin/stats', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend v11.0.0 sur port ' + PORT);
+  console.log('🌳 Le Vieux backend v12.0.0 sur port ' + PORT);
   console.log('🤖 Modèle : ' + GROQ_MODEL);
   console.log('💾 Supabase : ' + (supabase ? '✓' : '❌'));
 });
