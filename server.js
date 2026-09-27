@@ -32,7 +32,7 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 app.get('/', (req, res) => {
-  res.json({ status: 'ok', service: 'La Voix des Anciens Backend', version: '11.0.0', model: GROQ_MODEL, supabase_set: !!supabase });
+  res.json({ status: 'ok', service: 'La Voix des Anciens Backend', version: '11.1.0', model: GROQ_MODEL, supabase_set: !!supabase });
 });
 
 const PILIERS = [
@@ -276,6 +276,9 @@ MOTS INTERDITS : "guérir", "magie", "sortilège", "marabout", "féticheur", "en
 
 RÈGLE DE FIN : chaque phrase est complète, jamais coupée au milieu.`;
 
+// ══════════════════════════════════════════════════════════════════
+// /me — Infos du compte + compteur mensuel
+// ══════════════════════════════════════════════════════════════════
 app.post('/me', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -286,16 +289,45 @@ app.post('/me', async (req, res) => {
   try { const { data } = await supabase.from('free_users').select('count').eq('email', key).maybeSingle(); freeCount = (data && data.count) || 0; } catch (e) {}
 
   if (!sub || sub.expired) {
-    return res.json({ email: key, subscribed: false, expired: sub ? sub.expired : false, plan: null, freeRemaining: Math.max(0, 5 - freeCount), permissions: PLAN_PERMISSIONS.decouverte });
+    return res.json({
+      email: key,
+      subscribed: false,
+      expired: sub ? sub.expired : false,
+      plan: null,
+      freeRemaining: Math.max(0, 5 - freeCount),
+      permissions: PLAN_PERMISSIONS.decouverte
+    });
   }
 
   const daysLeft = Math.ceil((sub.expiry_date - Date.now()) / 86400000);
   const planLabels = { decouverte: 'Découverte', sage: 'Sage', guide: 'Guide' };
+  const plan = sub.plan || 'decouverte';
+
+  let monthlyUsed = 0;
+  const monthlyLimit = (PLAN_PERMISSIONS[plan] && PLAN_PERMISSIONS[plan].chatLimit !== undefined)
+    ? PLAN_PERMISSIONS[plan].chatLimit
+    : null;
+
+  if (monthlyLimit !== null && supabase) {
+    const monthKey = 'chat_' + key + '_' + new Date().toISOString().slice(0, 7);
+    try {
+      const { data } = await supabase.from('content_cache').select('content').eq('cache_key', monthKey).maybeSingle();
+      monthlyUsed = parseInt((data && data.content) || '0', 10);
+    } catch (e) {}
+  }
+
   return res.json({
-    email: key, subscribed: true, expired: false,
-    plan: sub.plan || 'decouverte', planLabel: planLabels[sub.plan] || 'Découverte',
-    expiryDate: sub.expiry_date, daysLeft,
-    permissions: PLAN_PERMISSIONS[sub.plan] || PLAN_PERMISSIONS.decouverte
+    email: key,
+    subscribed: true,
+    expired: false,
+    plan: plan,
+    planLabel: planLabels[plan] || 'Découverte',
+    expiryDate: sub.expiry_date,
+    daysLeft: daysLeft,
+    monthlyUsed: monthlyUsed,
+    monthlyLimit: monthlyLimit,
+    monthlyRemaining: monthlyLimit !== null ? Math.max(0, monthlyLimit - monthlyUsed) : null,
+    permissions: PLAN_PERMISSIONS[plan] || PLAN_PERMISSIONS.decouverte
   });
 });
 
@@ -351,7 +383,6 @@ app.post('/preload', async (req, res) => {
   const plan = await getPlan(key);
   if (!plan) return res.json({ preloaded: false });
 
-  // Répondre tout de suite
   res.json({ preloaded: true, message: 'Préchargement lancé en arrière-plan' });
 
   const pilier = getDayPilier();
@@ -360,39 +391,36 @@ app.post('/preload', async (req, res) => {
   const weekK = weekKey();
   const weekIdx = Math.floor(Date.now() / (7 * 86400000));
 
-  // 1. Signe du matin
   const signe = pilier.signes[dayIdx % pilier.signes.length];
   const promptMorning = `${SYSTEM_PROMPT}\n\nPilier : ${pilier.label}.\nSigne : "${signe}"\n\nÉcris 6 phrases en tutoyant. Phrases courtes et complètes.`;
   generateWithCache('daily_' + dayKey + '_morning', promptMorning, 1500, 0.95, '/preload morning').catch(() => {});
 
-  // 2. Méditation
   const sagesse = pilier.sagesse[dayIdx % pilier.sagesse.length];
   const promptMed = `${SYSTEM_PROMPT}\n\nPilier : ${pilier.label}.\nSagesse : "${sagesse}"\n\nÉcris 5 phrases en tutoyant. Phrases courtes et complètes.`;
   generateWithCache('daily_' + dayKey + '_meditation', promptMed, 1500, 0.95, '/preload meditation').catch(() => {});
 
-  // 3. Rituel du soir
   const rituel = pilier.rituels[dayIdx % pilier.rituels.length];
   const promptEve = `${SYSTEM_PROMPT}\n\nPilier : ${pilier.label}.\nRituel : "${rituel}"\n\nÉcris 6 phrases en tutoyant. Phrases courtes et complètes.`;
   generateWithCache('daily_' + dayKey + '_evening', promptEve, 1500, 0.95, '/preload evening').catch(() => {});
 
-  // 4. Enseignement
   const r1 = pilier.rituels[weekIdx % pilier.rituels.length];
   const r2 = pilier.rituels[(weekIdx + 1) % pilier.rituels.length];
   const r3 = pilier.rituels[(weekIdx + 2) % pilier.rituels.length];
   const promptTeach = `${SYSTEM_PROMPT}\n\nPilier : ${pilier.label}.\n\nGestes :\n1. ${r1}\n2. ${r2}\n3. ${r3}\n\nÉcris : Titre, Intro (2 phrases), Leçon 1 (3 phrases), Leçon 2 (3 phrases), Leçon 3 (3 phrases), Action (2 phrases), Conclusion (2 phrases). Tutoiement partout.`;
   generateWithCache('teaching_' + weekK, promptTeach, 2000, 0.95, '/preload teaching').catch(() => {});
 
-  // 5. Défi
   const rituelsSemaine = [];
   for (let i = 0; i < 7; i++) rituelsSemaine.push(pilier.rituels[(weekIdx + i) % pilier.rituels.length]);
   const promptChall = `${SYSTEM_PROMPT}\n\nPilier : ${pilier.label}.\n\nGestes :\n${rituelsSemaine.map((r, i) => 'Jour ' + (i+1) + ' : ' + r).join('\n')}\n\nÉcris : Titre, 7 jours (1 phrase par jour), Conclusion. Tutoiement.`;
   generateWithCache('challenge_' + weekK, promptChall, 2000, 0.95, '/preload challenge').catch(() => {});
 
-  // 6. Conte
   const promptLib = `${SYSTEM_PROMPT}\n\nConte africain.\nPilier : ${pilier.label}.\nMorale : "${sagesse}"\n\nÉcris : Titre, 8 phrases de conte, 2 phrases de morale avec "tu". Phrases courtes.`;
   generateWithCache('library_' + dayKey, promptLib, 2000, 0.95, '/preload library').catch(() => {});
 });
 
+// ══════════════════════════════════════════════════════════════════
+// /ask — Chat avec compteur
+// ══════════════════════════════════════════════════════════════════
 app.post('/ask', async (req, res) => {
   const { email, question, history } = req.body || {};
   if (!email || !question) return res.status(400).json({ error: 'Email requis' });
@@ -404,6 +432,8 @@ app.post('/ask', async (req, res) => {
   const isSubscribed = !!plan;
 
   let isFree = false;
+  let freeRemaining = null;
+  let monthlyRemaining = null;
 
   if (!isSubscribed) {
     let freeUser = null;
@@ -412,13 +442,24 @@ app.post('/ask', async (req, res) => {
     if (currentCount >= FREE_LIMIT) return res.status(402).json({ error: 'quota_exceeded', message: 'Tes 5 questions offertes sont épuisées.' });
     await supabase.from('free_users').upsert({ email: key, count: currentCount + 1 });
     isFree = true;
+    freeRemaining = Math.max(0, FREE_LIMIT - (currentCount + 1));
   } else {
     const chatLimit = await getPermissionValue(key, 'chatLimit');
     if (chatLimit !== null) {
       const monthKey = 'chat_' + key + '_' + new Date().toISOString().slice(0, 7);
       const currentCount = parseInt(await getCache(monthKey) || '0', 10);
-      if (currentCount >= chatLimit) return res.status(402).json({ error: 'monthly_limit', message: 'Tes 30 questions du mois sont épuisées. Passe au plan Sage.' });
-      await setCache(monthKey, String(currentCount + 1));
+      if (currentCount >= chatLimit) {
+        return res.status(402).json({
+          error: 'monthly_limit',
+          message: 'Tes ' + chatLimit + ' questions du mois sont épuisées. Passe au plan Sage.',
+          monthlyUsed: currentCount,
+          monthlyLimit: chatLimit,
+          monthlyRemaining: 0
+        });
+      }
+      const newCount = currentCount + 1;
+      await setCache(monthKey, String(newCount));
+      monthlyRemaining = Math.max(0, chatLimit - newCount);
     }
   }
 
@@ -437,15 +478,20 @@ app.post('/ask', async (req, res) => {
     const answer = data.choices && data.choices[0] && data.choices[0].message.content;
     if (!answer) return res.status(500).json({ error: 'no_answer' });
 
-    let freeRemaining = null;
-    if (isFree) { try { const { data: fu } = await supabase.from('free_users').select('count').eq('email', key).maybeSingle(); freeRemaining = Math.max(0, FREE_LIMIT - ((fu && fu.count) || 0)); } catch (e) {} }
-
-    return res.json({ answer: answer.trim(), isFree, freeRemaining });
+    return res.json({
+      answer: answer.trim(),
+      isFree: isFree,
+      freeRemaining: freeRemaining,
+      monthlyRemaining: monthlyRemaining
+    });
   } catch (e) {
     return res.status(500).json({ error: 'server_error', message: e.message });
   }
 });
 
+// ══════════════════════════════════════════════════════════════════
+// /daily
+// ══════════════════════════════════════════════════════════════════
 app.post('/daily', async (req, res) => {
   const { email, type } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -496,6 +542,9 @@ app.post('/daily', async (req, res) => {
   }
 });
 
+// ══════════════════════════════════════════════════════════════════
+// /teaching
+// ══════════════════════════════════════════════════════════════════
 app.post('/teaching', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -545,6 +594,9 @@ app.post('/teaching/archives', async (req, res) => {
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
+// ══════════════════════════════════════════════════════════════════
+// /challenge
+// ══════════════════════════════════════════════════════════════════
 app.post('/challenge', async (req, res) => {
   const { email, custom, need } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -585,6 +637,9 @@ app.post('/challenge', async (req, res) => {
   } catch (e) { return res.status(500).json({ error: 'ai_error' }); }
 });
 
+// ══════════════════════════════════════════════════════════════════
+// /library
+// ══════════════════════════════════════════════════════════════════
 app.post('/library', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -646,7 +701,7 @@ app.get('/admin/stats', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend v11.0.0 sur port ' + PORT);
+  console.log('🌳 Le Vieux backend v11.1.0 sur port ' + PORT);
   console.log('🤖 Modèle : ' + GROQ_MODEL);
   console.log('💾 Supabase : ' + (supabase ? '✓' : '❌'));
 });
