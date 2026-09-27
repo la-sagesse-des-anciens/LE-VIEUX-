@@ -28,11 +28,13 @@ const PLAN_PERMISSIONS = {
   guide: { chatLimit: null, daily: true, meditation: true, evening: true, teaching: true, challenge: true, journal: true, library: 'daily', archives: true, customChallenge: true, personalizedChat: true }
 };
 
+const FREE_LIMIT = 10;
+
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
 app.get('/', (req, res) => {
-  res.json({ status: 'ok', service: 'La Voix des Anciens Backend', version: '11.2.0', model: GROQ_MODEL, supabase_set: !!supabase });
+  res.json({ status: 'ok', service: 'La Voix des Anciens Backend', version: '11.3.0', model: GROQ_MODEL, freeLimit: FREE_LIMIT, supabase_set: !!supabase });
 });
 
 const PILIERS = [
@@ -294,7 +296,8 @@ app.post('/me', async (req, res) => {
       subscribed: false,
       expired: sub ? sub.expired : false,
       plan: null,
-      freeRemaining: Math.max(0, 5 - freeCount),
+      freeRemaining: Math.max(0, FREE_LIMIT - freeCount),
+      freeLimit: FREE_LIMIT,
       permissions: PLAN_PERMISSIONS.decouverte
     });
   }
@@ -419,7 +422,7 @@ app.post('/preload', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /ask
+// /ask — gratuit : 10 questions
 // ══════════════════════════════════════════════════════════════════
 app.post('/ask', async (req, res) => {
   const { email, question, history } = req.body || {};
@@ -427,7 +430,6 @@ app.post('/ask', async (req, res) => {
   if (!GROQ_API_KEY) return res.status(500).json({ error: 'config_error' });
 
   const key = email.toLowerCase().trim();
-  const FREE_LIMIT = 5;
   const plan = await getPlan(key);
   const isSubscribed = !!plan;
 
@@ -439,7 +441,7 @@ app.post('/ask', async (req, res) => {
     let freeUser = null;
     try { const { data } = await supabase.from('free_users').select('*').eq('email', key).maybeSingle(); freeUser = data; } catch (e) {}
     const currentCount = (freeUser && freeUser.count) || 0;
-    if (currentCount >= FREE_LIMIT) return res.status(402).json({ error: 'quota_exceeded', message: 'Tes 5 questions offertes sont épuisées.' });
+    if (currentCount >= FREE_LIMIT) return res.status(402).json({ error: 'quota_exceeded', message: 'Tes ' + FREE_LIMIT + ' questions offertes sont épuisées.' });
     await supabase.from('free_users').upsert({ email: key, count: currentCount + 1 });
     isFree = true;
     freeRemaining = Math.max(0, FREE_LIMIT - (currentCount + 1));
@@ -490,7 +492,7 @@ app.post('/ask', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /daily — Gratuit : seulement le signe du matin en teaser
+// /daily — gratuit : Signe du matin COMPLET, Méditation en teaser, Soir bloqué
 // ══════════════════════════════════════════════════════════════════
 app.post('/daily', async (req, res) => {
   const { email, type } = req.body || {};
@@ -506,8 +508,8 @@ app.post('/daily', async (req, res) => {
     else if (type === 'meditation') allowed = await getPermissionValue(key, 'meditation');
     else allowed = await getPermissionValue(key, 'daily');
   } else {
-    // Gratuit : SEULEMENT le signe du matin
-    allowed = (type === 'morning');
+    // Gratuit : signe du matin + méditation
+    allowed = (type === 'morning' || type === 'meditation');
   }
 
   if (!allowed) return res.status(402).json({ error: 'subscription_required', message: 'Ce contenu est réservé aux abonnés.' });
@@ -533,11 +535,21 @@ app.post('/daily', async (req, res) => {
     let content = await generateWithCache(cacheKey, prompt, 1500, 0.95, '/daily ' + type);
     if (!content) content = "Assieds-toi, mon enfant. Écoute le vent ce matin. Il porte le message de ta journée. Prends le temps de respirer avant de commencer.";
 
+    // 🎁 GRATUIT
     if (!isSubscribed) {
-      // Gratuit : uniquement 2 phrases en teaser
-      const teaser = content.split('\n').slice(0, 2).join('\n');
-      return res.json({ content: teaser, teaser, isTeaser: true });
+      if (type === 'morning') {
+        // Signe du matin COMPLET
+        return res.json({ content });
+      }
+      if (type === 'meditation') {
+        // Méditation : teaser 2 phrases
+        const teaser = content.split('\n').slice(0, 2).join('\n');
+        return res.json({ content: teaser, teaser, isTeaser: true });
+      }
+      // Soir : bloqué (déjà géré plus haut)
+      return res.status(402).json({ error: 'subscription_required' });
     }
+
     return res.json({ content });
   } catch (e) {
     return res.status(500).json({ error: 'ai_error' });
@@ -545,7 +557,7 @@ app.post('/daily', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /teaching — Gratuit : teaser seulement
+// /teaching — gratuit : teaser 5 phrases
 // ══════════════════════════════════════════════════════════════════
 app.post('/teaching', async (req, res) => {
   const { email } = req.body || {};
@@ -554,11 +566,10 @@ app.post('/teaching', async (req, res) => {
   const plan = await getPlan(key);
 
   if (!plan) {
-    // Gratuit : renvoyer juste un teaser
     const cacheKeyFree = 'teaching_' + weekKey();
     const cachedFree = await getCache(cacheKeyFree);
     const teaserText = cachedFree
-      ? cachedFree.split('\n').slice(0, 3).join('\n')
+      ? cachedFree.split('\n').slice(0, 5).join('\n')
       : 'Cette semaine, écoute bien. Les 3 gestes que je vais te donner sont simples mais puissants.';
     return res.json({ content: teaserText, teaser: teaserText, isTeaser: true, freeTeaser: true });
   }
@@ -650,7 +661,7 @@ app.post('/challenge', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /library — Gratuit : teaser seulement
+// /library — gratuit : teaser 5 phrases
 // ══════════════════════════════════════════════════════════════════
 app.post('/library', async (req, res) => {
   const { email } = req.body || {};
@@ -675,8 +686,8 @@ app.post('/library', async (req, res) => {
     if (!content) content = "Le vieux et la rivière\n\nUn jeune homme vint voir un ancien, en colère.\nL'ancien l'emmena au bord d'une rivière.\nLa rivière ne se plaint jamais.\nElle contourne. Elle attend. Elle use.\nTa colère, c'est un rocher.\nSi tu le frappes, tu te blesses.\nSi tu l'uses par la patience, tu passes.\n\nMorale : Ne frappe pas l'obstacle. Contourne-le avec patience.";
 
     if (!isSubscribed) {
-      // Gratuit : titre + 2 phrases seulement
-      const teaser = content.split('\n').slice(0, 3).join('\n');
+      // Gratuit : titre + 5 phrases
+      const teaser = content.split('\n').slice(0, 5).join('\n');
       return res.json({ content: teaser, teaser, isTeaser: true });
     }
     const nextUpdate = (libraryLevel === 'weekly') ? 'weekly' : 'daily';
@@ -714,8 +725,8 @@ app.get('/admin/stats', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend v11.2.0 sur port ' + PORT);
+  console.log('🌳 Le Vieux backend v11.3.0 sur port ' + PORT);
   console.log('🤖 Modèle : ' + GROQ_MODEL);
   console.log('💾 Supabase : ' + (supabase ? '✓' : '❌'));
-  console.log('🎁 Gratuit : 5 questions + signe du matin + teasers');
+  console.log('🎁 Gratuit : ' + FREE_LIMIT + ' questions + signe du matin complet + méditation teaser');
 });
