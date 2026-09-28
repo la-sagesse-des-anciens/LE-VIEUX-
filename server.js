@@ -40,7 +40,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'La Voix des Anciens Backend',
-    version: '13.0.0',
+    version: '13.1.0',
     model: GROQ_MODEL,
     freeLimit: FREE_LIMIT,
     tts: ELEVENLABS_API_KEY ? 'elevenlabs' : 'browser',
@@ -766,10 +766,10 @@ app.get('/admin/stats', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// SUPPORT — CHAT UTILISATEUR ↔ ADMIN
+// SUPPORT — TICKETS
 // ══════════════════════════════════════════════════════════════════
 
-const AUTO_REPLY = "Le Vieux a bien reçu ton message. Il te répondra sous 24h. 🙏";
+const AUTO_REPLY = "Merci, ta demande a bien été reçue. Notre équipe te répondra sous 24h. 🙏";
 
 app.post('/support/send', async (req, res) => {
   const { email, message } = req.body || {};
@@ -811,7 +811,7 @@ app.post('/support/send', async (req, res) => {
     return res.json({ success: true });
   } catch (e) {
     console.error('Support send error:', e.message);
-    return res.status(500).json({ error: 'send_failed' });
+    return res.status(500).json({ error: 'send_failed', detail: e.message });
   }
 });
 
@@ -842,7 +842,7 @@ app.post('/support/messages', async (req, res) => {
     return res.json({ messages: data || [] });
   } catch (e) {
     console.error('Support messages error:', e.message);
-    return res.status(500).json({ error: 'fetch_failed' });
+    return res.status(500).json({ error: 'fetch_failed', detail: e.message });
   }
 });
 
@@ -955,9 +955,9 @@ app.post('/support/admin/reply', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend v13.0.0 sur port ' + PORT);
+  console.log('🌳 Le Vieux backend v13.1.0 sur port ' + PORT);
   console.log('🤖 Modèle : ' + GROQ_MODEL);
   console.log('🎙️  TTS : ' + (ELEVENLABS_API_KEY ? 'ElevenLabs ✓' : 'navigateur (fallback)'));
   console.log('💾 Supabase : ' + (supabase ? '✓' : '❌'));
-  console.log('💬 Support : ✓');
+  console.log('💬 Support tickets : ✓');
 });
