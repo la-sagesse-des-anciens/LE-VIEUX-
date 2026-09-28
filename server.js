@@ -40,7 +40,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'La Voix des Anciens Backend',
-    version: '12.1.0',
+    version: '12.2.0',
     model: GROQ_MODEL,
     freeLimit: FREE_LIMIT,
     tts: ELEVENLABS_API_KEY ? 'elevenlabs' : 'browser',
@@ -278,9 +278,6 @@ async function getPlan(email) { const sub = await getSubscription(email); if (!s
 async function hasPermission(email, permission) { const plan = await getPlan(email); if (!plan) return false; return (PLAN_PERMISSIONS[plan] || PLAN_PERMISSIONS.decouverte)[permission] === true; }
 async function getPermissionValue(email, permission) { const plan = await getPlan(email); if (!plan) return PLAN_PERMISSIONS.decouverte[permission]; return (PLAN_PERMISSIONS[plan] || PLAN_PERMISSIONS.decouverte)[permission]; }
 
-// ══════════════════════════════════════════════════════════════════
-// SYSTEM PROMPT — "anciens" imposé, "ancêtre" interdit
-// ══════════════════════════════════════════════════════════════════
 const SYSTEM_PROMPT = `Tu es "Le Vieux", un sage africain de 70 ans assis sous un vieux manguier.
 
 RÈGLE ABSOLUE : tu t'adresses DIRECTEMENT à la personne avec "tu", "toi", "ton", "ta". Tu ne dis jamais "je pense". Tu parles à l'autre, pas de toi.
@@ -298,7 +295,6 @@ INTERDIT ABSOLU :
 - Ne JAMAIS dire "ancêtre" ou "ancêtres"
 - Ne JAMAIS dire "nos ancêtres"
 - Toujours dire "les anciens" à la place
-- Toujours dire "la tradition ancestrale" à la place de "la tradition des ancêtres"
 
 MOTS INTERDITS : "guérir", "magie", "sortilège", "marabout", "féticheur", "envoûtement", "sorcellerie".
 À DIRE : "soulager", "purifier", "sagesse ancienne", "tradition ancestrale", "débloquer", "prospérité".
@@ -769,7 +765,7 @@ app.get('/admin/stats', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend v12.1.0 sur port ' + PORT);
+  console.log('🌳 Le Vieux backend v12.2.0 sur port ' + PORT);
   console.log('🤖 Modèle : ' + GROQ_MODEL);
   console.log('🎙️  TTS : ' + (ELEVENLABS_API_KEY ? 'ElevenLabs ✓' : 'navigateur (fallback)'));
   console.log('💾 Supabase : ' + (supabase ? '✓' : '❌'));
