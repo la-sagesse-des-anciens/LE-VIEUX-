@@ -40,7 +40,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'La Voix des Anciens Backend',
-    version: '13.4.0',
+    version: '13.5.0',
     model: GROQ_MODEL,
     freeLimit: FREE_LIMIT,
     tts: ELEVENLABS_API_KEY ? 'elevenlabs' : 'browser',
@@ -280,57 +280,76 @@ async function hasPermission(email, permission) { const plan = await getPlan(ema
 async function getPermissionValue(email, permission) { const plan = await getPlan(email); if (!plan) return PLAN_PERMISSIONS.decouverte[permission]; return (PLAN_PERMISSIONS[plan] || PLAN_PERMISSIONS.decouverte)[permission]; }
 
 // ══════════════════════════════════════════════════════════════════
-// PROMPT DU VIEUX — Style vrai sage, réponses courtes, pas d'IA
+// PROMPT CHAT — dialogue naturel avec l'utilisateur
 // ══════════════════════════════════════════════════════════════════
-const SYSTEM_PROMPT = `Tu es "Le Vieux", un sage africain de 70 ans assis sous un manguier. Tu parles comme un vrai vieux du village, pas comme un livre.
+const SYSTEM_PROMPT_CHAT = `Tu es "Le Vieux", un sage africain de 70 ans assis sous un manguier. Tu parles comme un vrai vieux du village, pas comme un livre.
 
 RÈGLES ABSOLUES :
 1. Tu tutoies TOUJOURS. Jamais "vous".
-2. Tu fais des réponses COURTES : 2 à 4 phrases maximum. Sauf si on te demande une histoire.
+2. Réponses COURTES : 2 à 4 phrases. Un vieux ne fait pas de discours.
 3. Tu ne récites JAMAIS de listes de mots nobles. Tu parles naturellement.
-4. Tu poses parfois des questions avant de répondre. Un vieux ne répond pas toujours du tac au tac.
+4. Tu poses parfois des questions avant de répondre.
 5. Tu utilises des images SIMPLES : le manguier, la rivière, le marché, les enfants, la terre, la pluie, le feu, la marmite.
 6. Tu peux être taquin, moqueur, ou silencieux. Un vieux n'est pas toujours gentil.
 
 INTERDIT :
 - Ne JAMAIS dire "ancêtre" ou "ancêtres". Dis "les anciens".
 - Ne JAMAIS dire : "guérir", "magie", "sortilège", "marabout", "féticheur", "envoûtement", "sorcellerie".
-- Ne JAMAIS dire : "prospérité", "sagesse ancestrale", "tradition des siècles", "tradition ancestrale" (ces mots sonnent faux).
-- Ne JAMAIS faire de phrases poétiques creuses. Pas de "ton cœur brille comme une étoile".
-- Ne JAMAIS dire "je suis là pour t'aider" ou "je comprends ta peine".
+- Ne JAMAIS dire : "prospérité", "sagesse ancestrale", "tradition des siècles", "tradition ancestrale".
+- Ne JAMAIS faire de phrases poétiques creuses.
+- Ne JAMAIS parler de tes contraintes. Ne dis JAMAIS "je ne peux dire que X phrases". Réponds directement.
 
 STYLE :
 - Français simple, comme au village.
-- Mots du quotidien : "poisse", "blinder", "laver l'intérieur", "lourdeur", "palabres", "traîner", "marmite".
-- Si on te dit bonjour, tu réponds "Bonjour" et c'est tout. Pas de discours.
+- Mots du quotidien : "poisse", "blinder", "laver l'intérieur", "lourdeur", "palabres", "marmite".
 
-EXEMPLES DE BONNES RÉPONSES :
+EXEMPLES :
 
 Q: "Je vous aime le vieux"
-R: "Assieds-toi. Le cœur qui parle comme ça est un cœur propre. Garde-le comme ça."
-
-Q: "Je veux avancer dans ma vie"
-R: "Avancer c'est bien. Mais tu vas où ? Réponds-moi d'abord."
+R: "Assieds-toi. Le cœur qui parle comme ça est propre. Garde-le."
 
 Q: "Bonjour"
 R: "Bonjour. Assieds-toi."
 
-Q: "Comment je peux gagner de l'argent ?"
-R: "L'argent ne tombe pas du ciel. Dis-moi ce que tu fais déjà. On regardera ensemble."
+Q: "Je veux avancer dans ma vie"
+R: "Avancer c'est bien. Mais tu vas où ? Réponds-moi d'abord."
 
 Q: "a bon ?"
 R: "Oui. Et alors ? Parle-moi vraiment."
 
-Q: "Comment trouver la paix ?"
-R: "La paix, tu ne la trouves pas dehors. Regarde d'abord ce qui te dérange dans ta tête."
-
 Q: "Je suis triste"
 R: "Triste pourquoi ? Raconte-moi. On ne soigne pas ce qu'on cache."
 
-Q: "Merci"
-R: "Merci de quoi ? Va, fais ce que je t'ai dit. Reviens me voir après."
+RÈGLE DE FIN : chaque phrase est complète. Jamais coupée au milieu.`;
+
+// ══════════════════════════════════════════════════════════════════
+// PROMPT CONTENU — pour générer les contenus quotidiens
+// ══════════════════════════════════════════════════════════════════
+const SYSTEM_PROMPT_CONTENT = `Tu es "Le Vieux", un sage africain de 70 ans assis sous un manguier. Tu écris des textes courts pour guider quelqu'un.
+
+RÈGLES ABSOLUES :
+1. Tu tutoies TOUJOURS. Jamais "vous".
+2. Tu respectes EXACTEMENT le nombre de phrases demandé. Ni plus, ni moins.
+3. Tu ne parles JAMAIS de tes contraintes. Tu ne dis JAMAIS "je ne peux dire que X phrases" ou "tu veux X phrases, je n'en fais que Y". Tu écris le contenu demandé, point.
+4. Tu t'adresses DIRECTEMENT à la personne avec "tu", "toi", "ton".
+5. Tu ne récites JAMAIS de listes de mots nobles. Tu parles naturellement.
+
+INTERDIT :
+- Ne JAMAIS dire "ancêtre" ou "ancêtres". Dis "les anciens".
+- Ne JAMAIS dire : "guérir", "magie", "sortilège", "marabout", "féticheur", "envoûtement", "sorcellerie".
+- Ne JAMAIS dire : "prospérité", "sagesse ancestrale", "tradition des siècles", "tradition ancestrale".
+- Ne JAMAIS faire de phrases poétiques creuses.
+- Ne JAMAIS demander "ça te va ?" ou poser des questions à la personne. Tu écris, c'est tout.
+
+STYLE :
+- Français simple, comme au village.
+- Phrases courtes de 10-15 mots.
+- Mots du quotidien : "poisse", "blinder", "laver l'intérieur", "lourdeur", "palabres".
 
 RÈGLE DE FIN : chaque phrase est complète. Jamais coupée au milieu.`;
+
+// Alias pour compatibilité (le chat utilise CHAT par défaut)
+const SYSTEM_PROMPT = SYSTEM_PROMPT_CHAT;
 
 app.post('/me', async (req, res) => {
   const { email } = req.body || {};
@@ -487,29 +506,29 @@ app.post('/preload', async (req, res) => {
   const weekIdx = Math.floor(Date.now() / (7 * 86400000));
 
   const signe = pilier.signes[dayIdx % pilier.signes.length];
-  const promptMorning = `${SYSTEM_PROMPT}\n\nPilier : ${pilier.label}.\nSigne : "${signe}"\n\nÉcris 6 phrases en tutoyant. Phrases courtes et complètes.`;
+  const promptMorning = `${SYSTEM_PROMPT_CONTENT}\n\nPilier : ${pilier.label}.\nSigne : "${signe}"\n\nÉcris exactement 6 phrases en tutoyant. Phrases courtes et complètes.`;
   generateWithCache('daily_' + dayKey + '_morning', promptMorning, 1500, 0.95, '/preload morning').catch(() => {});
 
   const sagesse = pilier.sagesse[dayIdx % pilier.sagesse.length];
-  const promptMed = `${SYSTEM_PROMPT}\n\nPilier : ${pilier.label}.\nSagesse : "${sagesse}"\n\nÉcris 5 phrases en tutoyant. Phrases courtes et complètes.`;
+  const promptMed = `${SYSTEM_PROMPT_CONTENT}\n\nPilier : ${pilier.label}.\nSagesse : "${sagesse}"\n\nÉcris exactement 5 phrases en tutoyant. Phrases courtes et complètes.`;
   generateWithCache('daily_' + dayKey + '_meditation', promptMed, 1500, 0.95, '/preload meditation').catch(() => {});
 
   const rituel = pilier.rituels[dayIdx % pilier.rituels.length];
-  const promptEve = `${SYSTEM_PROMPT}\n\nPilier : ${pilier.label}.\nRituel : "${rituel}"\n\nÉcris 6 phrases en tutoyant. Phrases courtes et complètes.`;
+  const promptEve = `${SYSTEM_PROMPT_CONTENT}\n\nPilier : ${pilier.label}.\nRituel : "${rituel}"\n\nÉcris exactement 6 phrases en tutoyant. Phrases courtes et complètes.`;
   generateWithCache('daily_' + dayKey + '_evening', promptEve, 1500, 0.95, '/preload evening').catch(() => {});
 
   const r1 = pilier.rituels[weekIdx % pilier.rituels.length];
   const r2 = pilier.rituels[(weekIdx + 1) % pilier.rituels.length];
   const r3 = pilier.rituels[(weekIdx + 2) % pilier.rituels.length];
-  const promptTeach = `${SYSTEM_PROMPT}\n\nPilier : ${pilier.label}.\n\nGestes :\n1. ${r1}\n2. ${r2}\n3. ${r3}\n\nÉcris : Titre, Intro (2 phrases), Leçon 1 (3 phrases), Leçon 2 (3 phrases), Leçon 3 (3 phrases), Action (2 phrases), Conclusion (2 phrases). Tutoiement partout.`;
+  const promptTeach = `${SYSTEM_PROMPT_CONTENT}\n\nPilier : ${pilier.label}.\n\nGestes :\n1. ${r1}\n2. ${r2}\n3. ${r3}\n\nÉcris : Titre, Intro (2 phrases), Leçon 1 (3 phrases), Leçon 2 (3 phrases), Leçon 3 (3 phrases), Action (2 phrases), Conclusion (2 phrases). Tutoiement partout.`;
   generateWithCache('teaching_' + weekK, promptTeach, 2000, 0.95, '/preload teaching').catch(() => {});
 
   const rituelsSemaine = [];
   for (let i = 0; i < 7; i++) rituelsSemaine.push(pilier.rituels[(weekIdx + i) % pilier.rituels.length]);
-  const promptChall = `${SYSTEM_PROMPT}\n\nPilier : ${pilier.label}.\n\nGestes :\n${rituelsSemaine.map((r, i) => 'Jour ' + (i+1) + ' : ' + r).join('\n')}\n\nÉcris : Titre, 7 jours (1 phrase par jour), Conclusion. Tutoiement.`;
+  const promptChall = `${SYSTEM_PROMPT_CONTENT}\n\nPilier : ${pilier.label}.\n\nGestes :\n${rituelsSemaine.map((r, i) => 'Jour ' + (i+1) + ' : ' + r).join('\n')}\n\nÉcris : Titre, 7 jours (1 phrase par jour), Conclusion. Tutoiement.`;
   generateWithCache('challenge_' + weekK, promptChall, 2000, 0.95, '/preload challenge').catch(() => {});
 
-  const promptLib = `${SYSTEM_PROMPT}\n\nConte africain.\nPilier : ${pilier.label}.\nMorale : "${sagesse}"\n\nÉcris : Titre, 8 phrases de conte, 2 phrases de morale avec "tu". Phrases courtes.`;
+  const promptLib = `${SYSTEM_PROMPT_CONTENT}\n\nConte africain.\nPilier : ${pilier.label}.\nMorale : "${sagesse}"\n\nÉcris : Titre, 8 phrases de conte, 2 phrases de morale avec "tu". Phrases courtes.`;
   generateWithCache('library_' + dayKey, promptLib, 2000, 0.95, '/preload library').catch(() => {});
 });
 
@@ -557,7 +576,7 @@ app.post('/ask', async (req, res) => {
   try {
     const convertedHistory = convertHistoryForAI(history || []).slice(-12);
     const messages = [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: SYSTEM_PROMPT_CHAT },
       ...convertedHistory,
       { role: 'user', content: String(question).trim() }
     ];
@@ -607,13 +626,13 @@ app.post('/daily', async (req, res) => {
 
   if (type === 'evening') {
     const rituel = pilier.rituels[dayIdx % pilier.rituels.length];
-    prompt = `${SYSTEM_PROMPT}\n\nPilier : ${pilier.label}.\nRituel : "${rituel}"\n\nÉcris 6 phrases en tutoyant. Phrases courtes et complètes.`;
+    prompt = `${SYSTEM_PROMPT_CONTENT}\n\nPilier : ${pilier.label}.\nRituel : "${rituel}"\n\nÉcris exactement 6 phrases en tutoyant. Phrases courtes et complètes.`;
   } else if (type === 'meditation') {
     const sagesse = pilier.sagesse[dayIdx % pilier.sagesse.length];
-    prompt = `${SYSTEM_PROMPT}\n\nPilier : ${pilier.label}.\nSagesse : "${sagesse}"\n\nÉcris 5 phrases en tutoyant. Phrases courtes et complètes.`;
+    prompt = `${SYSTEM_PROMPT_CONTENT}\n\nPilier : ${pilier.label}.\nSagesse : "${sagesse}"\n\nÉcris exactement 5 phrases en tutoyant. Phrases courtes et complètes.`;
   } else {
     const signe = pilier.signes[dayIdx % pilier.signes.length];
-    prompt = `${SYSTEM_PROMPT}\n\nPilier : ${pilier.label}.\nSigne : "${signe}"\n\nÉcris 6 phrases en tutoyant. Phrases courtes et complètes.`;
+    prompt = `${SYSTEM_PROMPT_CONTENT}\n\nPilier : ${pilier.label}.\nSigne : "${signe}"\n\nÉcris exactement 6 phrases en tutoyant. Phrases courtes et complètes.`;
   }
 
   try {
@@ -663,7 +682,7 @@ app.post('/teaching', async (req, res) => {
   const r2 = pilier.rituels[(weekIdx + 1) % pilier.rituels.length];
   const r3 = pilier.rituels[(weekIdx + 2) % pilier.rituels.length];
 
-  const prompt = `${SYSTEM_PROMPT}
+  const prompt = `${SYSTEM_PROMPT_CONTENT}
 
 PILIER DE LA SEMAINE : ${pilier.label}
 
@@ -708,7 +727,7 @@ app.post('/challenge', async (req, res) => {
     if (!canCustom) return res.status(402).json({ error: 'custom_required' });
     if (!need || !need.trim()) return res.status(400).json({ error: 'need_required' });
 
-    const prompt = `${SYSTEM_PROMPT}\n\nDéfi 7 jours pour : "${need}"\n\nÉcris : Titre, Intro (1 phrase), Jour 1 à 7 (1 phrase par jour), Conclusion (1 phrase). Tutoiement.`;
+    const prompt = `${SYSTEM_PROMPT_CONTENT}\n\nDéfi 7 jours pour : "${need}"\n\nÉcris : Titre, Intro (1 phrase), Jour 1 à 7 (1 phrase par jour), Conclusion (1 phrase). Tutoiement.`;
 
     try {
       const response = await callGroq([{ role: 'user', content: prompt }], 1500, 0.95);
@@ -726,7 +745,7 @@ app.post('/challenge', async (req, res) => {
   const rituelsSemaine = [];
   for (let i = 0; i < 7; i++) rituelsSemaine.push(pilier.rituels[(weekIdx + i) % pilier.rituels.length]);
 
-  const prompt = `${SYSTEM_PROMPT}\n\nDéfi 7 jours sur : ${pilier.label}\n\nGestes :\n${rituelsSemaine.map((r, i) => 'Jour ' + (i+1) + ' : ' + r).join('\n')}\n\nÉcris : Titre, 7 jours (1 phrase par jour), Conclusion. Tutoiement.`;
+  const prompt = `${SYSTEM_PROMPT_CONTENT}\n\nDéfi 7 jours sur : ${pilier.label}\n\nGestes :\n${rituelsSemaine.map((r, i) => 'Jour ' + (i+1) + ' : ' + r).join('\n')}\n\nÉcris : Titre, 7 jours (1 phrase par jour), Conclusion. Tutoiement.`;
 
   try {
     let content = await generateWithCache(cacheKey, prompt, 1500, 0.95, '/challenge');
@@ -751,7 +770,7 @@ app.post('/library', async (req, res) => {
   const dayIdx = new Date().getDate() + new Date().getMonth() * 31;
   const sagesse = pilier.sagesse[dayIdx % pilier.sagesse.length];
 
-  const prompt = `${SYSTEM_PROMPT}\n\nConte africain.\nPilier : ${pilier.label}.\nMorale : "${sagesse}"\n\nÉcris : Titre, 8 phrases de conte, 2 phrases de morale avec "tu". Phrases courtes.`;
+  const prompt = `${SYSTEM_PROMPT_CONTENT}\n\nConte africain.\nPilier : ${pilier.label}.\nMorale : "${sagesse}"\n\nÉcris : Titre, 8 phrases de conte, 2 phrases de morale avec "tu". Phrases courtes.`;
 
   try {
     let content = await generateWithCache(cacheKey, prompt, 2000, 0.95, '/library');
@@ -985,10 +1004,10 @@ app.post('/support/admin/reply', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend v13.4.0 sur port ' + PORT);
+  console.log('🌳 Le Vieux backend v13.5.0 sur port ' + PORT);
   console.log('🤖 Modèle : ' + GROQ_MODEL);
   console.log('🎙️  TTS : ' + (ELEVENLABS_API_KEY ? 'ElevenLabs ✓' : 'navigateur (fallback)'));
   console.log('💾 Supabase : ' + (supabase ? '✓' : '❌'));
   console.log('💬 Support tickets : ✓');
-  console.log('🗣️  Prompt : Vieux style naturel (v2)');
+  console.log('🗣️  Chat : Vieux naturel | Contenu : strict sans méta');
 });
