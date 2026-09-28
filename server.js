@@ -40,7 +40,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'La Voix des Anciens Backend',
-    version: '12.3.0',
+    version: '13.0.0',
     model: GROQ_MODEL,
     freeLimit: FREE_LIMIT,
     tts: ELEVENLABS_API_KEY ? 'elevenlabs' : 'browser',
@@ -396,6 +396,9 @@ app.post('/webhook/chariow', async (req, res) => {
   return res.json({ received: true, action: 'ignored' });
 });
 
+// ══════════════════════════════════════════════════════════════════
+// /tts
+// ══════════════════════════════════════════════════════════════════
 app.post('/tts', async (req, res) => {
   const { text } = req.body || {};
   if (!text || !text.trim()) return res.status(400).json({ error: 'Texte requis' });
@@ -440,6 +443,132 @@ app.post('/tts', async (req, res) => {
   }
 });
 
+// ══════════════════════════════════════════════════════════════════
+// /support — Chat support
+// ══════════════════════════════════════════════════════════════════
+app.post('/support/send', async (req, res) => {
+  const { email, message } = req.body || {};
+  if (!email || !message) return res.status(400).json({ error: 'Email et message requis' });
+  if (!supabase) return res.status(500).json({ error: 'supabase_not_configured' });
+
+  const key = email.toLowerCase().trim();
+  const trimmed = String(message).trim().slice(0, 2000);
+  if (!trimmed) return res.status(400).json({ error: 'Message vide' });
+
+  try {
+    const { data, error } = await supabase.from('support_messages').insert({
+      email: key,
+      message: trimmed,
+      from_admin: false,
+      read_by_admin: false,
+      read_by_user: true,
+      created_at: Date.now()
+    }).select().single();
+
+    if (error) throw error;
+    return res.json({ ok: true, message: data });
+  } catch (e) {
+    console.error('support/send error:', e.message);
+    return res.status(500).json({ error: 'server_error', message: e.message });
+  }
+});
+
+app.post('/support/messages', async (req, res) => {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'Email requis' });
+  if (!supabase) return res.status(500).json({ error: 'supabase_not_configured' });
+
+  const key = email.toLowerCase().trim();
+  try {
+    const { data, error } = await supabase.from('support_messages')
+      .select('*').eq('email', key)
+      .order('created_at', { ascending: true }).limit(200);
+    if (error) throw error;
+    return res.json({ messages: data || [] });
+  } catch (e) {
+    return res.status(500).json({ error: 'server_error', message: e.message });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════
+// /support/admin — Admin routes
+// ══════════════════════════════════════════════════════════════════
+app.post('/support/admin/list', async (req, res) => {
+  const { pwd } = req.body || {};
+  if (pwd !== ADMIN_PWD) return res.status(401).json({ error: 'unauthorized' });
+  if (!supabase) return res.status(500).json({ error: 'supabase_not_configured' });
+
+  try {
+    const { data, error } = await supabase.from('support_messages')
+      .select('*').order('created_at', { ascending: false }).limit(500);
+    if (error) throw error;
+
+    // Grouper par email
+    const convs = {};
+    (data || []).forEach(m => {
+      if (!convs[m.email]) convs[m.email] = { email: m.email, messages: [], lastAt: 0, unread: 0 };
+      convs[m.email].messages.push(m);
+      if (m.created_at > convs[m.email].lastAt) convs[m.email].lastAt = m.created_at;
+      if (!m.from_admin && !m.read_by_admin) convs[m.email].unread++;
+    });
+
+    const conversations = Object.values(convs).sort((a, b) => b.lastAt - a.lastAt);
+    // Inverser pour avoir ordre chronologique
+    conversations.forEach(c => c.messages.reverse());
+
+    return res.json({ conversations });
+  } catch (e) {
+    return res.status(500).json({ error: 'server_error', message: e.message });
+  }
+});
+
+app.post('/support/admin/reply', async (req, res) => {
+  const { pwd, email, message } = req.body || {};
+  if (pwd !== ADMIN_PWD) return res.status(401).json({ error: 'unauthorized' });
+  if (!email || !message) return res.status(400).json({ error: 'Email et message requis' });
+  if (!supabase) return res.status(500).json({ error: 'supabase_not_configured' });
+
+  const key = email.toLowerCase().trim();
+  const trimmed = String(message).trim().slice(0, 2000);
+  if (!trimmed) return res.status(400).json({ error: 'Message vide' });
+
+  try {
+    const { data, error } = await supabase.from('support_messages').insert({
+      email: key,
+      message: trimmed,
+      from_admin: true,
+      read_by_admin: true,
+      read_by_user: false,
+      created_at: Date.now()
+    }).select().single();
+    if (error) throw error;
+    return res.json({ ok: true, message: data });
+  } catch (e) {
+    return res.status(500).json({ error: 'server_error', message: e.message });
+  }
+});
+
+app.post('/support/admin/mark-read', async (req, res) => {
+  const { pwd, email } = req.body || {};
+  if (pwd !== ADMIN_PWD) return res.status(401).json({ error: 'unauthorized' });
+  if (!email) return res.status(400).json({ error: 'Email requis' });
+  if (!supabase) return res.status(500).json({ error: 'supabase_not_configured' });
+
+  const key = email.toLowerCase().trim();
+  try {
+    const { error } = await supabase.from('support_messages')
+      .update({ read_by_admin: true })
+      .eq('email', key).eq('from_admin', false);
+    if (error) throw error;
+    return res.json({ ok: true });
+  } catch (e) {
+    return res.status(500).json({ error: 'server_error', message: e.message });
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════
+// /preload
+// ══════════════════════════════════════════════════════════════════
 app.post('/preload', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -482,6 +611,9 @@ app.post('/preload', async (req, res) => {
   generateWithCache('library_' + dayKey, promptLib, 2000, 0.95, '/preload library').catch(() => {});
 });
 
+// ══════════════════════════════════════════════════════════════════
+// /ask
+// ══════════════════════════════════════════════════════════════════
 app.post('/ask', async (req, res) => {
   const { email, question, history } = req.body || {};
   if (!email || !question) return res.status(400).json({ error: 'Email requis' });
@@ -765,8 +897,9 @@ app.get('/admin/stats', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend v12.3.0 sur port ' + PORT);
+  console.log('🌳 Le Vieux backend v13.0.0 sur port ' + PORT);
   console.log('🤖 Modèle : ' + GROQ_MODEL);
   console.log('🎙️  TTS : ' + (ELEVENLABS_API_KEY ? 'ElevenLabs ✓' : 'navigateur (fallback)'));
   console.log('💾 Supabase : ' + (supabase ? '✓' : '❌'));
+  console.log('💬 Support : activé');
 });
