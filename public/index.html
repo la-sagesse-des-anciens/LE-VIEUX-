@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0a0a0f">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<meta name="apple-mobile-web-app-title" content="L'Ancien">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="L'Ancien">
 <title>La Voix des Anciens</title>
 <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
@@ -656,10 +663,7 @@
     }
 
     /* ═══════ SUPPORT PRO ═══════ */
-    .support-header {
-        text-align: center;
-        padding: 1.5rem 1rem 1rem;
-    }
+    .support-header { text-align: center; padding: 1.5rem 1rem 1rem; }
     .support-icon {
         width: 60px; height: 60px;
         border-radius: 50%;
@@ -668,49 +672,15 @@
         display: flex; align-items: center; justify-content: center;
         margin: 0 auto 0.8rem;
     }
-    .support-icon svg {
-        width: 28px; height: 28px;
-        stroke: var(--accent);
-        fill: none;
-        stroke-width: 1.8;
-    }
-    .support-header h2 {
-        font-size: 1.2rem;
-        font-weight: 600;
-        margin-bottom: 0.4rem;
-    }
-    .support-header p {
-        color: var(--ink-dim);
-        font-size: 0.85rem;
-        line-height: 1.5;
-    }
-
-    .support-form {
-        background: var(--panel);
-        border-radius: var(--radius);
-        padding: 1.2rem;
-        margin-bottom: 1rem;
-    }
-    .support-note {
-        text-align: center;
-        font-size: 0.72rem;
-        color: var(--ink-faint);
-        margin-top: 0.8rem;
-        font-style: italic;
-    }
-
-    .support-history {
-        background: var(--panel);
-        border-radius: var(--radius);
-        padding: 1.2rem;
-    }
+    .support-icon svg { width: 28px; height: 28px; stroke: var(--accent); fill: none; stroke-width: 1.8; }
+    .support-header h2 { font-size: 1.2rem; font-weight: 600; margin-bottom: 0.4rem; }
+    .support-header p { color: var(--ink-dim); font-size: 0.85rem; line-height: 1.5; }
+    .support-form { background: var(--panel); border-radius: var(--radius); padding: 1.2rem; margin-bottom: 1rem; }
+    .support-note { text-align: center; font-size: 0.72rem; color: var(--ink-faint); margin-top: 0.8rem; font-style: italic; }
+    .support-history { background: var(--panel); border-radius: var(--radius); padding: 1.2rem; }
     .support-history-title {
-        font-size: 0.7rem;
-        color: var(--ink-dim);
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        margin-bottom: 0.8rem;
+        font-size: 0.7rem; color: var(--ink-dim); font-weight: 600;
+        text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.8rem;
     }
     .support-ticket {
         padding: 0.9rem;
@@ -721,29 +691,10 @@
     }
     .support-ticket.resolved { border-left-color: var(--success); }
     .support-ticket.pending { border-left-color: var(--accent); }
-    .support-ticket-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.4rem;
-        gap: 0.5rem;
-    }
-    .support-ticket-subject {
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: var(--accent);
-    }
-    .support-ticket-date {
-        font-size: 0.65rem;
-        color: var(--ink-faint);
-        white-space: nowrap;
-    }
-    .support-ticket-msg {
-        font-size: 0.82rem;
-        color: var(--ink-dim);
-        line-height: 1.5;
-        margin-bottom: 0.5rem;
-    }
+    .support-ticket-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; gap: 0.5rem; }
+    .support-ticket-subject { font-size: 0.8rem; font-weight: 600; color: var(--accent); }
+    .support-ticket-date { font-size: 0.65rem; color: var(--ink-faint); white-space: nowrap; }
+    .support-ticket-msg { font-size: 0.82rem; color: var(--ink-dim); line-height: 1.5; margin-bottom: 0.5rem; }
     .support-reply {
         background: var(--bg-elevated);
         padding: 0.7rem 0.9rem;
@@ -755,25 +706,14 @@
         margin-top: 0.5rem;
     }
     .support-reply-label {
-        font-size: 0.65rem;
-        color: var(--success);
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        margin-bottom: 0.3rem;
+        font-size: 0.65rem; color: var(--success); font-weight: 700;
+        text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.3rem;
     }
-    .support-empty {
-        text-align: center;
-        padding: 1.5rem 1rem;
-        color: var(--ink-faint);
-        font-size: 0.82rem;
-        font-style: italic;
-    }
+    .support-empty { text-align: center; padding: 1.5rem 1rem; color: var(--ink-faint); font-size: 0.82rem; font-style: italic; }
 
     /* ═══════ ADMIN PANEL ═══════ */
     #admin-panel {
-        position: fixed;
-        inset: 0;
+        position: fixed; inset: 0;
         background: var(--bg);
         z-index: 3000;
         display: none;
@@ -784,16 +724,13 @@
         padding: 1rem;
         background: var(--panel);
         border-bottom: 1px solid var(--border);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+        display: flex; justify-content: space-between; align-items: center;
         flex-shrink: 0;
     }
     .admin-header h2 { font-size: 1rem; color: var(--accent); }
     .admin-body { flex: 1; display: flex; overflow: hidden; }
     .admin-list {
-        width: 38%;
-        min-width: 140px;
+        width: 38%; min-width: 140px;
         border-right: 1px solid var(--border);
         overflow-y: auto;
         background: var(--bg-elevated);
@@ -836,13 +773,7 @@
         margin-left: 0.4rem;
         font-weight: 700;
     }
-    .admin-empty {
-        text-align: center;
-        color: var(--ink-faint);
-        padding: 3rem 1rem;
-        font-size: 0.85rem;
-        font-style: italic;
-    }
+    .admin-empty { text-align: center; color: var(--ink-faint); padding: 3rem 1rem; font-size: 0.85rem; font-style: italic; }
     .admin-msg { max-width: 78%; padding: 0.7rem 1rem; border-radius: 16px; font-size: 0.85rem; line-height: 1.5; word-wrap: break-word; }
     .admin-msg.user { background: var(--panel-2); color: var(--ink); border-bottom-left-radius: 4px; }
     .admin-msg.admin { background: var(--accent); color: #0a0a0f; border-bottom-right-radius: 4px; font-weight: 500; }
@@ -1151,9 +1082,6 @@ function getInitialFromEmail(email) {
     return email.charAt(0).toUpperCase();
 }
 
-// ══════════════════════════════════════════════════════════════════
-// PRÉCHARGEMENT DES IMAGES
-// ══════════════════════════════════════════════════════════════════
 function preloadImages() {
     const urls = [
         BACKEND_URL + '/pattern.png',
@@ -1168,9 +1096,6 @@ function preloadImages() {
     });
 }
 
-// ══════════════════════════════════════════════════════════════════
-// NETTOYAGE TEXTE TTS
-// ══════════════════════════════════════════════════════════════════
 function cleanTextForSpeech(text) {
     if (!text) return '';
     let c = String(text);
@@ -1383,9 +1308,6 @@ function toggleAudio(btn) {
     playElevenLabs(text, btn);
 }
 
-// ══════════════════════════════════════════════════════════════════
-// RECONNAISSANCE VOCALE
-// ══════════════════════════════════════════════════════════════════
 function initSpeechRecognition() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
@@ -1461,9 +1383,6 @@ function toggleListening() {
     else startListening();
 }
 
-// ══════════════════════════════════════════════════════════════════
-// AUTO-SPEAK
-// ══════════════════════════════════════════════════════════════════
 function updateAutoSpeakBtn() {
     const btn = document.getElementById('auto-speak-btn');
     if (!btn) return;
@@ -1485,9 +1404,6 @@ function toggleAutoSpeak() {
     showToast(state.autoSpeak ? '🔊 Lecture auto activée' : '🔇 Lecture auto désactivée', 'success');
 }
 
-// ══════════════════════════════════════════════════════════════════
-// ARCHIVES
-// ══════════════════════════════════════════════════════════════════
 function updateArchivesButtons() {
     const isGuide = state.me && state.me.subscribed && state.me.plan === 'guide';
     const teachBtn = document.getElementById('teaching-archives-btn');
@@ -2047,9 +1963,6 @@ window.showArchive = function(el) {
             '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter</button>';
 };
 
-// ══════════════════════════════════════════════════════════════════
-// SUPPORT — TICKETS
-// ══════════════════════════════════════════════════════════════════
 let supportPollingInterval = null;
 
 async function loadSupport() {
@@ -2181,9 +2094,6 @@ function startSupportPolling() {
 
 document.getElementById('support-send-btn').addEventListener('click', sendSupportMessage);
 
-// ══════════════════════════════════════════════════════════════════
-// ADMIN PANEL
-// ══════════════════════════════════════════════════════════════════
 let adminPwd = null;
 let adminCurrentEmail = null;
 let adminPollingInterval = null;
@@ -2196,7 +2106,6 @@ function openAdmin() {
     loadAdminConversations();
     if (adminPollingInterval) clearInterval(adminPollingInterval);
     adminPollingInterval = setInterval(() => {
-        // ⚠️ Ne pas recharger si l'admin est en train d'écrire
         const input = document.getElementById('admin-reply-input');
         if (input && input.value.trim().length > 0) return;
         loadAdminConversations();
@@ -2244,7 +2153,6 @@ async function loadAdminThread(email, silent = false) {
     if (!adminPwd) return;
     adminCurrentEmail = email;
 
-    // Sauvegarder le texte en cours AVANT de recharger
     const currentInput = document.getElementById('admin-reply-input');
     const savedText = currentInput ? currentInput.value : '';
     const wasFocused = currentInput && document.activeElement === currentInput;
@@ -2278,7 +2186,6 @@ async function loadAdminThread(email, silent = false) {
 
         const input = document.getElementById('admin-reply-input');
 
-        // ✅ Restaurer le texte sauvegardé
         if (savedText) {
             input.value = savedText;
             input.style.height = 'auto';
@@ -2312,7 +2219,6 @@ async function sendAdminReply() {
     const message = input.value.trim();
     if (!message || !adminCurrentEmail) return;
 
-    // Vider TOUT DE SUITE pour feedback visuel
     input.value = '';
     input.style.height = 'auto';
 
@@ -2327,14 +2233,10 @@ async function sendAdminReply() {
         loadAdminConversations();
     } catch (e) {
         showToast('Erreur d\'envoi', 'error');
-        // Restaurer le texte en cas d'erreur
         input.value = message;
     }
 }
 
-// ══════════════════════════════════════════════════════════════════
-// INIT
-// ══════════════════════════════════════════════════════════════════
 async function init() {
     preloadImages();
 
@@ -2360,6 +2262,87 @@ async function init() {
 }
 
 init();
+
+// ══════════════════════════════════════════════════════════════════
+// PWA — SERVICE WORKER + INSTALL PROMPT
+// ══════════════════════════════════════════════════════════════════
+
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').then(reg => {
+            console.log('✅ SW enregistré:', reg.scope);
+        }).catch(err => {
+            console.warn('⚠️ SW échec:', err);
+        });
+    });
+}
+
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    showInstallBanner();
+});
+
+function showInstallBanner() {
+    if (localStorage.getItem('levieux_install_dismissed') === '1') return;
+    if (document.getElementById('install-banner')) return;
+
+    const banner = document.createElement('div');
+    banner.id = 'install-banner';
+    banner.style.cssText = `
+        position: fixed; bottom: 80px; left: 16px; right: 16px;
+        background: var(--panel);
+        border: 1px solid var(--accent);
+        border-radius: 16px;
+        padding: 1rem;
+        z-index: 1500;
+        display: flex; gap: 0.8rem; align-items: center;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        animation: fadeInUp 0.5s ease;
+        max-width: 480px; margin: 0 auto;
+    `;
+    banner.innerHTML = `
+        <div style="width:48px; height:48px; border-radius:12px; background:var(--accent-soft); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+            <svg viewBox="0 0 24 24" style="width:26px; height:26px; stroke:var(--accent); fill:none; stroke-width:1.8;">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <path d="M7 10l5 5 5-5M12 15V3"/>
+            </svg>
+        </div>
+        <div style="flex:1; min-width:0;">
+            <div style="font-size:0.85rem; font-weight:600; margin-bottom:0.15rem;">Installer l'app</div>
+            <div style="font-size:0.72rem; color:var(--ink-dim); line-height:1.4;">Accès rapide depuis ton écran d'accueil</div>
+        </div>
+        <button id="install-btn" class="btn btn-primary" style="width:auto; padding:0.5rem 0.9rem; font-size:0.8rem;">
+            <span>Installer</span>
+        </button>
+        <button id="install-close" style="background:transparent; border:none; color:var(--ink-faint); cursor:pointer; padding:0.3rem; font-size:1.3rem; line-height:1;">×</button>
+    `;
+
+    document.body.appendChild(banner);
+
+    document.getElementById('install-btn').addEventListener('click', async () => {
+        if (!deferredPrompt) return;
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log('Install outcome:', outcome);
+        deferredPrompt = null;
+        banner.remove();
+    });
+
+    document.getElementById('install-close').addEventListener('click', () => {
+        banner.remove();
+        try { localStorage.setItem('levieux_install_dismissed', '1'); } catch (e) {}
+    });
+}
+
+window.addEventListener('appinstalled', () => {
+    console.log('✅ App installée');
+    deferredPrompt = null;
+    const banner = document.getElementById('install-banner');
+    if (banner) banner.remove();
+    try { localStorage.setItem('levieux_install_dismissed', '1'); } catch (e) {}
+});
 </script>
 
 </body>
