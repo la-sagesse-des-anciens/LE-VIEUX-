@@ -7,7 +7,7 @@ const PORT = process.env.PORT || 3000;
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || '';
-const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'pNInz6obpgDQGcFmaJgB'; // Adam (voix grave masculine)
+const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'JBFqnCBsd6RMkjVDRZzb';
 const ADMIN_PWD = process.env.ADMIN_PWD || 'levieux2026';
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
@@ -40,7 +40,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'La Voix des Anciens Backend',
-    version: '12.0.0',
+    version: '12.1.0',
     model: GROQ_MODEL,
     freeLimit: FREE_LIMIT,
     tts: ELEVENLABS_API_KEY ? 'elevenlabs' : 'browser',
@@ -279,7 +279,7 @@ async function hasPermission(email, permission) { const plan = await getPlan(ema
 async function getPermissionValue(email, permission) { const plan = await getPlan(email); if (!plan) return PLAN_PERMISSIONS.decouverte[permission]; return (PLAN_PERMISSIONS[plan] || PLAN_PERMISSIONS.decouverte)[permission]; }
 
 // ══════════════════════════════════════════════════════════════════
-// SYSTEM PROMPT — Vieux avec vocabulaire noble
+// SYSTEM PROMPT — "anciens" imposé, "ancêtre" interdit
 // ══════════════════════════════════════════════════════════════════
 const SYSTEM_PROMPT = `Tu es "Le Vieux", un sage africain de 70 ans assis sous un vieux manguier.
 
@@ -293,16 +293,18 @@ VOCABULAIRE NOBLE (utilise ces tournures quand tu parles de sagesse ancienne) :
 - "la tradition des siècles"
 - "le savoir ancestral"
 - "ce que les anciens savaient"
-- "les pratiques de nos ancêtres"
+
+INTERDIT ABSOLU :
+- Ne JAMAIS dire "ancêtre" ou "ancêtres"
+- Ne JAMAIS dire "nos ancêtres"
+- Toujours dire "les anciens" à la place
+- Toujours dire "la tradition ancestrale" à la place de "la tradition des ancêtres"
 
 MOTS INTERDITS : "guérir", "magie", "sortilège", "marabout", "féticheur", "envoûtement", "sorcellerie".
 À DIRE : "soulager", "purifier", "sagesse ancienne", "tradition ancestrale", "débloquer", "prospérité".
 
 RÈGLE DE FIN : chaque phrase est complète, jamais coupée au milieu.`;
 
-// ══════════════════════════════════════════════════════════════════
-// /me
-// ══════════════════════════════════════════════════════════════════
 app.post('/me', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -398,9 +400,6 @@ app.post('/webhook/chariow', async (req, res) => {
   return res.json({ received: true, action: 'ignored' });
 });
 
-// ══════════════════════════════════════════════════════════════════
-// /tts — ElevenLabs
-// ══════════════════════════════════════════════════════════════════
 app.post('/tts', async (req, res) => {
   const { text } = req.body || {};
   if (!text || !text.trim()) return res.status(400).json({ error: 'Texte requis' });
@@ -445,9 +444,6 @@ app.post('/tts', async (req, res) => {
   }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// /preload
-// ══════════════════════════════════════════════════════════════════
 app.post('/preload', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -490,9 +486,6 @@ app.post('/preload', async (req, res) => {
   generateWithCache('library_' + dayKey, promptLib, 2000, 0.95, '/preload library').catch(() => {});
 });
 
-// ══════════════════════════════════════════════════════════════════
-// /ask
-// ══════════════════════════════════════════════════════════════════
 app.post('/ask', async (req, res) => {
   const { email, question, history } = req.body || {};
   if (!email || !question) return res.status(400).json({ error: 'Email requis' });
@@ -560,9 +553,6 @@ app.post('/ask', async (req, res) => {
   }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// /daily
-// ══════════════════════════════════════════════════════════════════
 app.post('/daily', async (req, res) => {
   const { email, type } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -620,9 +610,6 @@ app.post('/daily', async (req, res) => {
   }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// /teaching
-// ══════════════════════════════════════════════════════════════════
 app.post('/teaching', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -681,9 +668,6 @@ app.post('/teaching/archives', async (req, res) => {
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// /challenge
-// ══════════════════════════════════════════════════════════════════
 app.post('/challenge', async (req, res) => {
   const { email, custom, need } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -724,9 +708,6 @@ app.post('/challenge', async (req, res) => {
   } catch (e) { return res.status(500).json({ error: 'ai_error' }); }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// /library
-// ══════════════════════════════════════════════════════════════════
 app.post('/library', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -788,7 +769,7 @@ app.get('/admin/stats', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend v12.0.0 sur port ' + PORT);
+  console.log('🌳 Le Vieux backend v12.1.0 sur port ' + PORT);
   console.log('🤖 Modèle : ' + GROQ_MODEL);
   console.log('🎙️  TTS : ' + (ELEVENLABS_API_KEY ? 'ElevenLabs ✓' : 'navigateur (fallback)'));
   console.log('💾 Supabase : ' + (supabase ? '✓' : '❌'));
