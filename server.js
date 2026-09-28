@@ -6,6 +6,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || '';
+const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'pNInz6obpgDQGcFmaJgB'; // Adam (voix grave masculine)
 const ADMIN_PWD = process.env.ADMIN_PWD || 'levieux2026';
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
@@ -35,7 +37,15 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public'));
 
 app.get('/', (req, res) => {
-  res.json({ status: 'ok', service: 'La Voix des Anciens Backend', version: '11.4.0', model: GROQ_MODEL, freeLimit: FREE_LIMIT, supabase_set: !!supabase });
+  res.json({
+    status: 'ok',
+    service: 'La Voix des Anciens Backend',
+    version: '12.0.0',
+    model: GROQ_MODEL,
+    freeLimit: FREE_LIMIT,
+    tts: ELEVENLABS_API_KEY ? 'elevenlabs' : 'browser',
+    supabase_set: !!supabase
+  });
 });
 
 const PILIERS = [
@@ -268,14 +278,25 @@ async function getPlan(email) { const sub = await getSubscription(email); if (!s
 async function hasPermission(email, permission) { const plan = await getPlan(email); if (!plan) return false; return (PLAN_PERMISSIONS[plan] || PLAN_PERMISSIONS.decouverte)[permission] === true; }
 async function getPermissionValue(email, permission) { const plan = await getPlan(email); if (!plan) return PLAN_PERMISSIONS.decouverte[permission]; return (PLAN_PERMISSIONS[plan] || PLAN_PERMISSIONS.decouverte)[permission]; }
 
+// ══════════════════════════════════════════════════════════════════
+// SYSTEM PROMPT — Vieux avec vocabulaire noble
+// ══════════════════════════════════════════════════════════════════
 const SYSTEM_PROMPT = `Tu es "Le Vieux", un sage africain de 70 ans assis sous un vieux manguier.
 
 RÈGLE ABSOLUE : tu t'adresses DIRECTEMENT à la personne avec "tu", "toi", "ton", "ta". Tu ne dis jamais "je pense". Tu parles à l'autre, pas de toi.
 
 STYLE : français parlé simple, comme au marché. Phrases courtes de 10-15 mots. Mots de la rue : "poisse", "blinder", "laver l'intérieur", "lourdeur", "palabres".
 
+VOCABULAIRE NOBLE (utilise ces tournures quand tu parles de sagesse ancienne) :
+- "la tradition ancestrale" (jamais "tradition" tout seul)
+- "la sagesse des anciens"
+- "la tradition des siècles"
+- "le savoir ancestral"
+- "ce que les anciens savaient"
+- "les pratiques de nos ancêtres"
+
 MOTS INTERDITS : "guérir", "magie", "sortilège", "marabout", "féticheur", "envoûtement", "sorcellerie".
-À DIRE : "soulager", "purifier", "sagesse ancienne", "tradition", "débloquer", "prospérité".
+À DIRE : "soulager", "purifier", "sagesse ancienne", "tradition ancestrale", "débloquer", "prospérité".
 
 RÈGLE DE FIN : chaque phrase est complète, jamais coupée au milieu.`;
 
@@ -375,6 +396,53 @@ app.post('/webhook/chariow', async (req, res) => {
     return res.json({ received: true, action: 'activated', email: customerEmail, plan, expiryDate: newExpiry });
   }
   return res.json({ received: true, action: 'ignored' });
+});
+
+// ══════════════════════════════════════════════════════════════════
+// /tts — ElevenLabs
+// ══════════════════════════════════════════════════════════════════
+app.post('/tts', async (req, res) => {
+  const { text } = req.body || {};
+  if (!text || !text.trim()) return res.status(400).json({ error: 'Texte requis' });
+  if (!ELEVENLABS_API_KEY) return res.status(503).json({ error: 'tts_not_configured' });
+
+  try {
+    const response = await fetch(
+      'https://api.elevenlabs.io/v1/text-to-speech/' + ELEVENLABS_VOICE_ID + '?output_format=mp3_44100_128',
+      {
+        method: 'POST',
+        headers: {
+          'xi-api-key': ELEVENLABS_API_KEY,
+          'Content-Type': 'application/json',
+          'Accept': 'audio/mpeg'
+        },
+        body: JSON.stringify({
+          text: String(text).slice(0, 2500),
+          model_id: 'eleven_multilingual_v2',
+          voice_settings: {
+            stability: 0.55,
+            similarity_boost: 0.80,
+            style: 0.35,
+            use_speaker_boost: true
+          }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const err = await response.text();
+      console.error('ElevenLabs error:', response.status, err.slice(0, 300));
+      return res.status(response.status).json({ error: 'elevenlabs_error', detail: err.slice(0, 200) });
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    res.set('Content-Type', 'audio/mpeg');
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.send(Buffer.from(arrayBuffer));
+  } catch (e) {
+    console.error('TTS error:', e.message);
+    res.status(500).json({ error: 'tts_server_error', message: e.message });
+  }
 });
 
 // ══════════════════════════════════════════════════════════════════
@@ -720,9 +788,8 @@ app.get('/admin/stats', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend v11.4.0 sur port ' + PORT);
+  console.log('🌳 Le Vieux backend v12.0.0 sur port ' + PORT);
   console.log('🤖 Modèle : ' + GROQ_MODEL);
+  console.log('🎙️  TTS : ' + (ELEVENLABS_API_KEY ? 'ElevenLabs ✓' : 'navigateur (fallback)'));
   console.log('💾 Supabase : ' + (supabase ? '✓' : '❌'));
-  console.log('🎁 Gratuit : ' + FREE_LIMIT + ' questions + signe du matin complet + méditation teaser');
-  console.log('🖼️  Dossier public servi sur /');
 });
