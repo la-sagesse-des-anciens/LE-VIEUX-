@@ -40,11 +40,12 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'La Voix des Anciens Backend',
-    version: '12.3.0',
+    version: '13.0.0',
     model: GROQ_MODEL,
     freeLimit: FREE_LIMIT,
     tts: ELEVENLABS_API_KEY ? 'elevenlabs' : 'browser',
-    supabase_set: !!supabase
+    supabase_set: !!supabase,
+    support: true
   });
 });
 
@@ -764,9 +765,199 @@ app.get('/admin/stats', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ══════════════════════════════════════════════════════════════════
+// SUPPORT — CHAT UTILISATEUR ↔ ADMIN
+// ══════════════════════════════════════════════════════════════════
+
+const AUTO_REPLY = "Le Vieux a bien reçu ton message. Il te répondra sous 24h. 🙏";
+
+app.post('/support/send', async (req, res) => {
+  const { email, message } = req.body || {};
+  if (!email || !message || !message.trim()) {
+    return res.status(400).json({ error: 'Email et message requis' });
+  }
+  if (!supabase) return res.status(500).json({ error: 'db_unavailable' });
+
+  const key = email.toLowerCase().trim();
+  const now = Date.now();
+
+  try {
+    const { error: err1 } = await supabase.from('support_messages').insert({
+      email: key,
+      message: message.trim().slice(0, 2000),
+      from_admin: false,
+      read: false,
+      created_at: now
+    });
+    if (err1) throw err1;
+
+    const { data: existing } = await supabase
+      .from('support_messages')
+      .select('id')
+      .eq('email', key)
+      .eq('from_admin', true)
+      .limit(1);
+
+    if (!existing || existing.length === 0) {
+      await supabase.from('support_messages').insert({
+        email: key,
+        message: AUTO_REPLY,
+        from_admin: true,
+        read: true,
+        created_at: now + 1
+      });
+    }
+
+    return res.json({ success: true });
+  } catch (e) {
+    console.error('Support send error:', e.message);
+    return res.status(500).json({ error: 'send_failed' });
+  }
+});
+
+app.post('/support/messages', async (req, res) => {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'Email requis' });
+  if (!supabase) return res.status(500).json({ error: 'db_unavailable' });
+
+  const key = email.toLowerCase().trim();
+
+  try {
+    const { data, error } = await supabase
+      .from('support_messages')
+      .select('id, message, from_admin, created_at')
+      .eq('email', key)
+      .order('created_at', { ascending: true })
+      .limit(200);
+
+    if (error) throw error;
+
+    await supabase
+      .from('support_messages')
+      .update({ read: true })
+      .eq('email', key)
+      .eq('from_admin', true)
+      .eq('read', false);
+
+    return res.json({ messages: data || [] });
+  } catch (e) {
+    console.error('Support messages error:', e.message);
+    return res.status(500).json({ error: 'fetch_failed' });
+  }
+});
+
+app.post('/support/unread', async (req, res) => {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'Email requis' });
+  if (!supabase) return res.json({ count: 0 });
+
+  const key = email.toLowerCase().trim();
+
+  try {
+    const { count } = await supabase
+      .from('support_messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('email', key)
+      .eq('from_admin', true)
+      .eq('read', false);
+
+    return res.json({ count: count || 0 });
+  } catch (e) {
+    return res.json({ count: 0 });
+  }
+});
+
+app.get('/support/admin/conversations', async (req, res) => {
+  const pwd = req.query.pwd;
+  if (pwd !== ADMIN_PWD) return res.status(401).json({ error: 'unauthorized' });
+  if (!supabase) return res.status(500).json({ error: 'db_unavailable' });
+
+  try {
+    const { data } = await supabase
+      .from('support_messages')
+      .select('email, message, from_admin, read, created_at')
+      .order('created_at', { ascending: false })
+      .limit(500);
+
+    const conversations = {};
+    (data || []).forEach(m => {
+      if (!conversations[m.email]) {
+        conversations[m.email] = {
+          email: m.email,
+          lastMessage: m.message,
+          lastAt: m.created_at,
+          unreadCount: 0,
+          total: 0
+        };
+      }
+      conversations[m.email].total++;
+      if (!m.from_admin && !m.read) conversations[m.email].unreadCount++;
+    });
+
+    const list = Object.values(conversations).sort((a, b) => b.lastAt - a.lastAt);
+    const totalUnread = list.reduce((s, c) => s + c.unreadCount, 0);
+
+    return res.json({ conversations: list, totalUnread });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/support/admin/thread', async (req, res) => {
+  const pwd = req.query.pwd;
+  if (pwd !== ADMIN_PWD) return res.status(401).json({ error: 'unauthorized' });
+  if (!supabase) return res.status(500).json({ error: 'db_unavailable' });
+
+  const email = (req.query.email || '').toLowerCase().trim();
+  if (!email) return res.status(400).json({ error: 'Email requis' });
+
+  try {
+    const { data } = await supabase
+      .from('support_messages')
+      .select('id, message, from_admin, created_at')
+      .eq('email', email)
+      .order('created_at', { ascending: true });
+
+    await supabase
+      .from('support_messages')
+      .update({ read: true })
+      .eq('email', email)
+      .eq('from_admin', false)
+      .eq('read', false);
+
+    return res.json({ messages: data || [] });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/support/admin/reply', async (req, res) => {
+  const { pwd, email, message } = req.body || {};
+  if (pwd !== ADMIN_PWD) return res.status(401).json({ error: 'unauthorized' });
+  if (!email || !message || !message.trim()) {
+    return res.status(400).json({ error: 'Email et message requis' });
+  }
+  if (!supabase) return res.status(500).json({ error: 'db_unavailable' });
+
+  try {
+    const { error } = await supabase.from('support_messages').insert({
+      email: email.toLowerCase().trim(),
+      message: message.trim().slice(0, 2000),
+      from_admin: true,
+      read: false,
+      created_at: Date.now()
+    });
+    if (error) throw error;
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: e.message });
+  }
+});
+
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend v12.3.0 sur port ' + PORT);
+  console.log('🌳 Le Vieux backend v13.0.0 sur port ' + PORT);
   console.log('🤖 Modèle : ' + GROQ_MODEL);
   console.log('🎙️  TTS : ' + (ELEVENLABS_API_KEY ? 'ElevenLabs ✓' : 'navigateur (fallback)'));
   console.log('💾 Supabase : ' + (supabase ? '✓' : '❌'));
+  console.log('💬 Support : ✓');
 });
