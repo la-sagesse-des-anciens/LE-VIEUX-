@@ -1169,7 +1169,7 @@ function preloadImages() {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// NETTOYAGE TEXTE TTS — version corrigée (flags u partout)
+// NETTOYAGE TEXTE TTS
 // ══════════════════════════════════════════════════════════════════
 function cleanTextForSpeech(text) {
     if (!text) return '';
@@ -2196,6 +2196,9 @@ function openAdmin() {
     loadAdminConversations();
     if (adminPollingInterval) clearInterval(adminPollingInterval);
     adminPollingInterval = setInterval(() => {
+        // ⚠️ Ne pas recharger si l'admin est en train d'écrire
+        const input = document.getElementById('admin-reply-input');
+        if (input && input.value.trim().length > 0) return;
         loadAdminConversations();
         if (adminCurrentEmail) loadAdminThread(adminCurrentEmail, true);
     }, 15000);
@@ -2240,6 +2243,12 @@ async function loadAdminConversations() {
 async function loadAdminThread(email, silent = false) {
     if (!adminPwd) return;
     adminCurrentEmail = email;
+
+    // Sauvegarder le texte en cours AVANT de recharger
+    const currentInput = document.getElementById('admin-reply-input');
+    const savedText = currentInput ? currentInput.value : '';
+    const wasFocused = currentInput && document.activeElement === currentInput;
+
     document.querySelectorAll('.admin-conv-item').forEach(el => el.classList.remove('active'));
     const items = document.querySelectorAll('.admin-conv-item');
     items.forEach(el => { if (el.textContent.includes(email)) el.classList.add('active'); });
@@ -2268,6 +2277,18 @@ async function loadAdminThread(email, silent = false) {
             '</div>';
 
         const input = document.getElementById('admin-reply-input');
+
+        // ✅ Restaurer le texte sauvegardé
+        if (savedText) {
+            input.value = savedText;
+            input.style.height = 'auto';
+            input.style.height = Math.min(input.scrollHeight, 100) + 'px';
+            if (wasFocused) {
+                input.focus();
+                input.setSelectionRange(input.value.length, input.value.length);
+            }
+        }
+
         input.addEventListener('keydown', e => {
             if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAdminReply(); }
         });
@@ -2291,6 +2312,10 @@ async function sendAdminReply() {
     const message = input.value.trim();
     if (!message || !adminCurrentEmail) return;
 
+    // Vider TOUT DE SUITE pour feedback visuel
+    input.value = '';
+    input.style.height = 'auto';
+
     try {
         const res = await fetch(BACKEND_URL + '/support/admin/reply', {
             method: 'POST',
@@ -2298,11 +2323,12 @@ async function sendAdminReply() {
             body: JSON.stringify({ pwd: adminPwd, email: adminCurrentEmail, message })
         });
         if (!res.ok) throw new Error('reply failed');
-        input.value = '';
         await loadAdminThread(adminCurrentEmail);
         loadAdminConversations();
     } catch (e) {
         showToast('Erreur d\'envoi', 'error');
+        // Restaurer le texte en cas d'erreur
+        input.value = message;
     }
 }
 
