@@ -1096,6 +1096,9 @@ function preloadImages() {
     });
 }
 
+// ══════════════════════════════════════════════════════════════════
+// NETTOYAGE TEXTE TTS — avec préservation des tirets dans "Assieds-toi"
+// ══════════════════════════════════════════════════════════════════
 function cleanTextForSpeech(text) {
     if (!text) return '';
     let c = String(text);
@@ -1107,7 +1110,10 @@ function cleanTextForSpeech(text) {
     c = c.replace(/\*\*/g, '').replace(/\*/g, '');
     c = c.replace(/['']/g, '');
     c = c.replace(/[«»"]/g, '');
-    c = c.replace(/[-–—]/g, ' ');
+    // ✅ Remplace uniquement les tirets ENTOURÉS d'espaces (vrais tirets de ponctuation)
+    c = c.replace(/\s[-–—]\s/g, ' ');
+    // ✅ Convertit les longs tirets en tiret normal (pour les mots composés)
+    c = c.replace(/[–—]/g, '-');
     c = c.replace(/\.{2,}/g, '.');
     c = c.replace(/\s+/g, ' ').trim();
     return c;
