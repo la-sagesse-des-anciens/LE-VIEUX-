@@ -40,7 +40,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'La Voix des Anciens Backend',
-    version: '13.2.0',
+    version: '13.3.0',
     model: GROQ_MODEL,
     freeLimit: FREE_LIMIT,
     tts: ELEVENLABS_API_KEY ? 'elevenlabs' : 'browser',
@@ -955,7 +955,7 @@ app.post('/support/admin/reply', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend v13.2.0 sur port ' + PORT);
+  console.log('🌳 Le Vieux backend v13.3.0 sur port ' + PORT);
   console.log('🤖 Modèle : ' + GROQ_MODEL);
   console.log('🎙️  TTS : ' + (ELEVENLABS_API_KEY ? 'ElevenLabs ✓' : 'navigateur (fallback)'));
   console.log('💾 Supabase : ' + (supabase ? '✓' : '❌'));
