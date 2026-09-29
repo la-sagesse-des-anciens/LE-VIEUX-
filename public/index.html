@@ -296,6 +296,20 @@
     .mic-btn.unsupported { opacity: 0.4; cursor: not-allowed; }
     .send-btn { background: var(--accent); color: #0a0a0f; }
 
+    /* ═══════ BOUTON UNIQUE TYPE WHATSAPP ═══════ */
+    .audio-toggle-btn {
+        background: var(--panel-2);
+        color: var(--ink-dim);
+        transition: all 0.2s;
+    }
+    .audio-toggle-btn:active { transform: scale(0.9); }
+    .audio-toggle-btn svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+    .audio-toggle-btn.listening {
+        background: var(--error);
+        color: #fff;
+        animation: micPulse 1.5s infinite;
+    }
+
     .listening-indicator {
         position: absolute; bottom: 100%; left: 1rem; right: 1rem;
         margin-bottom: 0.5rem; padding: 0.6rem 1rem;
@@ -546,11 +560,13 @@
                     <div class="pulse-dot"></div>
                     <span id="listening-text">Je t'écoute, mon enfant…</span>
                 </div>
-                <button class="circle-btn mic-btn" id="mic-btn" title="Parler">
+                <textarea id="user-input" placeholder="Écris ou parle..." rows="1"></textarea>
+                <button class="circle-btn send-btn" id="send-btn" style="display:none;">
+                    <svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                </button>
+                <button class="circle-btn audio-toggle-btn" id="audio-toggle-btn" title="Parler" style="display:flex;">
                     <svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 19v3"/></svg>
                 </button>
-                <textarea id="user-input" placeholder="Écris ou parle..." rows="1"></textarea>
-                <button class="circle-btn send-btn" id="send-btn"><svg viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg></button>
             </div>
         </div>
     </main>
@@ -778,8 +794,7 @@ const state = {
     currentAudioBtn: null,
     ttsLoading: false,
     ttsAbort: false,
-    elevenLabsAvailable: null,
-    browserVoices: null
+    elevenLabsAvailable: null
 };
 
 const SAGE_IMG = '<img src="https://le-vieux-production.up.railway.app/bg-subscribe.png" alt="">';
@@ -1000,9 +1015,6 @@ async function playElevenLabs(text, btn) {
     }
 }
 
-// ══════════════════════════════════════════════════════════════════
-// VOIX NAVIGATEUR AMÉLIORÉE (voix d'homme + vitesse normale)
-// ══════════════════════════════════════════════════════════════════
 function fallbackBrowserTTS(text, btn) {
     if (!('speechSynthesis' in window)) {
         if (btn) {
@@ -1017,7 +1029,6 @@ function fallbackBrowserTTS(text, btn) {
 
     let voices = window.speechSynthesis.getVoices();
 
-    // Attendre que les voix soient chargées (Android parfois lent)
     if (voices.length === 0) {
         window.speechSynthesis.onvoiceschanged = () => {
             window.speechSynthesis.onvoiceschanged = null;
@@ -1031,18 +1042,15 @@ function fallbackBrowserTTS(text, btn) {
         return;
     }
 
-    // Filtrer les voix françaises
     const fr = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('fr'));
     console.log('🎙️ Voix FR disponibles:', fr.map(v => v.name));
 
-    // Patterns voix d'HOMME
     const malePatterns = [
         /thomas/i, /paul/i, /nicolas/i, /guillaume/i, /henri/i,
         /david/i, /daniel/i, /georges/i, /yannick/i, /claude/i,
         /pierre/i, /male/i, /homme/i
     ];
 
-    // Patterns voix de FEMME à éviter
     const femalePatterns = [
         /amelie/i, /amélie/i, /audrey/i, /marie/i, /julie/i,
         /chantal/i, /celine/i, /céline/i, /virginie/i, /hortense/i,
@@ -1051,30 +1059,24 @@ function fallbackBrowserTTS(text, btn) {
 
     let voice = null;
 
-    // Priorité 1 : voix d'homme
     for (const pattern of malePatterns) {
         voice = fr.find(v => pattern.test(v.name) && !femalePatterns.some(fp => fp.test(v.name)));
         if (voice) break;
     }
 
-    // Priorité 2 : voix FR non-femme
     if (!voice) {
         voice = fr.find(v => !femalePatterns.some(fp => fp.test(v.name)));
     }
 
-    // Priorité 3 : voix FR quelconque
     if (!voice) voice = fr[0];
-
-    // Priorité 4 : voix système
     if (!voice && voices.length > 0) voice = voices[0];
 
     console.log('🎙️ Voix choisie:', voice ? voice.name + ' (' + voice.lang + ')' : 'Aucune');
 
-    // Créer l'utterance
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'fr-FR';
-    u.rate = 1.0;    // Vitesse normale
-    u.pitch = 0.4;   // Voix grave (homme)
+    u.rate = 1.0;
+    u.pitch = 0.4;
     u.volume = 1.0;
     if (voice) u.voice = voice;
 
@@ -1114,8 +1116,11 @@ function initSpeechRecognition() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
         state.recognitionSupported = false;
-        document.getElementById('mic-btn').classList.add('unsupported');
-        document.getElementById('mic-btn').title = 'Reconnaissance vocale non supportée';
+        const micB = document.getElementById('audio-toggle-btn');
+        if (micB) {
+            micB.classList.add('unsupported');
+            micB.title = 'Reconnaissance vocale non supportée';
+        }
         return;
     }
     state.recognitionSupported = true;
@@ -1126,7 +1131,11 @@ function initSpeechRecognition() {
     state.recognition.maxAlternatives = 1;
     state.recognition.onstart = () => {
         state.isListening = true;
-        document.getElementById('mic-btn').classList.add('listening');
+        const btn = document.getElementById('audio-toggle-btn');
+        if (btn) {
+            btn.classList.add('listening');
+            btn.innerHTML = '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
+        }
         document.getElementById('user-input').classList.add('listening');
         document.getElementById('listening-indicator').classList.add('visible');
         document.getElementById('listening-text').textContent = 'Je t\'écoute, mon enfant…';
@@ -1142,6 +1151,7 @@ function initSpeechRecognition() {
         const input = document.getElementById('user-input');
         if (final) {
             input.value = final;
+            updateSendButton();
             setTimeout(() => {
                 if (input.value.trim()) {
                     stopListening();
@@ -1150,6 +1160,7 @@ function initSpeechRecognition() {
             }, 400);
         } else if (interim) {
             input.value = interim;
+            updateSendButton();
             document.getElementById('listening-text').textContent = '« ' + interim + ' »';
         }
     };
@@ -1174,7 +1185,11 @@ function startListening() {
 
 function stopListening() {
     state.isListening = false;
-    document.getElementById('mic-btn').classList.remove('listening');
+    const btn = document.getElementById('audio-toggle-btn');
+    if (btn) {
+        btn.classList.remove('listening');
+        btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 19v3"/></svg>';
+    }
     document.getElementById('user-input').classList.remove('listening');
     document.getElementById('listening-indicator').classList.remove('visible');
     if (state.recognition) try { state.recognition.stop(); } catch (e) {}
@@ -1183,6 +1198,73 @@ function stopListening() {
 function toggleListening() {
     if (state.isListening) stopListening();
     else startListening();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// BOUTON UNIQUE TYPE WHATSAPP : micro ↔ envoi
+// ══════════════════════════════════════════════════════════════════
+function updateSendButton() {
+    const input = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+    const audioToggleBtn = document.getElementById('audio-toggle-btn');
+    if (!input || !sendBtn || !audioToggleBtn) return;
+    
+    const hasText = input.value.trim().length > 0;
+    
+    if (hasText) {
+        sendBtn.style.display = 'flex';
+        audioToggleBtn.style.display = 'none';
+    } else {
+        sendBtn.style.display = 'none';
+        audioToggleBtn.style.display = 'flex';
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// SAUVEGARDE DE L'HISTORIQUE DU CHAT
+// ══════════════════════════════════════════════════════════════════
+function saveChatHistory() {
+    try {
+        const history = getHistory();
+        const trimmed = history.slice(-50);
+        localStorage.setItem('levieux_chat_history', JSON.stringify(trimmed));
+    } catch (e) {
+        console.warn('Impossible de sauvegarder l\'historique:', e);
+    }
+}
+
+function loadChatHistory() {
+    try {
+        const saved = localStorage.getItem('levieux_chat_history');
+        if (!saved) return;
+        const history = JSON.parse(saved);
+        if (!Array.isArray(history)) return;
+        
+        const container = document.getElementById('chat-container');
+        
+        history.forEach(m => {
+            if (!m.content) return;
+            const role = (m.role === 'user') ? 'user' : 'elder';
+            const div = document.createElement('div');
+            div.className = 'message ' + role;
+            const avatarHTML = role === 'elder' ? '<div class="msg-avatar">' + SAGE_IMG + '</div>' : '';
+            const safeText = esc(m.content).replace(/"/g, '&quot;');
+            const audioBtn = role === 'elder' ? '<button class="audio-btn" onclick="toggleAudio(this)" data-text="' + safeText + '"><svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter</button>' : '';
+            div.innerHTML = avatarHTML + '<div><div class="bubble">' + formatMarkdown(m.content) + '</div>' + audioBtn + '</div>';
+            container.appendChild(div);
+        });
+        
+        setTimeout(() => { container.scrollTop = container.scrollHeight; }, 100);
+        console.log('💾 Historique chargé:', history.length, 'messages');
+    } catch (e) {
+        console.warn('Impossible de charger l\'historique:', e);
+    }
+}
+
+function clearChatHistory() {
+    try {
+        localStorage.removeItem('levieux_chat_history');
+    } catch (e) {}
 }
 
 function updateAutoSpeakBtn() {
@@ -1574,7 +1656,13 @@ function updateFreeCounter() {
 document.querySelectorAll('.nav-item').forEach(i => i.addEventListener('click', () => showScreen(i.dataset.screen)));
 document.getElementById('profile-btn').addEventListener('click', toggleProfile);
 document.getElementById('auto-speak-btn').addEventListener('click', toggleAutoSpeak);
-document.getElementById('change-email-btn').addEventListener('click', () => { if (confirm('Changer d\'email ?')) { localStorage.removeItem('levieux_email'); location.reload(); } });
+document.getElementById('change-email-btn').addEventListener('click', () => {
+    if (confirm('Changer d\'email ? (l\'historique du chat sera effacé)')) {
+        localStorage.removeItem('levieux_email');
+        localStorage.removeItem('levieux_chat_history');
+        location.reload();
+    }
+});
 
 document.getElementById('start-btn').addEventListener('click', () => {
     if (state.email) showScreen('chat');
@@ -1645,6 +1733,8 @@ function addMessage(role, content, autoPlay = false) {
         const btn = div.querySelector('.audio-btn');
         if (btn) playElevenLabs(content, btn);
     }
+    // 💾 Sauvegarder après chaque message
+    saveChatHistory();
 }
 function addTyping() {
     const container = document.getElementById('chat-container');
@@ -1659,15 +1749,17 @@ function removeTyping() { const el = document.getElementById('typing-indicator')
 function getHistory() {
     const messages = document.querySelectorAll('#chat-container .message');
     const history = [];
-    messages.forEach(msg => {
+    messages.forEach((msg, index) => {
         if (msg.id === 'typing-indicator') return;
         const bubble = msg.querySelector('.bubble');
         if (!bubble) return;
         const content = bubble.textContent.trim();
+        if (!content) return;
+        if (index === 0 && msg.classList.contains('elder')) return;
         if (msg.classList.contains('user')) history.push({ role: 'user', content });
         else if (msg.classList.contains('elder')) history.push({ role: 'elder', content });
     });
-    return history.slice(-12);
+    return history.slice(-50);
 }
 
 async function sendQuestion() {
@@ -1679,6 +1771,7 @@ async function sendQuestion() {
     if (state.isListening) stopListening();
     addMessage('user', question);
     input.value = ''; input.style.height = 'auto';
+    updateSendButton();
     addTyping();
     state.isSending = true;
     document.getElementById('send-btn').disabled = true;
@@ -1724,8 +1817,16 @@ async function sendQuestion() {
 
 document.getElementById('send-btn').addEventListener('click', sendQuestion);
 document.getElementById('user-input').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendQuestion(); } });
-document.getElementById('user-input').addEventListener('input', e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px'; });
-document.getElementById('mic-btn').addEventListener('click', toggleListening);
+document.getElementById('user-input').addEventListener('input', e => {
+    e.target.style.height = 'auto';
+    e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px';
+    updateSendButton();
+});
+document.getElementById('mic-btn') && document.getElementById('mic-btn').addEventListener('click', toggleListening);
+document.getElementById('audio-toggle-btn').addEventListener('click', () => {
+    if (state.isListening) stopListening();
+    else startListening();
+});
 
 document.getElementById('journal-save-btn').addEventListener('click', () => {
     const t = document.getElementById('journal-input').value.trim();
@@ -2070,7 +2171,12 @@ async function init() {
     try { state.email = localStorage.getItem('levieux_email'); } catch (e) {}
     showScreen('home');
     if (!state.email) document.getElementById('email-modal').classList.add('visible');
-    else await refreshMe();
+    else {
+        await refreshMe();
+        // 💾 Charger l'historique du chat
+        loadChatHistory();
+    }
+    updateSendButton();
 
     if (window.location.search.includes('admin=1')) {
         setTimeout(openAdmin, 500);
