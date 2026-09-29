@@ -494,6 +494,9 @@
             </div>
         </div>
         <div class="header-actions">
+            <button class="icon-btn" id="install-app-btn" title="Installer l'app">
+                <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>
+            </button>
             <button class="icon-btn" id="auto-speak-btn" title="Lecture auto du Vieux">
                 <svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
             </button>
@@ -648,6 +651,7 @@
                     <div class="profile-status-text" id="profile-status-text">Chargement…</div>
                 </div>
                 <div class="form-group"><label>Email</label><input type="email" id="profile-email" readonly></div>
+                <button class="btn btn-secondary" style="width:100%; margin-bottom:0.6rem;" id="install-profile-btn">📱 Installer l'app</button>
                 <button class="btn btn-secondary" style="width:100%;" id="change-email-btn">Changer d'email</button>
             </div>
         </div>
@@ -1162,7 +1166,6 @@ function toggleProfile() {
     else showScreen('profile');
 }
 
-// ✅ FIX : library et today se rechargent à chaque visite
 async function loadContentForScreen(name) {
     if (!state.email) return;
     if (state.loaded[name] && name !== 'library' && name !== 'today') return;
@@ -1237,7 +1240,6 @@ async function loadToday() {
         meditation: '<svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
         evening: '<svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
     };
-    // Reset cards
     document.getElementById('card-morning').innerHTML = '<div class="loading-block"><span class="spinner"></span>Chargement…</div>';
     document.getElementById('card-meditation').innerHTML = '<div class="loading-block"><span class="spinner"></span>Chargement…</div>';
     document.getElementById('card-evening').innerHTML = '<div class="loading-block"><span class="spinner"></span>Chargement…</div>';
@@ -1336,7 +1338,6 @@ async function loadChallenge() {
     } catch (e) { loading.style.display = 'none'; content.style.display = 'block'; content.innerHTML = '<div class="loading-block">Erreur.</div>'; }
 }
 
-// ✅ FIX loadLibrary — recharge toujours, cache après succès
 async function loadLibrary() {
     const loading = document.getElementById('library-loading');
     const content = document.getElementById('library-content');
@@ -1346,7 +1347,6 @@ async function loadLibrary() {
     loading.innerHTML = '<span class="spinner"></span>Chargement…';
     content.style.display = 'none';
 
-    // 1. Utiliser le préchargement si disponible
     if (state.preloaded.library && state.preloaded.library.content) {
         const d = state.preloaded.library;
         loading.style.display = 'none';
@@ -1359,7 +1359,6 @@ async function loadLibrary() {
         return;
     }
 
-    // 2. Sinon, appel direct au backend
     try {
         const res = await fetch(BACKEND_URL + '/library', {
             method: 'POST',
@@ -1367,10 +1366,8 @@ async function loadLibrary() {
             body: JSON.stringify({ email: state.email })
         });
         const data = await res.json();
-
         loading.style.display = 'none';
         content.style.display = 'block';
-
         if (data.content) {
             state.preloaded.library = data;
             if (data.isTeaser && data.teaser) {
@@ -1380,7 +1377,6 @@ async function loadLibrary() {
             }
             return;
         }
-
         content.innerHTML = '<div class="paywall-box"><div class="paywall-lock">🔒</div><div class="paywall-title">Réservé aux abonnés</div><button class="btn btn-primary" style="width:100%;" onclick="showScreen(\'subscribe\')"><span>Voir les offres</span></button></div>';
     } catch (e) {
         console.error('loadLibrary error:', e);
@@ -1968,6 +1964,10 @@ async function init() {
 
 init();
 
+// ══════════════════════════════════════════════════════════════════
+// PWA — SERVICE WORKER + INSTALL PROMPT AMÉLIORÉ
+// ══════════════════════════════════════════════════════════════════
+
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').then(reg => {
@@ -1978,16 +1978,78 @@ if ('serviceWorker' in navigator) {
     });
 }
 
+function isInAppBrowser() {
+    const ua = navigator.userAgent || navigator.vendor || window.opera;
+    return (
+        ua.indexOf('FBAN') > -1 ||
+        ua.indexOf('FBAV') > -1 ||
+        ua.indexOf('Instagram') > -1 ||
+        ua.indexOf('BytedanceWebview') > -1 ||
+        ua.indexOf('TikTok') > -1 ||
+        ua.indexOf('Twitter') > -1 ||
+        ua.indexOf('Line') > -1 ||
+        (ua.indexOf('Android') > -1 && ua.indexOf('wv') > -1) ||
+        (ua.indexOf('iPhone') > -1 && ua.indexOf('Safari') === -1 && ua.indexOf('CriOS') === -1)
+    );
+}
+
+function isIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+}
+
+function isStandalone() {
+    return window.matchMedia('(display-mode: standalone)').matches ||
+           window.navigator.standalone === true;
+}
+
 let deferredPrompt = null;
+
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    showInstallBanner();
+    console.log('✅ beforeinstallprompt capturé');
+    if (localStorage.getItem('levieux_install_dismissed') !== '1') {
+        showInstallBanner();
+    }
+});
+
+// Clic sur les boutons "Installer" (header + profil)
+function handleInstallClick() {
+    if (isStandalone()) {
+        showToast('L\'app est déjà installée ✓', 'success');
+        return;
+    }
+    if (isInAppBrowser()) {
+        showInAppBrowserGuide();
+        return;
+    }
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(({ outcome }) => {
+            console.log('Install outcome:', outcome);
+            deferredPrompt = null;
+            hideInstallBanner();
+            if (outcome === 'accepted') showToast('✓ Installation lancée', 'success');
+        });
+        return;
+    }
+    if (isIOS()) showIOSGuide();
+    else showAndroidGuide();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const installBtn = document.getElementById('install-app-btn');
+    const installProfileBtn = document.getElementById('install-profile-btn');
+    if (installBtn) installBtn.addEventListener('click', handleInstallClick);
+    if (installProfileBtn) installProfileBtn.addEventListener('click', handleInstallClick);
 });
 
 function showInstallBanner() {
+    if (isStandalone()) return;
+    if (isInAppBrowser()) return;
     if (localStorage.getItem('levieux_install_dismissed') === '1') return;
     if (document.getElementById('install-banner')) return;
+
     const banner = document.createElement('div');
     banner.id = 'install-banner';
     banner.style.cssText = `
@@ -2016,8 +2078,13 @@ function showInstallBanner() {
         <button id="install-close" style="background:transparent; border:none; color:var(--ink-faint); cursor:pointer; padding:0.3rem; font-size:1.3rem; line-height:1;">×</button>
     `;
     document.body.appendChild(banner);
+
     document.getElementById('install-btn').addEventListener('click', async () => {
-        if (!deferredPrompt) return;
+        if (!deferredPrompt) {
+            if (isIOS()) showIOSGuide();
+            else showAndroidGuide();
+            return;
+        }
         deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
         console.log('Install outcome:', outcome);
@@ -2030,12 +2097,97 @@ function showInstallBanner() {
     });
 }
 
+function hideInstallBanner() {
+    const banner = document.getElementById('install-banner');
+    if (banner) banner.remove();
+}
+
+function showIOSGuide() {
+    showGuideModal({
+        title: '📱 Installer sur iPhone',
+        steps: [
+            'Ouvre l\'app dans <strong>Safari</strong> (pas Chrome)',
+            'Appuie sur le bouton <strong>Partager</strong> en bas',
+            'Fais défiler et choisis <strong>"Sur l\'écran d\'accueil"</strong>',
+            'Appuie sur <strong>"Ajouter"</strong> en haut à droite',
+            'L\'icône du sage apparaît sur ton écran d\'accueil 🌅'
+        ]
+    });
+}
+
+function showAndroidGuide() {
+    showGuideModal({
+        title: '📱 Installer sur Android',
+        steps: [
+            'Ouvre l\'app dans <strong>Chrome</strong>',
+            'Appuie sur le menu <strong>⋮</strong> en haut à droite',
+            'Choisis <strong>"Installer l\'application"</strong> ou <strong>"Ajouter à l\'écran d\'accueil"</strong>',
+            'Confirme en appuyant sur <strong>"Installer"</strong>',
+            'L\'icône du sage apparaît sur ton écran d\'accueil 🌅'
+        ]
+    });
+}
+
+function showInAppBrowserGuide() {
+    showGuideModal({
+        title: '⚠️ Ouvre dans ton navigateur',
+        message: 'Tu es dans le navigateur de Facebook/TikTok. Pour installer l\'app, ouvre-la dans Chrome ou Safari.',
+        steps: [
+            isIOS()
+                ? 'Appuie sur <strong>⋯</strong> ou <strong>Partager</strong> en haut'
+                : 'Appuie sur le menu <strong>⋮</strong> en haut à droite',
+            'Choisis <strong>"Ouvrir dans Chrome"</strong> ou <strong>"Ouvrir dans Safari"</strong>',
+            'Une fois dans ton navigateur, appuie sur le bouton <strong>⬇️ Installer</strong> en haut de l\'app'
+        ]
+    });
+}
+
+function showGuideModal({ title, message, steps }) {
+    const existing = document.getElementById('install-guide-modal');
+    if (existing) existing.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'install-guide-modal';
+    modal.style.cssText = `
+        position: fixed; inset: 0; z-index: 5000;
+        background: rgba(0,0,0,0.85); backdrop-filter: blur(10px);
+        display: flex; align-items: center; justify-content: center;
+        padding: 1rem; animation: fadeIn 0.3s ease;
+    `;
+
+    const stepsHTML = steps.map((s, i) => `
+        <div style="display:flex; gap:0.8rem; margin-bottom:0.8rem; align-items:flex-start;">
+            <div style="width:26px; height:26px; border-radius:50%; background:var(--accent); color:#0a0a0f; font-weight:700; font-size:0.8rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">${i+1}</div>
+            <div style="font-size:0.85rem; color:var(--ink); line-height:1.5; flex:1;">${s}</div>
+        </div>
+    `).join('');
+
+    modal.innerHTML = `
+        <div style="background:var(--panel); border-radius:20px; padding:1.5rem; max-width:400px; width:100%; max-height:80vh; overflow-y:auto; animation:fadeInUp 0.4s ease;">
+            <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:1rem;">
+                <h3 style="font-size:1.05rem; font-weight:600; margin:0;">${title}</h3>
+                <button id="close-guide" style="background:transparent; border:none; color:var(--ink-faint); cursor:pointer; font-size:1.5rem; padding:0; line-height:1;">×</button>
+            </div>
+            ${message ? '<p style="color:var(--ink-dim); font-size:0.85rem; margin-bottom:1rem;">' + message + '</p>' : ''}
+            ${stepsHTML}
+            <button id="guide-ok" class="btn btn-primary" style="width:100%; margin-top:1rem;">
+                <span>J'ai compris</span>
+            </button>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    document.getElementById('close-guide').addEventListener('click', () => modal.remove());
+    document.getElementById('guide-ok').addEventListener('click', () => modal.remove());
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+}
+
 window.addEventListener('appinstalled', () => {
     console.log('✅ App installée');
     deferredPrompt = null;
-    const banner = document.getElementById('install-banner');
-    if (banner) banner.remove();
+    hideInstallBanner();
     try { localStorage.setItem('levieux_install_dismissed', '1'); } catch (e) {}
+    showToast('✓ App installée avec succès !', 'success');
 });
 </script>
 
