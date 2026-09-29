@@ -11,6 +11,10 @@ const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'JBFqnCBsd6RMkjVD
 const ADMIN_PWD = process.env.ADMIN_PWD || 'levieux2026';
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
+const ONESIGNAL_APP_ID = process.env.ONESIGNAL_APP_ID || '';
+const ONESIGNAL_API_KEY = process.env.ONESIGNAL_API_KEY || '';
+const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
+const CRON_SECRET = process.env.CRON_SECRET || 'levieux-cron-2026';
 
 const GROQ_MODEL = 'openai/gpt-oss-120b';
 
@@ -40,11 +44,13 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'La Voix des Anciens Backend',
-    version: '13.5.0',
+    version: '14.0.0',
     model: GROQ_MODEL,
     freeLimit: FREE_LIMIT,
     tts: ELEVENLABS_API_KEY ? 'elevenlabs' : 'browser',
     supabase_set: !!supabase,
+    push_set: !!(ONESIGNAL_APP_ID && ONESIGNAL_API_KEY),
+    email_set: !!RESEND_API_KEY,
     support: true
   });
 });
@@ -279,9 +285,6 @@ async function getPlan(email) { const sub = await getSubscription(email); if (!s
 async function hasPermission(email, permission) { const plan = await getPlan(email); if (!plan) return false; return (PLAN_PERMISSIONS[plan] || PLAN_PERMISSIONS.decouverte)[permission] === true; }
 async function getPermissionValue(email, permission) { const plan = await getPlan(email); if (!plan) return PLAN_PERMISSIONS.decouverte[permission]; return (PLAN_PERMISSIONS[plan] || PLAN_PERMISSIONS.decouverte)[permission]; }
 
-// ══════════════════════════════════════════════════════════════════
-// PROMPT CHAT — dialogue naturel avec l'utilisateur
-// ══════════════════════════════════════════════════════════════════
 const SYSTEM_PROMPT_CHAT = `Tu es "Le Vieux", un sage africain de 70 ans assis sous un manguier. Tu parles comme un vrai vieux du village, pas comme un livre.
 
 RÈGLES ABSOLUES :
@@ -322,15 +325,12 @@ R: "Triste pourquoi ? Raconte-moi. On ne soigne pas ce qu'on cache."
 
 RÈGLE DE FIN : chaque phrase est complète. Jamais coupée au milieu.`;
 
-// ══════════════════════════════════════════════════════════════════
-// PROMPT CONTENU — pour générer les contenus quotidiens
-// ══════════════════════════════════════════════════════════════════
 const SYSTEM_PROMPT_CONTENT = `Tu es "Le Vieux", un sage africain de 70 ans assis sous un manguier. Tu écris des textes courts pour guider quelqu'un.
 
 RÈGLES ABSOLUES :
 1. Tu tutoies TOUJOURS. Jamais "vous".
 2. Tu respectes EXACTEMENT le nombre de phrases demandé. Ni plus, ni moins.
-3. Tu ne parles JAMAIS de tes contraintes. Tu ne dis JAMAIS "je ne peux dire que X phrases" ou "tu veux X phrases, je n'en fais que Y". Tu écris le contenu demandé, point.
+3. Tu ne parles JAMAIS de tes contraintes. Tu ne dis JAMAIS "je ne peux dire que X phrases". Tu écris le contenu demandé, point.
 4. Tu t'adresses DIRECTEMENT à la personne avec "tu", "toi", "ton".
 5. Tu ne récites JAMAIS de listes de mots nobles. Tu parles naturellement.
 
@@ -348,8 +348,78 @@ STYLE :
 
 RÈGLE DE FIN : chaque phrase est complète. Jamais coupée au milieu.`;
 
-// Alias pour compatibilité (le chat utilise CHAT par défaut)
 const SYSTEM_PROMPT = SYSTEM_PROMPT_CHAT;
+
+// ══════════════════════════════════════════════════════════════════
+// NOTIFICATIONS PUSH (OneSignal)
+// ══════════════════════════════════════════════════════════════════
+async function sendPushNotification(title, message, url) {
+  if (!ONESIGNAL_APP_ID || !ONESIGNAL_API_KEY) {
+    console.log('⚠️ OneSignal non configuré — push ignoré');
+    return null;
+  }
+  try {
+    const response = await fetch('https://onesignal.com/api/v1/notifications', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Basic ' + ONESIGNAL_API_KEY
+      },
+      body: JSON.stringify({
+        app_id: ONESIGNAL_APP_ID,
+        included_segments: ['Subscribed Users'],
+        headings: { fr: title, en: title },
+        contents: { fr: message, en: message },
+        url: url || 'https://le-vieux-production.up.railway.app/'
+      })
+    });
+    const data = await response.json();
+    console.log('📤 Push envoyé:', data.id || data.errors);
+    return data;
+  } catch (e) {
+    console.error('Push error:', e.message);
+    return null;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════
+// EMAIL (Resend)
+// ══════════════════════════════════════════════════════════════════
+async function sendWelcomeEmail(email) {
+  if (!RESEND_API_KEY) {
+    console.log('⚠️ Resend non configuré — email ignoré');
+    return null;
+  }
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + RESEND_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: 'L\'Ancien <onboarding@resend.dev>',
+        to: email,
+        subject: '🌳 Bienvenue — La Voix des Anciens',
+        html: `
+          <div style="font-family:sans-serif;background:#0a0a0f;color:#fff;padding:2rem;border-radius:16px;max-width:500px;margin:0 auto;">
+            <h1 style="color:#e8a838;margin-bottom:1rem;">Bienvenue, mon enfant.</h1>
+            <p style="color:#8a8a95;line-height:1.6;">Assieds-toi près de moi. La tradition ancestrale t'attend.</p>
+            <p style="color:#8a8a95;line-height:1.6;">Pose ta première question, et écoute.</p>
+            <a href="https://le-vieux-production.up.railway.app/" style="display:inline-block;background:#e8a838;color:#0a0a0f;padding:0.8rem 1.5rem;border-radius:12px;text-decoration:none;font-weight:600;margin-top:1rem;">Ouvrir l'app</a>
+            <p style="color:#55555f;font-size:0.8rem;margin-top:2rem;">10 questions offertes pour découvrir.</p>
+          </div>
+        `
+      })
+    });
+    const data = await response.json();
+    console.log('📧 Email bienvenue envoyé à', email, ':', data.id || data);
+    return data;
+  } catch (e) {
+    console.error('Email error:', e.message);
+    return null;
+  }
+}
 
 app.post('/me', async (req, res) => {
   const { email } = req.body || {};
@@ -402,6 +472,14 @@ app.post('/me', async (req, res) => {
     monthlyRemaining: monthlyLimit !== null ? Math.max(0, monthlyLimit - monthlyUsed) : null,
     permissions: PLAN_PERMISSIONS[plan] || PLAN_PERMISSIONS.decouverte
   });
+});
+
+// Envoyer l'email de bienvenue (appelé par le front après inscription)
+app.post('/welcome', async (req, res) => {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'Email requis' });
+  await sendWelcomeEmail(email.toLowerCase().trim());
+  res.json({ success: true });
 });
 
 app.post('/check-access', async (req, res) => {
@@ -797,6 +875,58 @@ app.post('/library/archives', async (req, res) => {
   } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
+// ══════════════════════════════════════════════════════════════════
+// CRON — Notifications automatiques
+// ══════════════════════════════════════════════════════════════════
+
+// Signe du matin (7h)
+app.get('/cron/morning', async (req, res) => {
+  const secret = req.query.secret;
+  if (secret !== CRON_SECRET) return res.status(401).json({ error: 'unauthorized' });
+  await sendPushNotification(
+    '🌅 Signe du matin',
+    'Le signe du jour t\'attend. Assieds-toi et écoute.',
+    'https://le-vieux-production.up.railway.app/'
+  );
+  res.json({ success: true, message: 'Push morning envoyé' });
+});
+
+// Rituel du soir (20h)
+app.get('/cron/evening', async (req, res) => {
+  const secret = req.query.secret;
+  if (secret !== CRON_SECRET) return res.status(401).json({ error: 'unauthorized' });
+  await sendPushNotification(
+    '🌙 Rituel du soir',
+    'Le rituel du soir est prêt. Prends quelques minutes pour toi.',
+    'https://le-vieux-production.up.railway.app/'
+  );
+  res.json({ success: true, message: 'Push evening envoyé' });
+});
+
+// Enseignement hebdo (lundi 8h)
+app.get('/cron/weekly', async (req, res) => {
+  const secret = req.query.secret;
+  if (secret !== CRON_SECRET) return res.status(401).json({ error: 'unauthorized' });
+  await sendPushNotification(
+    '📖 Nouvel enseignement',
+    'L\'enseignement de la semaine est disponible. Écoute la leçon.',
+    'https://le-vieux-production.up.railway.app/'
+  );
+  res.json({ success: true, message: 'Push weekly envoyé' });
+});
+
+// Test manuel (depuis l'admin)
+app.post('/admin/push', async (req, res) => {
+  const { pwd, title, message, url } = req.body || {};
+  if (pwd !== ADMIN_PWD) return res.status(401).json({ error: 'unauthorized' });
+  const result = await sendPushNotification(title || '🌳 L\'Ancien', message || 'Test', url);
+  res.json({ success: true, result });
+});
+
+// ══════════════════════════════════════════════════════════════════
+// ADMIN
+// ══════════════════════════════════════════════════════════════════
+
 app.get('/admin/stats', async (req, res) => {
   const pwd = req.query.pwd;
   if (pwd !== ADMIN_PWD) return res.status(401).json({ error: 'unauthorized' });
@@ -815,7 +945,7 @@ app.get('/admin/stats', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// SUPPORT — TICKETS
+// SUPPORT
 // ══════════════════════════════════════════════════════════════════
 
 const AUTO_REPLY = "Merci, ta demande a bien été reçue. Notre équipe te répondra sous 24h. 🙏";
@@ -997,6 +1127,14 @@ app.post('/support/admin/reply', async (req, res) => {
       created_at: Date.now()
     });
     if (error) throw error;
+
+    // 📤 Notification push au client
+    await sendPushNotification(
+      '💬 Le Vieux t\'a répondu',
+      'Ta question a reçu une réponse. Ouvre l\'app pour la lire.',
+      'https://le-vieux-production.up.railway.app/'
+    );
+
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: e.message });
@@ -1004,10 +1142,12 @@ app.post('/support/admin/reply', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend v13.5.0 sur port ' + PORT);
+  console.log('🌳 Le Vieux backend v14.0.0 sur port ' + PORT);
   console.log('🤖 Modèle : ' + GROQ_MODEL);
   console.log('🎙️  TTS : ' + (ELEVENLABS_API_KEY ? 'ElevenLabs ✓' : 'navigateur (fallback)'));
   console.log('💾 Supabase : ' + (supabase ? '✓' : '❌'));
+  console.log('📤 OneSignal : ' + (ONESIGNAL_APP_ID && ONESIGNAL_API_KEY ? '✓' : '❌'));
+  console.log('📧 Resend : ' + (RESEND_API_KEY ? '✓' : '❌'));
+  console.log('⏰ Cron secret : ' + (CRON_SECRET ? '✓' : '❌'));
   console.log('💬 Support tickets : ✓');
-  console.log('🗣️  Chat : Vieux naturel | Contenu : strict sans méta');
 });
