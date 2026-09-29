@@ -777,7 +777,8 @@ const state = {
     currentAudio: null,
     currentAudioBtn: null,
     ttsLoading: false,
-    ttsAbort: false
+    ttsAbort: false,
+    elevenLabsAvailable: null  // ✅ null = pas encore testé, true/false après
 };
 
 const SAGE_IMG = '<img src="https://le-vieux-production.up.railway.app/bg-subscribe.png" alt="">';
@@ -888,10 +889,29 @@ async function warmUpAudio() {
     } catch (e) {}
 }
 
+// ✅ Vérifie une fois pour toutes si ElevenLabs est disponible sur le serveur
+async function checkElevenLabs() {
+    if (state.elevenLabsAvailable !== null) return state.elevenLabsAvailable;
+    try {
+        const res = await fetch(BACKEND_URL + '/tts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: 'test' })
+        });
+        state.elevenLabsAvailable = res.ok;
+        console.log('🎙️ ElevenLabs disponible :', state.elevenLabsAvailable);
+        return state.elevenLabsAvailable;
+    } catch (e) {
+        state.elevenLabsAvailable = false;
+        return false;
+    }
+}
+
 async function playElevenLabs(text, btn) {
     const cleanText = cleanTextForSpeech(text);
     if (!cleanText) return;
 
+    // Si on clique pour arrêter
     if (btn && btn.classList.contains('playing')) {
         if (state.currentAudio) {
             try { state.currentAudio.pause(); state.currentAudio.currentTime = 0; } catch (e) {}
@@ -899,12 +919,14 @@ async function playElevenLabs(text, btn) {
         }
         state.ttsLoading = false;
         state.ttsAbort = true;
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
         btn.classList.remove('playing');
         btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter';
         state.currentAudioBtn = null;
         return;
     }
 
+    // Arrêter tout audio en cours
     if (state.currentAudio) {
         try { state.currentAudio.pause(); } catch (e) {}
         state.currentAudio = null;
@@ -925,6 +947,19 @@ async function playElevenLabs(text, btn) {
 
     try {
         await warmUpAudio();
+
+        // ✅ Vérifier une fois si ElevenLabs est dispo
+        const elevenOk = await checkElevenLabs();
+
+        if (!elevenOk) {
+            // ElevenLabs indisponible → voix navigateur direct
+            console.log('🔊 Voix navigateur (ElevenLabs indisponible)');
+            state.ttsLoading = false;
+            fallbackBrowserTTS(cleanText, btn);
+            return;
+        }
+
+        // ElevenLabs OK → split en phrases + lecture
         const phrases = splitIntoPhrases(cleanText);
         if (phrases.length === 0) throw new Error('No phrases');
 
@@ -965,12 +1000,8 @@ async function playElevenLabs(text, btn) {
         state.currentAudio = null;
         state.ttsLoading = false;
     } catch (e) {
-        console.error('TTS play error:', e);
+        console.warn('TTS fallback navigateur:', e.message);
         state.ttsLoading = false;
-        if (btn) {
-            btn.classList.remove('playing');
-            btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter';
-        }
         fallbackBrowserTTS(cleanText, btn);
     }
 }
@@ -981,8 +1012,10 @@ function fallbackBrowserTTS(text, btn) {
             btn.classList.remove('playing');
             btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter';
         }
+        showToast('Audio non supporté sur ce navigateur', 'error');
         return;
     }
+
     window.speechSynthesis.cancel();
     const voices = window.speechSynthesis.getVoices();
     const fr = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('fr'));
@@ -991,17 +1024,26 @@ function fallbackBrowserTTS(text, btn) {
     let voice = fr.find(v => maleNames.test(v.name) && !femaleNames.test(v.name));
     if (!voice) voice = fr.find(v => !femaleNames.test(v.name));
     if (!voice) voice = fr[0];
+
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'fr-FR';
-    u.rate = 0.78;
-    u.pitch = 0.35;
+    u.rate = 0.85;
+    u.pitch = 0.6;
     if (voice) u.voice = voice;
+
     u.onend = () => {
         if (btn) {
             btn.classList.remove('playing');
             btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter';
         }
         if (state.currentAudioBtn === btn) state.currentAudioBtn = null;
+    };
+    u.onerror = (e) => {
+        console.error('Erreur voix navigateur:', e);
+        if (btn) {
+            btn.classList.remove('playing');
+            btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter';
+        }
     };
     window.speechSynthesis.speak(u);
 }
@@ -1154,6 +1196,7 @@ function showScreen(name) {
             try { state.currentAudio.pause(); } catch (e) {}
             state.currentAudio = null;
         }
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
         state.ttsLoading = false;
         state.ttsAbort = true;
     }
@@ -1492,7 +1535,6 @@ document.getElementById('email-save-btn').addEventListener('click', async () => 
     showToast('Bienvenue');
     showScreen('home');
 
-    // 📧 Envoyer l'email de bienvenue si nouvel utilisateur
     if (isNewUser) {
         try {
             await fetch(BACKEND_URL + '/welcome', {
@@ -1503,7 +1545,6 @@ document.getElementById('email-save-btn').addEventListener('click', async () => 
         } catch (e) {}
     }
 
-    // 🎯 Proposer d'installer l'app après inscription
     showInstallPromptAfterSignup();
 });
 document.getElementById('email-input').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('email-save-btn').click(); });
