@@ -296,7 +296,6 @@
     .mic-btn.unsupported { opacity: 0.4; cursor: not-allowed; }
     .send-btn { background: var(--accent); color: #0a0a0f; }
 
-    /* ═══════ BOUTON UNIQUE TYPE WHATSAPP ═══════ */
     .audio-toggle-btn {
         background: var(--panel-2);
         color: var(--ink-dim);
@@ -1200,9 +1199,6 @@ function toggleListening() {
     else startListening();
 }
 
-// ══════════════════════════════════════════════════════════════════
-// BOUTON UNIQUE TYPE WHATSAPP : micro ↔ envoi
-// ══════════════════════════════════════════════════════════════════
 function updateSendButton() {
     const input = document.getElementById('user-input');
     const sendBtn = document.getElementById('send-btn');
@@ -1220,9 +1216,6 @@ function updateSendButton() {
     }
 }
 
-// ══════════════════════════════════════════════════════════════════
-// SAUVEGARDE DE L'HISTORIQUE DU CHAT
-// ══════════════════════════════════════════════════════════════════
 function saveChatHistory() {
     try {
         const history = getHistory();
@@ -1690,7 +1683,11 @@ document.getElementById('email-save-btn').addEventListener('click', async () => 
         } catch (e) {}
     }
 
-    showInstallPromptAfterSignup();
+    // 🔔 Popup activation notifications (1.5s après l'inscription)
+    showNotificationPrompt();
+    
+    // 📱 Popup installation PWA (2.5s après)
+    setTimeout(() => showInstallPromptAfterSignup(), 2500);
 });
 document.getElementById('email-input').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('email-save-btn').click(); });
 
@@ -1733,7 +1730,6 @@ function addMessage(role, content, autoPlay = false) {
         const btn = div.querySelector('.audio-btn');
         if (btn) playElevenLabs(content, btn);
     }
-    // 💾 Sauvegarder après chaque message
     saveChatHistory();
 }
 function addTyping() {
@@ -1822,7 +1818,6 @@ document.getElementById('user-input').addEventListener('input', e => {
     e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px';
     updateSendButton();
 });
-document.getElementById('mic-btn') && document.getElementById('mic-btn').addEventListener('click', toggleListening);
 document.getElementById('audio-toggle-btn').addEventListener('click', () => {
     if (state.isListening) stopListening();
     else startListening();
@@ -2173,7 +2168,6 @@ async function init() {
     if (!state.email) document.getElementById('email-modal').classList.add('visible');
     else {
         await refreshMe();
-        // 💾 Charger l'historique du chat
         loadChatHistory();
     }
     updateSendButton();
@@ -2188,6 +2182,76 @@ async function init() {
 }
 
 init();
+
+// ══════════════════════════════════════════════════════════════════
+// POPUP POUR ACTIVER LES NOTIFICATIONS (après inscription)
+// ══════════════════════════════════════════════════════════════════
+function showNotificationPrompt() {
+    if (localStorage.getItem('levieux_notif_prompt_shown') === '1') return;
+    
+    try {
+        if (window.OneSignal && window.OneSignal.User && window.OneSignal.User.PushSubscription && window.OneSignal.User.PushSubscription.optedIn) {
+            return;
+        }
+    } catch (e) {}
+    
+    try { localStorage.setItem('levieux_notif_prompt_shown', '1'); } catch (e) {}
+
+    setTimeout(() => {
+        const modal = document.createElement('div');
+        modal.id = 'notif-prompt-modal';
+        modal.style.cssText = `
+            position: fixed; inset: 0; z-index: 4500;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(10px);
+            display: flex; align-items: center; justify-content: center;
+            padding: 1rem; animation: fadeIn 0.3s ease;
+        `;
+
+        modal.innerHTML = `
+            <div style="background:var(--panel); border-radius:20px; padding:1.8rem 1.5rem; max-width:400px; width:100%; text-align:center; animation:fadeInUp 0.4s ease; position:relative;">
+                <div style="font-size:2.5rem; margin-bottom:1rem;">🔔</div>
+                <h2 style="font-size:1.15rem; font-weight:700; margin-bottom:0.6rem; color:var(--ink);">
+                    Active les notifications
+                </h2>
+                <p style="color:var(--ink-dim); font-size:0.88rem; line-height:1.6; margin-bottom:1.5rem;">
+                    Reçois le <strong style="color:var(--accent);">signe du matin</strong> et le <strong style="color:var(--accent);">rituel du soir</strong>.<br>
+                    Tu peux désactiver à tout moment.
+                </p>
+                <button id="notif-yes" class="btn btn-primary" style="width:100%; margin-bottom:0.6rem;">
+                    <span>Activer les notifications</span>
+                </button>
+                <button id="notif-later" style="background:transparent; border:none; color:var(--ink-faint); cursor:pointer; font-size:0.82rem; padding:0.6rem; font-family:inherit; width:100%;">
+                    Plus tard
+                </button>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        document.getElementById('notif-yes').addEventListener('click', async () => {
+            modal.remove();
+            try {
+                if (window.OneSignal && window.OneSignal.Notifications) {
+                    await window.OneSignal.Notifications.requestPermission();
+                    if (window.OneSignal.Notifications.permission) {
+                        showToast('✓ Notifications activées', 'success');
+                    }
+                } else if ('Notification' in window) {
+                    const perm = await Notification.requestPermission();
+                    if (perm === 'granted') {
+                        showToast('✓ Notifications activées', 'success');
+                    }
+                }
+            } catch (e) {
+                console.warn('Erreur permission:', e);
+            }
+        });
+
+        document.getElementById('notif-later').addEventListener('click', () => {
+            modal.remove();
+        });
+    }, 1500);
+}
 
 // ══════════════════════════════════════════════════════════════════
 // PWA — SERVICE WORKER + INSTALL PROMPT
