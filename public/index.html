@@ -778,7 +778,8 @@ const state = {
     currentAudioBtn: null,
     ttsLoading: false,
     ttsAbort: false,
-    elevenLabsAvailable: null  // ✅ null = pas encore testé, true/false après
+    elevenLabsAvailable: null,
+    browserVoices: null
 };
 
 const SAGE_IMG = '<img src="https://le-vieux-production.up.railway.app/bg-subscribe.png" alt="">';
@@ -889,7 +890,6 @@ async function warmUpAudio() {
     } catch (e) {}
 }
 
-// ✅ Vérifie une fois pour toutes si ElevenLabs est disponible sur le serveur
 async function checkElevenLabs() {
     if (state.elevenLabsAvailable !== null) return state.elevenLabsAvailable;
     try {
@@ -911,7 +911,6 @@ async function playElevenLabs(text, btn) {
     const cleanText = cleanTextForSpeech(text);
     if (!cleanText) return;
 
-    // Si on clique pour arrêter
     if (btn && btn.classList.contains('playing')) {
         if (state.currentAudio) {
             try { state.currentAudio.pause(); state.currentAudio.currentTime = 0; } catch (e) {}
@@ -926,7 +925,6 @@ async function playElevenLabs(text, btn) {
         return;
     }
 
-    // Arrêter tout audio en cours
     if (state.currentAudio) {
         try { state.currentAudio.pause(); } catch (e) {}
         state.currentAudio = null;
@@ -947,19 +945,15 @@ async function playElevenLabs(text, btn) {
 
     try {
         await warmUpAudio();
-
-        // ✅ Vérifier une fois si ElevenLabs est dispo
         const elevenOk = await checkElevenLabs();
 
         if (!elevenOk) {
-            // ElevenLabs indisponible → voix navigateur direct
-            console.log('🔊 Voix navigateur (ElevenLabs indisponible)');
+            console.log('🔊 Voix navigateur');
             state.ttsLoading = false;
             fallbackBrowserTTS(cleanText, btn);
             return;
         }
 
-        // ElevenLabs OK → split en phrases + lecture
         const phrases = splitIntoPhrases(cleanText);
         if (phrases.length === 0) throw new Error('No phrases');
 
@@ -1006,6 +1000,9 @@ async function playElevenLabs(text, btn) {
     }
 }
 
+// ══════════════════════════════════════════════════════════════════
+// VOIX NAVIGATEUR AMÉLIORÉE (voix d'homme + vitesse normale)
+// ══════════════════════════════════════════════════════════════════
 function fallbackBrowserTTS(text, btn) {
     if (!('speechSynthesis' in window)) {
         if (btn) {
@@ -1017,20 +1014,71 @@ function fallbackBrowserTTS(text, btn) {
     }
 
     window.speechSynthesis.cancel();
-    const voices = window.speechSynthesis.getVoices();
+
+    let voices = window.speechSynthesis.getVoices();
+
+    // Attendre que les voix soient chargées (Android parfois lent)
+    if (voices.length === 0) {
+        window.speechSynthesis.onvoiceschanged = () => {
+            window.speechSynthesis.onvoiceschanged = null;
+            fallbackBrowserTTS(text, btn);
+        };
+        setTimeout(() => {
+            if (window.speechSynthesis.getVoices().length === 0 && btn) {
+                console.warn('⚠️ Aucune voix disponible');
+            }
+        }, 1000);
+        return;
+    }
+
+    // Filtrer les voix françaises
     const fr = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('fr'));
-    const maleNames = /thomas|paul|nicolas|guillaume|henri|david|daniel|georges|yannick|claude|pierre|google français/i;
-    const femaleNames = /amelie|amélie|audrey|marie|julie|chantal|celine|céline|virginie|female|femme/i;
-    let voice = fr.find(v => maleNames.test(v.name) && !femaleNames.test(v.name));
-    if (!voice) voice = fr.find(v => !femaleNames.test(v.name));
+    console.log('🎙️ Voix FR disponibles:', fr.map(v => v.name));
+
+    // Patterns voix d'HOMME
+    const malePatterns = [
+        /thomas/i, /paul/i, /nicolas/i, /guillaume/i, /henri/i,
+        /david/i, /daniel/i, /georges/i, /yannick/i, /claude/i,
+        /pierre/i, /male/i, /homme/i
+    ];
+
+    // Patterns voix de FEMME à éviter
+    const femalePatterns = [
+        /amelie/i, /amélie/i, /audrey/i, /marie/i, /julie/i,
+        /chantal/i, /celine/i, /céline/i, /virginie/i, /hortense/i,
+        /female/i, /femme/i
+    ];
+
+    let voice = null;
+
+    // Priorité 1 : voix d'homme
+    for (const pattern of malePatterns) {
+        voice = fr.find(v => pattern.test(v.name) && !femalePatterns.some(fp => fp.test(v.name)));
+        if (voice) break;
+    }
+
+    // Priorité 2 : voix FR non-femme
+    if (!voice) {
+        voice = fr.find(v => !femalePatterns.some(fp => fp.test(v.name)));
+    }
+
+    // Priorité 3 : voix FR quelconque
     if (!voice) voice = fr[0];
 
+    // Priorité 4 : voix système
+    if (!voice && voices.length > 0) voice = voices[0];
+
+    console.log('🎙️ Voix choisie:', voice ? voice.name + ' (' + voice.lang + ')' : 'Aucune');
+
+    // Créer l'utterance
     const u = new SpeechSynthesisUtterance(text);
     u.lang = 'fr-FR';
-    u.rate = 0.85;
-    u.pitch = 0.6;
+    u.rate = 1.0;    // Vitesse normale
+    u.pitch = 0.4;   // Voix grave (homme)
+    u.volume = 1.0;
     if (voice) u.voice = voice;
 
+    u.onstart = () => console.log('🔊 Lecture démarrée');
     u.onend = () => {
         if (btn) {
             btn.classList.remove('playing');
@@ -1039,13 +1087,22 @@ function fallbackBrowserTTS(text, btn) {
         if (state.currentAudioBtn === btn) state.currentAudioBtn = null;
     };
     u.onerror = (e) => {
-        console.error('Erreur voix navigateur:', e);
+        console.error('❌ Erreur voix navigateur:', e);
         if (btn) {
             btn.classList.remove('playing');
             btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter';
         }
     };
-    window.speechSynthesis.speak(u);
+
+    try {
+        window.speechSynthesis.speak(u);
+    } catch (e) {
+        console.error('Erreur speak:', e);
+        if (btn) {
+            btn.classList.remove('playing');
+            btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter';
+        }
+    }
 }
 
 function toggleAudio(btn) {
