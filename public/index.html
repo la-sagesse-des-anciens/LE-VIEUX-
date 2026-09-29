@@ -817,8 +817,8 @@ function preloadImages() {
     });
 }
 
-// ✅ FIX apostrophes : on remplace par un ESPACE (pas supprimer)
-// Sinon Edge TTS lit "Qu'est-ce" comme "Qu" + pause + "est-ce"
+// ✅ FIX apostrophes : SUPPRESSION (pas remplacement par espace)
+// "Qu'est-ce" -> "Quest-ce" lu d'un trait par Edge TTS
 function cleanTextForSpeech(text) {
     if (!text) return '';
     let c = String(text);
@@ -828,8 +828,7 @@ function cleanTextForSpeech(text) {
     c = c.replace(/[\u{2600}-\u{26FF}]/gu, '');
     c = c.replace(/[\u{2700}-\u{27BF}]/gu, '');
     c = c.replace(/\*\*/g, '').replace(/\*/g, '');
-    // ✅ FIX : remplacement des apostrophes par un espace (droite, courbe, backtick, accent aigu)
-    c = c.replace(/[''`´]/g, ' ');
+    c = c.replace(/[''`´]/g, '');
     c = c.replace(/[«»"]/g, '');
     c = c.replace(/\s[-–—]\s/g, ' ');
     c = c.replace(/[–—]/g, '-');
@@ -866,10 +865,10 @@ function splitIntoPhrases(text) {
 
 const ttsCache = new Map();
 
-// ✅ FIX apostrophes (sécurité) : normalisation avant envoi au serveur
+// ✅ FIX apostrophes (sécurité) : suppression avant envoi serveur
 async function fetchTTSBlob(text) {
     const safeText = String(text || '')
-        .replace(/[''`´]/g, ' ')
+        .replace(/[''`´]/g, '')
         .replace(/\s+/g, ' ')
         .trim();
 
