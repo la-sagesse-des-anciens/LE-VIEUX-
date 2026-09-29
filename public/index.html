@@ -13,6 +13,15 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="application-name" content="L'Ancien">
 <title>La Voix des Anciens</title>
+<script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+<script>
+  window.OneSignalDeferred = window.OneSignalDeferred || [];
+  OneSignalDeferred.push(async function(OneSignal) {
+    await OneSignal.init({
+      appId: "55067339-4f24-4397-8450-b410ef4f7153"
+    });
+  });
+</script>
 <style>
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     :root {
@@ -916,7 +925,6 @@ async function playElevenLabs(text, btn) {
 
     try {
         await warmUpAudio();
-
         const phrases = splitIntoPhrases(cleanText);
         if (phrases.length === 0) throw new Error('No phrases');
 
@@ -927,9 +935,7 @@ async function playElevenLabs(text, btn) {
         function startNext() {
             if (nextToStart >= phrases.length) return null;
             const idx = nextToStart++;
-            const p = fetchTTSBlob(phrases[idx]).then(blob => {
-                return blob;
-            }).catch(err => {
+            const p = fetchTTSBlob(phrases[idx]).then(blob => blob).catch(err => {
                 console.warn('❌ Phrase ' + (idx + 1) + ' échouée:', err.message);
                 return null;
             });
@@ -1478,12 +1484,24 @@ document.getElementById('start-btn').addEventListener('click', () => {
 document.getElementById('email-save-btn').addEventListener('click', async () => {
     const email = document.getElementById('email-input').value.trim();
     if (!email || !email.includes('@')) { showToast('Email invalide', 'error'); return; }
+    const isNewUser = !localStorage.getItem('levieux_email');
     state.email = email;
     localStorage.setItem('levieux_email', email);
     document.getElementById('email-modal').classList.remove('visible');
     await refreshMe();
     showToast('Bienvenue');
     showScreen('home');
+
+    // 📧 Envoyer l'email de bienvenue si nouvel utilisateur
+    if (isNewUser) {
+        try {
+            await fetch(BACKEND_URL + '/welcome', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+        } catch (e) {}
+    }
 
     // 🎯 Proposer d'installer l'app après inscription
     showInstallPromptAfterSignup();
@@ -1968,7 +1986,7 @@ async function init() {
 init();
 
 // ══════════════════════════════════════════════════════════════════
-// PWA — SERVICE WORKER + INSTALL PROMPT AMÉLIORÉ
+// PWA — SERVICE WORKER + INSTALL PROMPT
 // ══════════════════════════════════════════════════════════════════
 
 if ('serviceWorker' in navigator) {
@@ -2104,9 +2122,6 @@ function hideInstallBanner() {
     if (banner) banner.remove();
 }
 
-// ══════════════════════════════════════════════════════════════════
-// PROMPT D'INSTALLATION APRÈS INSCRIPTION
-// ══════════════════════════════════════════════════════════════════
 function showInstallPromptAfterSignup() {
     if (isStandalone()) return;
     if (localStorage.getItem('levieux_install_prompt_shown') === '1') return;
