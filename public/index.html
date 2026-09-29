@@ -817,6 +817,8 @@ function preloadImages() {
     });
 }
 
+// ✅ FIX apostrophes : on remplace par un ESPACE (pas supprimer)
+// Sinon Edge TTS lit "Qu'est-ce" comme "Qu" + pause + "est-ce"
 function cleanTextForSpeech(text) {
     if (!text) return '';
     let c = String(text);
@@ -826,7 +828,8 @@ function cleanTextForSpeech(text) {
     c = c.replace(/[\u{2600}-\u{26FF}]/gu, '');
     c = c.replace(/[\u{2700}-\u{27BF}]/gu, '');
     c = c.replace(/\*\*/g, '').replace(/\*/g, '');
-    c = c.replace(/['']/g, '');
+    // ✅ FIX : remplacement des apostrophes par un espace (droite, courbe, backtick, accent aigu)
+    c = c.replace(/[''`´]/g, ' ');
     c = c.replace(/[«»"]/g, '');
     c = c.replace(/\s[-–—]\s/g, ' ');
     c = c.replace(/[–—]/g, '-');
@@ -863,16 +866,22 @@ function splitIntoPhrases(text) {
 
 const ttsCache = new Map();
 
+// ✅ FIX apostrophes (sécurité) : normalisation avant envoi au serveur
 async function fetchTTSBlob(text) {
-    if (ttsCache.has(text)) return ttsCache.get(text);
+    const safeText = String(text || '')
+        .replace(/[''`´]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    if (ttsCache.has(safeText)) return ttsCache.get(safeText);
     const res = await fetch(BACKEND_URL + '/tts-edge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text })
+        body: JSON.stringify({ text: safeText })
     });
     if (!res.ok) throw new Error('TTS error ' + res.status);
     const blob = await res.blob();
-    ttsCache.set(text, blob);
+    ttsCache.set(safeText, blob);
     return blob;
 }
 
