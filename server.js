@@ -44,7 +44,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'La Voix des Anciens Backend',
-    version: '14.0.0',
+    version: '15.0.0',
     model: GROQ_MODEL,
     freeLimit: FREE_LIMIT,
     tts: ELEVENLABS_API_KEY ? 'elevenlabs' : 'browser',
@@ -195,7 +195,7 @@ RÈGLE DE FIN : chaque phrase est complète.`;
 const SYSTEM_PROMPT = SYSTEM_PROMPT_CHAT;
 
 // ══════════════════════════════════════════════════════════════════
-// PUSH NOTIFICATIONS (OneSignal) — Clé lue depuis variables d'env
+// PUSH NOTIFICATIONS (OneSignal)
 // ══════════════════════════════════════════════════════════════════
 async function sendPushNotification(title, message, url) {
   if (!ONESIGNAL_APP_ID || !ONESIGNAL_API_KEY) {
@@ -246,6 +246,57 @@ async function sendWelcomeEmail(email) {
     console.log('📧 Email envoyé à', email);
     return data;
   } catch (e) { console.error('Email error:', e.message); return null; }
+}
+
+// 📧 Email quand le quota gratuit est épuisé
+async function sendQuotaExhaustedEmail(email) {
+  if (!RESEND_API_KEY) return null;
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + RESEND_API_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: 'L\'Ancien <onboarding@resend.dev>',
+        to: email,
+        subject: '🌳 Tes questions offertes sont épuisées',
+        html: `
+          <div style="font-family:sans-serif;background:#0a0a0f;color:#fff;padding:2rem;border-radius:16px;max-width:500px;margin:0 auto;">
+            <div style="text-align:center;margin-bottom:1.5rem;">
+              <div style="width:90px;height:90px;border-radius:50%;background:#1c1c26;border:2px solid #e8a838;overflow:hidden;margin:0 auto;">
+                <img src="https://le-vieux-production.up.railway.app/bg-subscribe.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:40% 45%;transform:scale(1.3);">
+              </div>
+            </div>
+            <h1 style="color:#e8a838;text-align:center;margin-bottom:1rem;">L'Ancien t'attend</h1>
+            <p style="color:#8a8a95;line-height:1.7;font-size:0.95rem;">
+              Mon enfant, tu as posé tes 10 questions offertes. Tu as écouté, tu as appris.
+            </p>
+            <p style="color:#8a8a95;line-height:1.7;font-size:0.95rem;">
+              Si tu veux continuer à parler avec moi, choisis ton chemin :
+            </p>
+            <div style="background:#16161d;border-radius:12px;padding:1.2rem;margin:1.5rem 0;border-left:3px solid #e8a838;">
+              <p style="color:#fff;margin:0 0 0.5rem 0;font-weight:600;">📿 Découverte — 5 000 FCFA/mois</p>
+              <p style="color:#8a8a95;margin:0 0 1rem 0;font-size:0.85rem;">30 questions / mois · Signe du matin · Méditation · Enseignement hebdo</p>
+              <p style="color:#fff;margin:0 0 0.5rem 0;font-weight:600;">✨ Sage — 10 000 FCFA/mois</p>
+              <p style="color:#8a8a95;margin:0 0 1rem 0;font-size:0.85rem;">Chat illimité · Rituel du soir · Défi 7 jours · Journal · 1 conte/jour</p>
+              <p style="color:#fff;margin:0 0 0.5rem 0;font-weight:600;">👑 Guide — 15 000 FCFA/mois</p>
+              <p style="color:#8a8a95;margin:0;font-size:0.85rem;">Tout de Sage + archives complètes + chat personnalisé + défi sur mesure</p>
+            </div>
+            <a href="https://le-vieux-production.up.railway.app/" style="display:block;background:#e8a838;color:#0a0a0f;padding:0.9rem 1.5rem;border-radius:12px;text-decoration:none;font-weight:600;text-align:center;margin-top:1rem;">Continuer mon chemin</a>
+            <p style="color:#55555f;font-size:0.75rem;text-align:center;margin-top:2rem;font-style:italic;">« Assieds-toi. Le chemin continue. »</p>
+          </div>
+        `
+      })
+    });
+    const data = await response.json();
+    console.log('📧 Email quota épuisé envoyé à', email, ':', data.id || data);
+    return data;
+  } catch (e) {
+    console.error('Email quota error:', e.message);
+    return null;
+  }
 }
 
 app.post('/me', async (req, res) => {
@@ -401,6 +452,11 @@ app.post('/ask', async (req, res) => {
     await supabase.from('free_users').upsert({ email: key, count: currentCount + 1 });
     isFree = true;
     freeRemaining = Math.max(0, FREE_LIMIT - (currentCount + 1));
+
+    // 📧 Envoyer un email quand l'utilisateur atteint sa 10e question
+    if (currentCount + 1 === FREE_LIMIT) {
+      sendQuotaExhaustedEmail(key).catch(e => console.warn('Email quota failed:', e.message));
+    }
   } else {
     const chatLimit = await getPermissionValue(key, 'chatLimit');
     if (chatLimit !== null) {
@@ -727,7 +783,7 @@ app.post('/support/admin/reply', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend v14.0.0 sur port ' + PORT);
+  console.log('🌳 Le Vieux backend v15.0.0 sur port ' + PORT);
   console.log('📤 OneSignal : ' + (ONESIGNAL_APP_ID && ONESIGNAL_API_KEY ? '✓' : '❌'));
   console.log('📧 Resend : ' + (RESEND_API_KEY ? '✓' : '❌'));
   console.log('⏰ Cron secret : ' + CRON_SECRET);
