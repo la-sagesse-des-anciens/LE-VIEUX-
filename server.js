@@ -1,13 +1,15 @@
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
+const { EdgeTTS } = require('node-edge-tts');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY || '';
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || '';
-const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'JBFqnCBsd6RMkjVDRZzb';
 const ADMIN_PWD = process.env.ADMIN_PWD || 'levieux2026';
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || '';
@@ -44,10 +46,10 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'La Voix des Anciens Backend',
-    version: '15.0.0',
+    version: '16.0.0',
     model: GROQ_MODEL,
     freeLimit: FREE_LIMIT,
-    tts: ELEVENLABS_API_KEY ? 'elevenlabs' : 'browser',
+    tts: 'edge-tts',
     supabase_set: !!supabase,
     push_set: !!(ONESIGNAL_APP_ID && ONESIGNAL_API_KEY),
     email_set: !!RESEND_API_KEY,
@@ -195,20 +197,55 @@ RÈGLE DE FIN : chaque phrase est complète.`;
 const SYSTEM_PROMPT = SYSTEM_PROMPT_CHAT;
 
 // ══════════════════════════════════════════════════════════════════
+// EDGE TTS — Voix neurales Microsoft (gratuit, illimité)
+// Voix française d'homme : fr-FR-RemyMultilingualNeural
+// ══════════════════════════════════════════════════════════════════
+const EDGE_VOICE = 'fr-FR-RemyMultilingualNeural';
+
+app.post('/tts-edge', async (req, res) => {
+  const { text } = req.body || {};
+  if (!text || !text.trim()) return res.status(400).json({ error: 'Texte requis' });
+
+  let tempFile = null;
+  try {
+    const tts = new EdgeTTS({
+      voice: EDGE_VOICE,
+      lang: 'fr-FR',
+      outputFormat: 'audio-24khz-96kbitrate-mono-mp3',
+      pitch: '+0Hz',
+      rate: '+0%',
+      volume: '+0%',
+      timeout: 15000
+    });
+
+    tempFile = path.join(os.tmpdir(), 'levieux_' + Date.now() + '_' + Math.random().toString(36).slice(2) + '.mp3');
+
+    await tts.ttsPromise(String(text).slice(0, 2500), tempFile);
+
+    const audioBuffer = fs.readFileSync(tempFile);
+
+    res.set('Content-Type', 'audio/mpeg');
+    res.set('Cache-Control', 'public, max-age=86400');
+    res.send(audioBuffer);
+  } catch (e) {
+    console.error('Edge TTS error:', e.message);
+    res.status(500).json({ error: 'edge_tts_error', message: e.message });
+  } finally {
+    if (tempFile && fs.existsSync(tempFile)) {
+      try { fs.unlinkSync(tempFile); } catch (e) {}
+    }
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════
 // PUSH NOTIFICATIONS (OneSignal)
 // ══════════════════════════════════════════════════════════════════
 async function sendPushNotification(title, message, url) {
-  if (!ONESIGNAL_APP_ID || !ONESIGNAL_API_KEY) {
-    console.log('⚠️ OneSignal non configuré');
-    return null;
-  }
+  if (!ONESIGNAL_APP_ID || !ONESIGNAL_API_KEY) return null;
   try {
     const response = await fetch('https://onesignal.com/api/v1/notifications', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Basic ' + ONESIGNAL_API_KEY
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Basic ' + ONESIGNAL_API_KEY },
       body: JSON.stringify({
         app_id: ONESIGNAL_APP_ID,
         included_segments: ['Subscribed Users'],
@@ -220,10 +257,7 @@ async function sendPushNotification(title, message, url) {
     const data = await response.json();
     console.log('📤 Push envoyé:', data.id || data.errors);
     return data;
-  } catch (e) {
-    console.error('Push error:', e.message);
-    return null;
-  }
+  } catch (e) { console.error('Push error:', e.message); return null; }
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -248,55 +282,23 @@ async function sendWelcomeEmail(email) {
   } catch (e) { console.error('Email error:', e.message); return null; }
 }
 
-// 📧 Email quand le quota gratuit est épuisé
 async function sendQuotaExhaustedEmail(email) {
   if (!RESEND_API_KEY) return null;
   try {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + RESEND_API_KEY,
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Authorization': 'Bearer ' + RESEND_API_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: 'L\'Ancien <onboarding@resend.dev>',
         to: email,
         subject: '🌳 Tes questions offertes sont épuisées',
-        html: `
-          <div style="font-family:sans-serif;background:#0a0a0f;color:#fff;padding:2rem;border-radius:16px;max-width:500px;margin:0 auto;">
-            <div style="text-align:center;margin-bottom:1.5rem;">
-              <div style="width:90px;height:90px;border-radius:50%;background:#1c1c26;border:2px solid #e8a838;overflow:hidden;margin:0 auto;">
-                <img src="https://le-vieux-production.up.railway.app/bg-subscribe.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:40% 45%;transform:scale(1.3);">
-              </div>
-            </div>
-            <h1 style="color:#e8a838;text-align:center;margin-bottom:1rem;">L'Ancien t'attend</h1>
-            <p style="color:#8a8a95;line-height:1.7;font-size:0.95rem;">
-              Mon enfant, tu as posé tes 10 questions offertes. Tu as écouté, tu as appris.
-            </p>
-            <p style="color:#8a8a95;line-height:1.7;font-size:0.95rem;">
-              Si tu veux continuer à parler avec moi, choisis ton chemin :
-            </p>
-            <div style="background:#16161d;border-radius:12px;padding:1.2rem;margin:1.5rem 0;border-left:3px solid #e8a838;">
-              <p style="color:#fff;margin:0 0 0.5rem 0;font-weight:600;">📿 Découverte — 5 000 FCFA/mois</p>
-              <p style="color:#8a8a95;margin:0 0 1rem 0;font-size:0.85rem;">30 questions / mois · Signe du matin · Méditation · Enseignement hebdo</p>
-              <p style="color:#fff;margin:0 0 0.5rem 0;font-weight:600;">✨ Sage — 10 000 FCFA/mois</p>
-              <p style="color:#8a8a95;margin:0 0 1rem 0;font-size:0.85rem;">Chat illimité · Rituel du soir · Défi 7 jours · Journal · 1 conte/jour</p>
-              <p style="color:#fff;margin:0 0 0.5rem 0;font-weight:600;">👑 Guide — 15 000 FCFA/mois</p>
-              <p style="color:#8a8a95;margin:0;font-size:0.85rem;">Tout de Sage + archives complètes + chat personnalisé + défi sur mesure</p>
-            </div>
-            <a href="https://le-vieux-production.up.railway.app/" style="display:block;background:#e8a838;color:#0a0a0f;padding:0.9rem 1.5rem;border-radius:12px;text-decoration:none;font-weight:600;text-align:center;margin-top:1rem;">Continuer mon chemin</a>
-            <p style="color:#55555f;font-size:0.75rem;text-align:center;margin-top:2rem;font-style:italic;">« Assieds-toi. Le chemin continue. »</p>
-          </div>
-        `
+        html: `<div style="font-family:sans-serif;background:#0a0a0f;color:#fff;padding:2rem;border-radius:16px;max-width:500px;margin:0 auto;"><h1 style="color:#e8a838;text-align:center;">L'Ancien t'attend</h1><p style="color:#8a8a95;line-height:1.7;">Mon enfant, tu as posé tes 10 questions offertes.</p><div style="background:#16161d;border-radius:12px;padding:1.2rem;margin:1.5rem 0;border-left:3px solid #e8a838;"><p style="color:#fff;font-weight:600;">📿 Découverte — 5 000 FCFA/mois</p><p style="color:#8a8a95;font-size:0.85rem;">30 questions / mois</p><p style="color:#fff;font-weight:600;">✨ Sage — 10 000 FCFA/mois</p><p style="color:#8a8a95;font-size:0.85rem;">Chat illimité + rituel du soir</p><p style="color:#fff;font-weight:600;">👑 Guide — 15 000 FCFA/mois</p><p style="color:#8a8a95;font-size:0.85rem;">Tout + archives + personnalisé</p></div><a href="https://le-vieux-production.up.railway.app/" style="display:block;background:#e8a838;color:#0a0a0f;padding:0.9rem;border-radius:12px;text-decoration:none;font-weight:600;text-align:center;">Continuer mon chemin</a></div>`
       })
     });
     const data = await response.json();
-    console.log('📧 Email quota épuisé envoyé à', email, ':', data.id || data);
+    console.log('📧 Email quota épuisé envoyé à', email);
     return data;
-  } catch (e) {
-    console.error('Email quota error:', e.message);
-    return null;
-  }
+  } catch (e) { console.error('Email quota error:', e.message); return null; }
 }
 
 app.post('/me', async (req, res) => {
@@ -342,17 +344,6 @@ app.post('/welcome', async (req, res) => {
   res.json({ success: true });
 });
 
-app.post('/check-access', async (req, res) => {
-  const { email } = req.body || {};
-  if (!email) return res.status(400).json({ error: 'Email requis' });
-  const key = email.toLowerCase().trim();
-  const sub = await getSubscription(key);
-  if (!sub) return res.json({ active: false, reason: 'not_subscribed' });
-  if (sub.expired) return res.json({ active: false, reason: 'expired' });
-  const daysLeft = Math.ceil((sub.expiry_date - Date.now()) / 86400000);
-  return res.json({ active: true, email: key, plan: sub.plan, expiryDate: sub.expiry_date, daysLeft });
-});
-
 app.post('/webhook/chariow', async (req, res) => {
   const event = req.body;
   console.log('📩 Webhook Chariow :', JSON.stringify(event).slice(0, 300));
@@ -366,36 +357,15 @@ app.post('/webhook/chariow', async (req, res) => {
   if (eventType.includes('sale') || eventType.includes('purchase') || eventType.includes('successful') || !eventType) {
     const productId = (event.sale && event.sale.product && event.sale.product.id) || (event.product && event.product.id) || '';
     const plan = PRODUCT_TO_PLAN[productId] || 'decouverte';
-
     const now = Date.now();
     const { data: existing } = await supabase.from('subscribers').select('expiry_date').eq('email', customerEmail).maybeSingle();
     const currentExpiry = (existing && existing.expiry_date) || 0;
     const baseDate = Math.max(currentExpiry, now);
     const newExpiry = baseDate + (30 * 24 * 60 * 60 * 1000);
-
     await supabase.from('subscribers').upsert({ email: customerEmail, start_date: now, expiry_date: newExpiry, plan, updated_at: now });
     return res.json({ received: true, action: 'activated', email: customerEmail, plan, expiryDate: newExpiry });
   }
   return res.json({ received: true, action: 'ignored' });
-});
-
-app.post('/tts', async (req, res) => {
-  const { text } = req.body || {};
-  if (!text || !text.trim()) return res.status(400).json({ error: 'Texte requis' });
-  if (!ELEVENLABS_API_KEY) return res.status(503).json({ error: 'tts_not_configured' });
-
-  try {
-    const response = await fetch('https://api.elevenlabs.io/v1/text-to-speech/' + ELEVENLABS_VOICE_ID + '?output_format=mp3_44100_128', {
-      method: 'POST',
-      headers: { 'xi-api-key': ELEVENLABS_API_KEY, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg' },
-      body: JSON.stringify({ text: String(text).slice(0, 2500), model_id: 'eleven_multilingual_v2', voice_settings: { stability: 0.55, similarity_boost: 0.80, style: 0.35, use_speaker_boost: true } })
-    });
-    if (!response.ok) { const err = await response.text(); return res.status(response.status).json({ error: 'elevenlabs_error', detail: err.slice(0, 200) }); }
-    const arrayBuffer = await response.arrayBuffer();
-    res.set('Content-Type', 'audio/mpeg');
-    res.set('Cache-Control', 'public, max-age=86400');
-    res.send(Buffer.from(arrayBuffer));
-  } catch (e) { res.status(500).json({ error: 'tts_server_error', message: e.message }); }
 });
 
 app.post('/preload', async (req, res) => {
@@ -452,19 +422,13 @@ app.post('/ask', async (req, res) => {
     await supabase.from('free_users').upsert({ email: key, count: currentCount + 1 });
     isFree = true;
     freeRemaining = Math.max(0, FREE_LIMIT - (currentCount + 1));
-
-    // 📧 Envoyer un email quand l'utilisateur atteint sa 10e question
-    if (currentCount + 1 === FREE_LIMIT) {
-      sendQuotaExhaustedEmail(key).catch(e => console.warn('Email quota failed:', e.message));
-    }
+    if (currentCount + 1 === FREE_LIMIT) sendQuotaExhaustedEmail(key).catch(() => {});
   } else {
     const chatLimit = await getPermissionValue(key, 'chatLimit');
     if (chatLimit !== null) {
       const monthKey = 'chat_' + key + '_' + new Date().toISOString().slice(0, 7);
       const currentCount = parseInt(await getCache(monthKey) || '0', 10);
-      if (currentCount >= chatLimit) {
-        return res.status(402).json({ error: 'monthly_limit', message: 'Tes ' + chatLimit + ' questions du mois sont épuisées.', monthlyUsed: currentCount, monthlyLimit: chatLimit, monthlyRemaining: 0 });
-      }
+      if (currentCount >= chatLimit) return res.status(402).json({ error: 'monthly_limit', message: 'Tes ' + chatLimit + ' questions du mois sont épuisées.' });
       const newCount = currentCount + 1;
       await setCache(monthKey, String(newCount));
       monthlyRemaining = Math.max(0, chatLimit - newCount);
@@ -480,7 +444,7 @@ app.post('/ask', async (req, res) => {
     const answer = data.choices && data.choices[0] && data.choices[0].message.content;
     if (!answer) return res.status(500).json({ error: 'no_answer' });
     return res.json({ answer: answer.trim(), isFree, freeRemaining, monthlyRemaining });
-  } catch (e) { return res.status(500).json({ error: 'server_error', message: e.message }); }
+  } catch (e) { return res.status(500).json({ error: 'server_error' }); }
 });
 
 app.post('/daily', async (req, res) => {
@@ -540,9 +504,6 @@ app.post('/teaching', async (req, res) => {
     const teaserText = cachedFree ? cachedFree.split('\n').slice(0, 5).join('\n') : 'Cette semaine, écoute bien.';
     return res.json({ content: teaserText, teaser: teaserText, isTeaser: true, freeTeaser: true });
   }
-
-  const teachingAllowed = await getPermissionValue(key, 'teaching');
-  if (!teachingAllowed) return res.status(402).json({ error: 'subscription_required' });
 
   const cacheKey = 'teaching_' + weekKey();
   const pilier = getWeekPilier();
@@ -640,10 +601,6 @@ app.post('/library/archives', async (req, res) => {
   try { const { data } = await supabase.from('content_cache').select('cache_key, content, created_at').like('cache_key', 'library_%').order('created_at', { ascending: false }).limit(30); return res.json({ archives: data || [] }); } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// CRON — Notifications automatiques
-// ══════════════════════════════════════════════════════════════════
-
 app.get('/cron/morning', async (req, res) => {
   if (req.query.secret !== CRON_SECRET) return res.status(401).json({ error: 'unauthorized' });
   await sendPushNotification('🌅 Signe du matin', 'Le signe du jour t\'attend. Assieds-toi et écoute.');
@@ -669,10 +626,6 @@ app.post('/admin/push', async (req, res) => {
   res.json({ success: true, result });
 });
 
-// ══════════════════════════════════════════════════════════════════
-// ADMIN
-// ══════════════════════════════════════════════════════════════════
-
 app.get('/admin/stats', async (req, res) => {
   const pwd = req.query.pwd;
   if (pwd !== ADMIN_PWD) return res.status(401).json({ error: 'unauthorized' });
@@ -690,17 +643,12 @@ app.get('/admin/stats', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// SUPPORT
-// ══════════════════════════════════════════════════════════════════
-
 const AUTO_REPLY = "Merci, ta demande a bien été reçue. Notre équipe te répondra sous 24h. 🙏";
 
 app.post('/support/send', async (req, res) => {
   const { email, message } = req.body || {};
   if (!email || !message || !message.trim()) return res.status(400).json({ error: 'Email et message requis' });
   if (!supabase) return res.status(500).json({ error: 'db_unavailable' });
-
   const key = email.toLowerCase().trim();
   const now = Date.now();
   try {
@@ -783,8 +731,6 @@ app.post('/support/admin/reply', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend v15.0.0 sur port ' + PORT);
-  console.log('📤 OneSignal : ' + (ONESIGNAL_APP_ID && ONESIGNAL_API_KEY ? '✓' : '❌'));
-  console.log('📧 Resend : ' + (RESEND_API_KEY ? '✓' : '❌'));
-  console.log('⏰ Cron secret : ' + CRON_SECRET);
+  console.log('🌳 Le Vieux backend v16.0.0 sur port ' + PORT);
+  console.log('🎙️  Edge TTS : ✓ (voix ' + EDGE_VOICE + ')');
 });
