@@ -239,6 +239,7 @@ app.post('/tts-edge', async (req, res) => {
 
 // ══════════════════════════════════════════════════════════════════
 // PUSH NOTIFICATIONS (OneSignal)
+// ✅ FIX : segment "Total Subscriptions" (celui qui existe dans ton compte)
 // ══════════════════════════════════════════════════════════════════
 async function sendPushNotification(title, message, url) {
   if (!ONESIGNAL_APP_ID || !ONESIGNAL_API_KEY) return null;
@@ -248,7 +249,7 @@ async function sendPushNotification(title, message, url) {
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Basic ' + ONESIGNAL_API_KEY },
       body: JSON.stringify({
         app_id: ONESIGNAL_APP_ID,
-        included_segments: ['Subscribed Users'],
+        included_segments: ['Total Subscriptions'],
         headings: { fr: title, en: title },
         contents: { fr: message, en: message },
         url: url || 'https://le-vieux-production.up.railway.app/'
