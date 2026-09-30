@@ -239,7 +239,7 @@ app.post('/tts-edge', async (req, res) => {
 
 // ══════════════════════════════════════════════════════════════════
 // PUSH NOTIFICATIONS (OneSignal)
-// ✅ FIX : segment "Total Subscriptions" (celui qui existe dans ton compte)
+// ✅ FIX : segment "All" — cible TOUS les appareils enregistrés
 // ══════════════════════════════════════════════════════════════════
 async function sendPushNotification(title, message, url) {
   if (!ONESIGNAL_APP_ID || !ONESIGNAL_API_KEY) return null;
@@ -249,14 +249,14 @@ async function sendPushNotification(title, message, url) {
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Basic ' + ONESIGNAL_API_KEY },
       body: JSON.stringify({
         app_id: ONESIGNAL_APP_ID,
-        included_segments: ['Total Subscriptions'],
+        included_segments: ['All'],
         headings: { fr: title, en: title },
         contents: { fr: message, en: message },
         url: url || 'https://le-vieux-production.up.railway.app/'
       })
     });
     const data = await response.json();
-    console.log('📤 Push envoyé:', data.id || data.errors);
+    console.log('📤 Push envoyé:', JSON.stringify(data).slice(0, 500));
     return data;
   } catch (e) { console.error('Push error:', e.message); return null; }
 }
@@ -604,20 +604,20 @@ app.post('/library/archives', async (req, res) => {
 
 app.get('/cron/morning', async (req, res) => {
   if (req.query.secret !== CRON_SECRET) return res.status(401).json({ error: 'unauthorized' });
-  await sendPushNotification('🌅 Signe du matin', 'Le signe du jour t\'attend. Assieds-toi et écoute.');
-  res.json({ success: true });
+  const result = await sendPushNotification('🌅 Signe du matin', 'Le signe du jour t\'attend. Assieds-toi et écoute.');
+  res.json({ success: true, result });
 });
 
 app.get('/cron/evening', async (req, res) => {
   if (req.query.secret !== CRON_SECRET) return res.status(401).json({ error: 'unauthorized' });
-  await sendPushNotification('🌙 Rituel du soir', 'Le rituel du soir est prêt. Prends quelques minutes.');
-  res.json({ success: true });
+  const result = await sendPushNotification('🌙 Rituel du soir', 'Le rituel du soir est prêt. Prends quelques minutes.');
+  res.json({ success: true, result });
 });
 
 app.get('/cron/weekly', async (req, res) => {
   if (req.query.secret !== CRON_SECRET) return res.status(401).json({ error: 'unauthorized' });
-  await sendPushNotification('📖 Nouvel enseignement', 'L\'enseignement de la semaine est disponible.');
-  res.json({ success: true });
+  const result = await sendPushNotification('📖 Nouvel enseignement', 'L\'enseignement de la semaine est disponible.');
+  res.json({ success: true, result });
 });
 
 app.post('/admin/push', async (req, res) => {
