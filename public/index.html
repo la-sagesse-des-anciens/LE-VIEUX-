@@ -817,8 +817,7 @@ function preloadImages() {
     });
 }
 
-// ✅ FIX apostrophes : SUPPRESSION (pas remplacement par espace)
-// "Qu'est-ce" -> "Quest-ce" lu d'un trait par Edge TTS
+// ✅ FIX apostrophes : suppression
 function cleanTextForSpeech(text) {
     if (!text) return '';
     let c = String(text);
@@ -865,7 +864,7 @@ function splitIntoPhrases(text) {
 
 const ttsCache = new Map();
 
-// ✅ FIX apostrophes (sécurité) : suppression avant envoi serveur
+// ✅ FIX apostrophes (sécurité)
 async function fetchTTSBlob(text) {
     const safeText = String(text || '')
         .replace(/[''`´]/g, '')
@@ -1306,6 +1305,10 @@ function toggleProfile() {
 
 async function loadContentForScreen(name) {
     if (!state.email) return;
+    // ✅ Badge : marquer "Aujourd'hui" comme vu quand on ouvre cet écran
+    if (name === 'today') {
+        markTodayAsSeen();
+    }
     if (state.loaded[name] && name !== 'library' && name !== 'today') return;
     state.loaded[name] = true;
     if (name === 'today') await loadToday();
@@ -1655,6 +1658,8 @@ async function refreshMe() {
         updateArchivesButtons();
         preloadAll();
         checkSupportUnread();
+        // ✅ Badge : vérifier le contenu non lu
+        checkForNewContent();
     } catch (e) {}
 }
 
@@ -2104,6 +2109,111 @@ async function sendAdminReply() {
     }
 }
 
+// ══════════════════════════════════════════════════════════════════
+// BADGE SUR L'ICÔNE (PWA)
+// Affiche un chiffre rouge sur l'icône de l'app quand il y a du nouveau
+// Supporté sur Android Chrome + Windows + macOS Safari 16+
+// ══════════════════════════════════════════════════════════════════
+
+function supportsBadge() {
+    return 'setAppBadge' in navigator;
+}
+
+function getSeenContent() {
+    try {
+        const raw = localStorage.getItem('levieux_seen_content');
+        return raw ? JSON.parse(raw) : {};
+    } catch (e) { return {}; }
+}
+
+function saveSeenContent(obj) {
+    try { localStorage.setItem('levieux_seen_content', JSON.stringify(obj)); } catch (e) {}
+}
+
+function todayBadgeKey() {
+    return new Date().toISOString().split('T')[0];
+}
+
+function getWeekKey() {
+    const d = new Date();
+    const dayOfYear = Math.floor((d - new Date(d.getFullYear(), 0, 1)) / 86400000);
+    const week = Math.floor(dayOfYear / 7);
+    return d.getFullYear() + '-W' + week;
+}
+
+function getAvailableContentKeys() {
+    const day = todayBadgeKey();
+    const keys = [];
+    keys.push('morning_' + day);
+    keys.push('meditation_' + day);
+
+    if (state.me && state.me.subscribed && state.me.permissions && state.me.permissions.evening) {
+        keys.push('evening_' + day);
+    }
+
+    const isMonday = new Date().getDay() === 1;
+    if (isMonday) {
+        const week = getWeekKey();
+        keys.push('teaching_' + week);
+    }
+
+    return keys;
+}
+
+function computeUnreadCount() {
+    const available = getAvailableContentKeys();
+    const seen = getSeenContent();
+    return available.filter(k => !seen[k]).length;
+}
+
+async function updateAppBadge() {
+    if (!supportsBadge()) return;
+    const count = computeUnreadCount();
+    try {
+        if (count > 0) {
+            await navigator.setAppBadge(count);
+            console.log('🔴 Badge set:', count);
+        } else {
+            await navigator.clearAppBadge();
+            console.log('⚪ Badge cleared');
+        }
+    } catch (e) {
+        console.warn('Badge error:', e.message);
+    }
+}
+
+function markContentAsSeen(key) {
+    const seen = getSeenContent();
+    seen[key] = Date.now();
+    const cutoff = Date.now() - (30 * 86400000);
+    Object.keys(seen).forEach(k => {
+        if (seen[k] < cutoff) delete seen[k];
+    });
+    saveSeenContent(seen);
+    updateAppBadge();
+}
+
+function markTodayAsSeen() {
+    const day = todayBadgeKey();
+    const week = getWeekKey();
+    markContentAsSeen('morning_' + day);
+    markContentAsSeen('meditation_' + day);
+    if (state.me && state.me.subscribed && state.me.permissions && state.me.permissions.evening) {
+        markContentAsSeen('evening_' + day);
+    }
+    if (new Date().getDay() === 1) {
+        markContentAsSeen('teaching_' + week);
+    }
+    updateAppBadge();
+}
+
+function checkForNewContent() {
+    const available = getAvailableContentKeys();
+    const seen = getSeenContent();
+    const hasNew = available.some(k => !seen[k]);
+    if (hasNew) updateAppBadge();
+}
+
 async function init() {
     preloadImages();
     try {
@@ -2127,6 +2237,10 @@ async function init() {
     if (state.email) {
         startSupportPolling();
         checkSupportUnread();
+        // ✅ Badge : vérifier au démarrage
+        setTimeout(() => checkForNewContent(), 2000);
+        // ✅ Badge : vérifier toutes les heures
+        setInterval(checkForNewContent, 60 * 60 * 1000);
     }
 }
 
