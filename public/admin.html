@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Push</title>
+<link rel="icon" type="image/png" href="/icons/icon-192.png">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+    background: #0a0a0f; color: #fff; min-height: 100vh;
+    padding: 2rem 1rem; display: flex; justify-content: center;
+    align-items: flex-start;
+  }
+  .container {
+    background: #16161d; border-radius: 16px; padding: 2rem;
+    max-width: 500px; width: 100%; border: 1px solid #25252f;
+  }
+  h1 {
+    font-size: 1.3rem; color: #e8a838; margin-bottom: 0.3rem;
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+  .subtitle {
+    font-size: 0.8rem; color: #8a8a95; margin-bottom: 1.8rem;
+    line-height: 1.5;
+  }
+  label {
+    display: block; font-size: 0.72rem; color: #8a8a95;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 0.4rem; font-weight: 600;
+  }
+  input, textarea {
+    width: 100%; padding: 0.8rem 1rem; border-radius: 12px;
+    border: 1px solid #25252f; background: #1c1c26; color: #fff;
+    font-family: inherit; font-size: 0.9rem; margin-bottom: 1rem;
+    transition: border-color 0.2s;
+  }
+  input:focus, textarea:focus {
+    outline: none; border-color: #e8a838;
+  }
+  textarea {
+    resize: vertical; min-height: 100px; line-height: 1.5;
+  }
+  .presets {
+    display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1rem;
+  }
+  .preset-btn {
+    padding: 0.4rem 0.8rem; border-radius: 20px;
+    background: #1c1c26; border: 1px solid #25252f;
+    color: #8a8a95; font-size: 0.72rem; cursor: pointer;
+    font-family: inherit; transition: all 0.15s;
+  }
+  .preset-btn:hover {
+    background: #24242f; color: #e8a838; border-color: #e8a838;
+  }
+  button.send {
+    width: 100%; padding: 1rem; border-radius: 12px; border: none;
+    background: #e8a838; color: #0a0a0f; font-weight: 700;
+    font-size: 0.95rem; cursor: pointer; font-family: inherit;
+    transition: transform 0.15s;
+    display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+  }
+  button.send:hover:not(:disabled) { transform: scale(1.02); }
+  button.send:active:not(:disabled) { transform: scale(0.98); }
+  button.send:disabled { opacity: 0.5; cursor: not-allowed; }
+  .result {
+    margin-top: 1.5rem; padding: 1rem; border-radius: 12px;
+    font-size: 0.85rem; line-height: 1.6; display: none;
+  }
+  .result.success {
+    background: rgba(74, 222, 128, 0.12);
+    border: 1px solid #4ade80; color: #4ade80;
+  }
+  .result.error {
+    background: rgba(248, 113, 113, 0.12);
+    border: 1px solid #f87171; color: #f87171;
+  }
+  .result.info {
+    background: rgba(232, 168, 56, 0.12);
+    border: 1px solid #e8a838; color: #e8a838;
+  }
+  .hint {
+    font-size: 0.72rem; color: #55555f; margin-top: 1rem;
+    text-align: center; line-height: 1.5;
+  }
+  .separator {
+    height: 1px; background: #25252f; margin: 1.5rem 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>📤 Envoyer une notification</h1>
+  <p class="subtitle">Cette notification sera envoyée à tous les utilisateurs abonnés à OneSignal.</p>
+
+  <label>Mot de passe admin</label>
+  <input type="password" id="pwd" placeholder="Ton mot de passe admin" autocomplete="current-password">
+
+  <div class="presets">
+    <button class="preset-btn" type="button" onclick="applyPreset('open')">🌳 Porte ouverte</button>
+    <button class="preset-btn" type="button" onclick="applyPreset('morning')">🌅 Matin</button>
+    <button class="preset-btn" type="button" onclick="applyPreset('evening')">🌙 Soir</button>
+    <button class="preset-btn" type="button" onclick="applyPreset('news')">✨ Nouveauté</button>
+  </div>
+
+  <label>Titre</label>
+  <input type="text" id="title" placeholder="🌳 L'Ancien">
+
+  <label>Message</label>
+  <textarea id="message" placeholder="Ton message..."></textarea>
+
+  <label>URL (au clic sur la notif)</label>
+  <input type="url" id="url" value="https://le-vieux-production.up.railway.app/">
+
+  <button class="send" id="send-btn" type="button">
+    <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+    Envoyer la notification
+  </button>
+
+  <div class="result" id="result"></div>
+
+  <div class="separator"></div>
+
+  <p class="hint">
+    🔒 Seuls ceux qui ont le mot de passe admin peuvent envoyer.<br>
+    Les destinataires = tous les appareils abonnés à OneSignal.
+  </p>
+</div>
+
+<script>
+const BACKEND = 'https://le-vieux-production.up.railway.app';
+
+// Presets rapides
+const PRESETS = {
+  open: {
+    title: '🌳 La porte est ouverte',
+    message: 'Mon enfant, ton chemin continue. Reviens t\'asseoir près de moi.'
+  },
+  morning: {
+    title: '🌅 Signe du matin',
+    message: 'Le signe du jour t\'attend. Assieds-toi et écoute.'
+  },
+  evening: {
+    title: '🌙 Rituel du soir',
+    message: 'Le rituel du soir est prêt. Prends quelques minutes.'
+  },
+  news: {
+    title: '✨ Du nouveau pour toi',
+    message: 'Quelque chose de nouveau t\'attend dans l\'app. Viens voir.'
+  }
+};
+
+function applyPreset(key) {
+  const p = PRESETS[key];
+  if (!p) return;
+  document.getElementById('title').value = p.title;
+  document.getElementById('message').value = p.message;
+}
+
+// Envoi
+document.getElementById('send-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('send-btn');
+  const result = document.getElementById('result');
+
+  const pwd = document.getElementById('pwd').value.trim();
+  const title = document.getElementById('title').value.trim() || '🌳 L\'Ancien';
+  const message = document.getElementById('message').value.trim();
+  const url = document.getElementById('url').value.trim();
+
+  if (!pwd) {
+    result.className = 'result error';
+    result.style.display = 'block';
+    result.textContent = '❌ Mot de passe requis.';
+    return;
+  }
+
+  if (!message) {
+    result.className = 'result error';
+    result.style.display = 'block';
+    result.textContent = '❌ Message requis.';
+    return;
+  }
+
+  if (!confirm('Envoyer cette notification à tous les abonnés ?\n\n' + title + '\n' + message)) {
+    return;
+  }
+
+  btn.disabled = true;
+  const originalHTML = btn.innerHTML;
+  btn.innerHTML = '<span style="display:inline-block;width:16px;height:16px;border:2px solid rgba(10,10,15,0.3);border-top-color:#0a0a0f;border-radius:50%;animation:spin 0.8s linear infinite;"></span> Envoi en cours…';
+
+  result.className = 'result info';
+  result.style.display = 'block';
+  result.textContent = '⏳ Envoi en cours…';
+
+  try {
+    const res = await fetch(BACKEND + '/admin/push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pwd, title, message, url })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      result.className = 'result error';
+      result.textContent = '❌ Erreur : ' + (data.error || res.status);
+      return;
+    }
+
+    const info = data.result || {};
+    const recipients = info.recipients || 0;
+    const errors = info.errors;
+
+    if (errors && errors.length > 0) {
+      result.className = 'result error';
+      result.innerHTML = '⚠️ Notification partielle<br>' +
+        'Erreurs : ' + JSON.stringify(errors);
+    } else {
+      result.className = 'result success';
+      result.innerHTML = '✅ Notification envoyée !<br>' +
+        '📨 Destinataires : <strong>' + recipients + '</strong><br>' +
+        '🆔 ID : ' + (info.id || 'n/a');
+    }
+
+    console.log('Push result:', info);
+  } catch (e) {
+    result.className = 'result error';
+    result.textContent = '❌ Erreur réseau : ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHTML;
+  }
+});
+
+// Animation spinner
+const styleEl = document.createElement('style');
+styleEl.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+document.head.appendChild(styleEl);
+
+// Sauvegarde du mot de passe en mémoire de session (pour éviter de le retaper)
+try {
+  const savedPwd = sessionStorage.getItem('admin_pwd');
+  if (savedPwd) document.getElementById('pwd').value = savedPwd;
+} catch (e) {}
+
+document.getElementById('pwd').addEventListener('input', (e) => {
+  try { sessionStorage.setItem('admin_pwd', e.target.value); } catch (err) {}
+});
+</script>
+
+</body>
+</html>
