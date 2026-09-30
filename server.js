@@ -239,7 +239,9 @@ app.post('/tts-edge', async (req, res) => {
 
 // ══════════════════════════════════════════════════════════════════
 // PUSH NOTIFICATIONS (OneSignal)
-// ✅ FIX : segment "All" — cible TOUS les appareils enregistrés
+// ✅ FIX : segment "All" + priority HIGH pour Android Chrome
+// Les notifications Web Push sur Android Chrome sont droppées
+// silencieusement si priority n'est pas "high" (10)
 // ══════════════════════════════════════════════════════════════════
 async function sendPushNotification(title, message, url) {
   if (!ONESIGNAL_APP_ID || !ONESIGNAL_API_KEY) return null;
@@ -252,7 +254,14 @@ async function sendPushNotification(title, message, url) {
         included_segments: ['All'],
         headings: { fr: title, en: title },
         contents: { fr: message, en: message },
-        url: url || 'https://le-vieux-production.up.railway.app/'
+        url: url || 'https://le-vieux-production.up.railway.app/',
+        // ✅ FIX Android Chrome — sans priority HIGH, la notif est droppée
+        priority: 10,
+        android_visibility: 1,
+        ttl: 259200,
+        android_accent_color: 'FFE8A838',
+        chrome_web_icon: 'https://le-vieux-production.up.railway.app/icons/icon-192.png',
+        chrome_web_badge: 'https://le-vieux-production.up.railway.app/icons/icon-192.png'
       })
     });
     const data = await response.json();
