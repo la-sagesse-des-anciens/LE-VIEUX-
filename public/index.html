@@ -95,7 +95,6 @@
     .screen::-webkit-scrollbar { width: 0; }
     .screen-content { padding: 1rem 1rem 2rem; flex: 1; min-height: 0; }
 
-    /* ✅ FIX INPUT FIXE — Chat : contenu scrollable SAUF input */
     #screen-chat.active { overflow: hidden; }
     #screen-chat .screen-content {
         display: flex; flex-direction: column; padding: 0;
@@ -163,7 +162,6 @@
         letter-spacing: 0.03em;
         margin-bottom: 0.6rem;
     }
-
     .ritual-title {
         font-size: 1.15rem;
         font-weight: 700;
@@ -171,7 +169,6 @@
         line-height: 1.3;
         margin-bottom: 0.5rem;
     }
-
     .ritual-theme {
         display: inline-block;
         font-size: 0.65rem;
@@ -669,8 +666,16 @@
         <div class="screen-content">
             <div class="card">
                 <div class="card-header"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg><h2>Mon journal</h2></div>
-                <textarea class="journal-textarea" id="journal-input" placeholder="Aujourd'hui, je ressens..."></textarea>
-                <button class="btn btn-primary" style="margin-top:0.8rem; width:100%;" id="journal-save-btn"><span>Sauvegarder</span></button>
+                <div id="journal-counter" style="font-size:0.75rem; color:var(--ink-dim); margin-bottom:0.6rem;"></div>
+                <div id="journal-editor">
+                    <textarea class="journal-textarea" id="journal-input" placeholder="Aujourd'hui, je ressens..."></textarea>
+                    <button class="btn btn-primary" style="margin-top:0.8rem; width:100%;" id="journal-save-btn"><span>Sauvegarder</span></button>
+                </div>
+                <div id="journal-locked" style="display:none;"></div>
+            </div>
+            <div class="card" id="journal-history-card" style="display:none;">
+                <div class="card-header"><svg viewBox="0 0 24 24"><path d="M12 8v4l3 3M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/></svg><h2>Mon historique</h2></div>
+                <div id="journal-history"></div>
             </div>
         </div>
     </main>
@@ -1402,7 +1407,7 @@ async function loadContentForScreen(name) {
     if (name === 'today') {
         markTodayAsSeen();
     }
-    if (state.loaded[name] && name !== 'library' && name !== 'today') return;
+    if (state.loaded[name] && name !== 'library' && name !== 'today' && name !== 'journal') return;
     state.loaded[name] = true;
     if (name === 'today') await loadToday();
     if (name === 'teaching') await loadTeaching();
@@ -1447,30 +1452,16 @@ async function loadToday() {
         }
 
         if (data.meditation) {
-            if (data.meditation.locked) {
-                cardMeditation.innerHTML =
-                    '<div class="card-header">' +
-                        '<svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>' +
-                        '<h2>Méditation du matin</h2>' +
-                    '</div>' +
-                    '<div class="paywall-box">' +
-                        '<div class="paywall-lock">🔒</div>' +
-                        '<div class="paywall-title">Réservé aux abonnés</div>' +
-                        '<div class="paywall-text">Abonne-toi pour accéder à la méditation complète.</div>' +
-                        '<button class="btn btn-primary" style="width:100%;" onclick="showScreen(\'subscribe\')"><span>Voir les offres</span></button>' +
-                    '</div>';
-            } else {
-                cardMeditation.innerHTML =
-                    '<div class="card-header">' +
-                        '<svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>' +
-                        '<h2>Méditation du matin</h2>' +
-                    '</div>' +
-                    '<div class="ritual-title">' + esc(data.meditation.titre) + '</div>' +
-                    '<div class="text">' + formatMarkdown(data.meditation.texte) + '</div>' +
-                    '<button class="audio-btn" onclick="toggleAudio(this)" data-text="' + esc(data.meditation.titre + '. ' + data.meditation.texte).replace(/"/g, '&quot;') + '">' +
-                        '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter' +
-                    '</button>';
-            }
+            cardMeditation.innerHTML =
+                '<div class="card-header">' +
+                    '<svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>' +
+                    '<h2>Méditation du matin</h2>' +
+                '</div>' +
+                '<div class="ritual-title">' + esc(data.meditation.titre) + '</div>' +
+                '<div class="text">' + formatMarkdown(data.meditation.texte) + '</div>' +
+                '<button class="audio-btn" onclick="toggleAudio(this)" data-text="' + esc(data.meditation.titre + '. ' + data.meditation.texte).replace(/"/g, '&quot;') + '">' +
+                    '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter' +
+                '</button>';
         }
 
         if (data.evening) {
@@ -1647,6 +1638,7 @@ async function loadChallenge() {
     }
 }
 
+// ✅ NOUVELLE VERSION loadLibrary — gère le conte gratuit
 async function loadLibrary() {
     const loading = document.getElementById('library-loading');
     const content = document.getElementById('library-content');
@@ -1655,18 +1647,6 @@ async function loadLibrary() {
     loading.style.display = 'block';
     loading.innerHTML = '<span class="spinner"></span>Chargement…';
     content.style.display = 'none';
-
-    if (state.preloaded.library && state.preloaded.library.content) {
-        const d = state.preloaded.library;
-        loading.style.display = 'none';
-        content.style.display = 'block';
-        if (d.isTeaser && d.teaser) {
-            content.innerHTML = renderContentWithTeaser(icon, 'Conte du jour', d.content, d.teaser, d.nextUpdate || 'daily');
-        } else {
-            content.innerHTML = renderContent(icon, 'Conte du jour', d.content, d.nextUpdate || 'daily');
-        }
-        return;
-    }
 
     try {
         const res = await fetch(BACKEND_URL + '/library', {
@@ -1677,15 +1657,40 @@ async function loadLibrary() {
         const data = await res.json();
         loading.style.display = 'none';
         content.style.display = 'block';
-        if (data.content) {
-            state.preloaded.library = data;
-            if (data.isTeaser && data.teaser) {
-                content.innerHTML = renderContentWithTeaser(icon, 'Conte du jour', data.content, data.teaser, data.nextUpdate || 'daily');
+
+        // ✅ Cas 1 : abonné OU conte gratuit aujourd'hui → accès complet
+        if (data.fullAccess || (!data.isTeaser && data.content)) {
+            const nextUpdate = data.nextUpdate || 'daily';
+            if (nextUpdate === 'free_today') {
+                content.innerHTML =
+                    '<div class="card-header">' + icon + '<h2>Conte du jour</h2></div>' +
+                    '<div class="ritual-counter">🎁 Conte offert aujourd\'hui</div>' +
+                    '<div class="text">' + formatMarkdown(data.content) + '</div>' +
+                    '<button class="audio-btn" onclick="toggleAudio(this)" data-text="' + esc(data.content).replace(/"/g, '&quot;') + '">' +
+                        '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter' +
+                    '</button>' +
+                    '<div class="countdown">🎁 Prochain conte gratuit dans <strong>3 jours</strong></div>';
             } else {
-                content.innerHTML = renderContent(icon, 'Conte du jour', data.content, data.nextUpdate || 'daily');
+                content.innerHTML = renderContent(icon, 'Conte du jour', data.content, nextUpdate);
             }
             return;
         }
+
+        // ✅ Cas 2 : teaser avec info sur le prochain conte gratuit
+        if (data.isTeaser && data.teaser) {
+            const nextFree = data.nextFreeIn || 1;
+            content.innerHTML =
+                '<div class="card-header">' + icon + '<h2>Conte du jour</h2></div>' +
+                '<div style="position:relative;"><div class="teaser-content"><div class="text">' + formatMarkdown(data.teaser) + '</div></div><div class="teaser-fade"></div></div>' +
+                '<div class="paywall-box">' +
+                    '<div class="paywall-lock">🔒</div>' +
+                    '<div class="paywall-title">Réservé aux abonnés</div>' +
+                    '<div class="paywall-text">Prochain conte <strong>gratuit</strong> dans <strong>' + nextFree + ' jour' + (nextFree > 1 ? 's' : '') + '</strong>.<br>Abonne-toi pour lire un conte <strong>chaque jour</strong>.</div>' +
+                    '<button class="btn btn-primary" style="width:100%;" onclick="showScreen(\'subscribe\')"><span>Voir les offres</span></button>' +
+                '</div>';
+            return;
+        }
+
         content.innerHTML = '<div class="paywall-box"><div class="paywall-lock">🔒</div><div class="paywall-title">Réservé aux abonnés</div><button class="btn btn-primary" style="width:100%;" onclick="showScreen(\'subscribe\')"><span>Voir les offres</span></button></div>';
     } catch (e) {
         loading.style.display = 'none';
@@ -1694,10 +1699,63 @@ async function loadLibrary() {
     }
 }
 
+// ✅ NOUVELLE VERSION loadJournal — utilise /journal/list
 async function loadJournal() {
-    if (state.me && state.me.permissions && !state.me.permissions.journal) {
-        const card = document.querySelector('#screen-journal .card');
-        card.innerHTML = '<div class="paywall-box"><div class="paywall-lock">🔒</div><div class="paywall-title">Réservé aux plans Sage et Guide</div><button class="btn btn-primary" style="width:100%;" onclick="showScreen(\'subscribe\')"><span>Voir les offres</span></button></div>';
+    if (!state.email) return;
+    const counter = document.getElementById('journal-counter');
+    const historyCard = document.getElementById('journal-history-card');
+    const historyDiv = document.getElementById('journal-history');
+    const editor = document.getElementById('journal-editor');
+    const locked = document.getElementById('journal-locked');
+
+    counter.textContent = 'Chargement…';
+    historyCard.style.display = 'none';
+    editor.style.display = 'block';
+    locked.style.display = 'none';
+
+    try {
+        const res = await fetch(BACKEND_URL + '/journal/list', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: state.email })
+        });
+        const data = await res.json();
+
+        if (data.isSubscribed) {
+            counter.innerHTML = '✨ Journal illimité · <strong>' + data.count + '</strong> entrée' + (data.count > 1 ? 's' : '');
+        } else {
+            counter.innerHTML = '📔 <strong>' + data.count + '/' + data.freeLimit + '</strong> entrées utilisées';
+        }
+
+        if (data.canWrite) {
+            editor.style.display = 'block';
+            locked.style.display = 'none';
+        } else {
+            editor.style.display = 'none';
+            locked.style.display = 'block';
+            locked.innerHTML =
+                '<div class="paywall-box">' +
+                    '<div class="paywall-lock">🔒</div>' +
+                    '<div class="paywall-title">Journal gratuit terminé</div>' +
+                    '<div class="paywall-text">Tu as utilisé tes ' + data.freeLimit + ' entrées gratuites. Abonne-toi pour continuer à écrire dans ton journal.</div>' +
+                    '<button class="btn btn-primary" style="width:100%;" onclick="showScreen(\'subscribe\')"><span>Voir les offres</span></button>' +
+                '</div>';
+        }
+
+        if (data.entries && data.entries.length > 0) {
+            historyCard.style.display = 'block';
+            historyDiv.innerHTML = data.entries.map(e => {
+                const d = new Date(e.created_at).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+                return '<div style="padding:0.7rem; background:var(--panel-2); border-radius:10px; margin-bottom:0.5rem;">' +
+                    '<div style="font-size:0.65rem; color:var(--ink-faint); margin-bottom:0.3rem;">' + d + '</div>' +
+                    '<div style="font-size:0.85rem; line-height:1.5; white-space:pre-wrap;">' + esc(e.content) + '</div>' +
+                '</div>';
+            }).join('');
+        } else {
+            historyCard.style.display = 'none';
+        }
+    } catch (e) {
+        counter.textContent = 'Erreur de chargement.';
     }
 }
 
@@ -1816,8 +1874,6 @@ function renderContentWithTeaser(icon, title, content, teaser, countdownType) {
 async function preloadAll() {
     if (!state.email || !state.me) return;
     fetch(BACKEND_URL + '/preload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: state.email }) }).catch(() => {});
-    fetch(BACKEND_URL + '/library', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: state.email }) })
-        .then(r => r.json()).then(d => { if (d.content) state.preloaded.library = d; }).catch(() => {});
 }
 
 document.querySelectorAll('.nav-item').forEach(i => i.addEventListener('click', () => showScreen(i.dataset.screen)));
@@ -1995,10 +2051,40 @@ document.getElementById('audio-toggle-btn').addEventListener('click', () => {
     else startListening();
 });
 
-document.getElementById('journal-save-btn').addEventListener('click', () => {
+// ✅ NOUVEAU listener journal-save-btn — utilise /journal/save
+document.getElementById('journal-save-btn').addEventListener('click', async () => {
     const t = document.getElementById('journal-input').value.trim();
     if (!t) { showToast('Écris quelque chose', 'error'); return; }
-    showToast('Sauvegardé ✓'); document.getElementById('journal-input').value = '';
+    if (!state.email) return;
+
+    const btn = document.getElementById('journal-save-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span>Sauvegarde…</span>';
+
+    try {
+        const res = await fetch(BACKEND_URL + '/journal/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: state.email, content: t })
+        });
+        const data = await res.json();
+
+        if (res.status === 402) {
+            showToast(data.message || 'Journal gratuit terminé', 'error', 4000);
+            await loadJournal();
+            return;
+        }
+        if (!res.ok) throw new Error('save failed');
+
+        document.getElementById('journal-input').value = '';
+        showToast('✓ Sauvegardé', 'success');
+        await loadJournal();
+    } catch (e) {
+        showToast('Erreur de sauvegarde', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>Sauvegarder</span>';
+    }
 });
 
 document.getElementById('custom-challenge-btn').addEventListener('click', async () => {
@@ -2132,7 +2218,6 @@ function startSupportPolling() {
 
 document.getElementById('support-send-btn').addEventListener('click', sendSupportMessage);
 
-// ADMIN
 let adminPwd = null;
 let adminCurrentEmail = null;
 let adminPollingInterval = null;
@@ -2264,7 +2349,6 @@ async function sendAdminReply() {
     }
 }
 
-// BADGE
 function supportsBadge() { return 'setAppBadge' in navigator; }
 function getSeenContent() {
     try { const raw = localStorage.getItem('levieux_seen_content'); return raw ? JSON.parse(raw) : {}; } catch (e) { return {}; }
@@ -2346,7 +2430,6 @@ async function init() {
 
 init();
 
-// NOTIFICATIONS POPUP
 function showNotificationPrompt() {
     if (localStorage.getItem('levieux_notif_prompt_shown') === '1') return;
     try {
@@ -2381,7 +2464,6 @@ function showNotificationPrompt() {
     }, 1500);
 }
 
-// PWA
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
         navigator.serviceWorker.register('/sw.js').catch(() => {});
