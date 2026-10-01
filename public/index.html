@@ -1448,7 +1448,8 @@ async function loadToday() {
                 '<div class="text">' + formatMarkdown(data.morning.texte) + '</div>' +
                 '<button class="audio-btn" onclick="toggleAudio(this)" data-text="' + esc(data.morning.titre + '. ' + data.morning.texte).replace(/"/g, '&quot;') + '">' +
                     '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter' +
-                '</button>';
+                '</button>' +
+                renderCountdown('daily');
         }
 
         if (data.meditation) {
@@ -1461,7 +1462,8 @@ async function loadToday() {
                 '<div class="text">' + formatMarkdown(data.meditation.texte) + '</div>' +
                 '<button class="audio-btn" onclick="toggleAudio(this)" data-text="' + esc(data.meditation.titre + '. ' + data.meditation.texte).replace(/"/g, '&quot;') + '">' +
                     '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter' +
-                '</button>';
+                '</button>' +
+                renderCountdown('daily');
         }
 
         if (data.evening) {
@@ -1476,7 +1478,8 @@ async function loadToday() {
                         '<div class="paywall-title">Réservé aux abonnés</div>' +
                         '<div class="paywall-text">Abonne-toi pour accéder au rituel du soir.</div>' +
                         '<button class="btn btn-primary" style="width:100%;" onclick="showScreen(\'subscribe\')"><span>Voir les offres</span></button>' +
-                    '</div>';
+                    '</div>' +
+                    renderCountdown('daily');
             } else {
                 cardEvening.innerHTML =
                     '<div class="card-header">' +
@@ -1488,7 +1491,8 @@ async function loadToday() {
                     '<div class="text">' + formatMarkdown(data.evening.texte) + '</div>' +
                     '<button class="audio-btn" onclick="toggleAudio(this)" data-text="' + esc(data.evening.titre + '. ' + data.evening.texte).replace(/"/g, '&quot;') + '">' +
                         '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter' +
-                    '</button>';
+                    '</button>' +
+                    renderCountdown('daily');
             }
         }
 
@@ -1556,7 +1560,8 @@ async function loadTeaching() {
                 '</div>' +
                 '<button class="audio-btn" onclick="toggleAudio(this)" data-text="' + esc(data.titre + '. ' + data.intro + '. Les 3 gestes : ' + (data.gestes || []).join('. ')).replace(/"/g, '&quot;') + '">' +
                     '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter' +
-                '</button>';
+                '</button>' +
+                renderCountdown('weekly');
         }
 
     } catch (e) {
@@ -1626,7 +1631,8 @@ async function loadChallenge() {
             '<div style="background:var(--bg-elevated); padding:0.9rem; border-radius:12px; margin-top:1rem;">' +
                 '<div style="font-size:0.72rem; color:var(--accent); font-weight:600; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.4rem;">🎯 Ton action</div>' +
                 '<div style="font-size:0.9rem; line-height:1.6;">' + esc(data.action) + '</div>' +
-            '</div>';
+            '</div>' +
+            renderCountdown('weekly');
 
         const cc = document.getElementById('custom-challenge-card');
         if (state.me && state.me.permissions && state.me.permissions.customChallenge) cc.style.display = 'block';
@@ -1638,7 +1644,6 @@ async function loadChallenge() {
     }
 }
 
-// ✅ NOUVELLE VERSION loadLibrary — gère le conte gratuit
 async function loadLibrary() {
     const loading = document.getElementById('library-loading');
     const content = document.getElementById('library-content');
@@ -1658,7 +1663,6 @@ async function loadLibrary() {
         loading.style.display = 'none';
         content.style.display = 'block';
 
-        // ✅ Cas 1 : abonné OU conte gratuit aujourd'hui → accès complet
         if (data.fullAccess || (!data.isTeaser && data.content)) {
             const nextUpdate = data.nextUpdate || 'daily';
             if (nextUpdate === 'free_today') {
@@ -1676,7 +1680,6 @@ async function loadLibrary() {
             return;
         }
 
-        // ✅ Cas 2 : teaser avec info sur le prochain conte gratuit
         if (data.isTeaser && data.teaser) {
             const nextFree = data.nextFreeIn || 1;
             content.innerHTML =
@@ -1699,7 +1702,6 @@ async function loadLibrary() {
     }
 }
 
-// ✅ NOUVELLE VERSION loadJournal — utilise /journal/list
 async function loadJournal() {
     if (!state.email) return;
     const counter = document.getElementById('journal-counter');
@@ -1859,16 +1861,6 @@ function renderContent(icon, title, content, countdownType) {
         '<button class="audio-btn" onclick="toggleAudio(this)" data-text="' + esc(content).replace(/"/g, '&quot;') + '">' +
             '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter</button>' +
         (countdownType !== false ? renderCountdown(countdownType || 'daily') : '');
-}
-
-function renderContentWithTeaser(icon, title, content, teaser, countdownType) {
-    return '<div class="card-header">' + icon + '<h2>' + title + '</h2></div>' +
-        '<div style="position:relative;"><div class="teaser-content"><div class="text">' + formatMarkdown(teaser) + '</div></div><div class="teaser-fade"></div></div>' +
-        '<div class="paywall-box"><div class="paywall-lock">🔒</div>' +
-        '<div class="paywall-title">Réservé aux abonnés</div>' +
-        '<div class="paywall-text">Abonne-toi pour lire la suite.</div>' +
-        '<button class="btn btn-primary" style="width:100%;" onclick="showScreen(\'subscribe\')"><span>Voir les offres</span></button></div>' +
-        renderCountdown(countdownType || 'daily');
 }
 
 async function preloadAll() {
@@ -2051,7 +2043,6 @@ document.getElementById('audio-toggle-btn').addEventListener('click', () => {
     else startListening();
 });
 
-// ✅ NOUVEAU listener journal-save-btn — utilise /journal/save
 document.getElementById('journal-save-btn').addEventListener('click', async () => {
     const t = document.getElementById('journal-input').value.trim();
     if (!t) { showToast('Écris quelque chose', 'error'); return; }
