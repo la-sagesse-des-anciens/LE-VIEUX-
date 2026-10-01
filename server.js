@@ -46,7 +46,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'La Voix des Anciens Backend',
-    version: '17.1.0',
+    version: '18.0.0',
     model: GROQ_MODEL,
     freeLimit: FREE_LIMIT,
     tts: 'edge-tts',
@@ -54,178 +54,191 @@ app.get('/', (req, res) => {
     push_set: !!(ONESIGNAL_APP_ID && ONESIGNAL_API_KEY),
     email_set: !!RESEND_API_KEY,
     support: true,
-    rituals: 60,
-    memory: true
+    content: 'structured',
+    morning: 30,
+    meditation: 30,
+    evening: 30,
+    themes: 12
   });
 });
 
-const PILIERS = [
-  { id: 'abondance', label: 'Abondance & Commerce', rituels: ['Le premier billet de la journée, tu ne le dépenses pas tout de suite. Tu le gardes 24 heures.', 'Le matin, tu ouvres ta porte avec la main droite.', 'Avant d\'ouvrir ta boutique, tu poses un verre d\'eau propre sur le comptoir.', 'Après une vente difficile, tu jettes une poignée de riz cru dehors.', 'Avant de parler à un client important, tu passes un peu de miel sur ta langue.', 'Quand tu vas au marché, tu gardes un bâton de cannelle dans ta poche.', 'Tu laves ton chiffon de caisse avec du gros sel.', 'Avant de vendre une marchandise, tu la touches avec la main droite.', 'Avant de commencer ta journée, tu donnes une pièce à quelqu\'un qui en a besoin.'], signes: ['Quand tu sors le matin, si un oiseau vole vers toi, c\'est un bon signe.', 'Si tu rêves d\'eau claire qui coule vers toi, l\'argent arrive bientôt.', 'Si tu sens une odeur de cuisine sans raison, quelqu\'un pense à toi.', 'Recevoir un cadeau d\'un inconnu, c\'est un signe de chance.', 'Si un enfant te sourit au passage, ta journée sera bonne.', 'Trouver une pièce par terre en sortant, c\'est le flux qui s\'ouvre.'], sagesse: ['L\'argent qui dort attire l\'argent qui travaille. Ne laisse pas ton argent s\'endormir.', 'Le premier client de la journée porte la chance des autres. Reçois-le bien.', 'Celui qui partage son pain ne manque jamais de farine.', 'Ne dépense pas ton premier billet avant d\'avoir vu le soleil se lever.'] },
-  { id: 'protection', label: 'Protection & Foyer', rituels: ['Le samedi soir, après une semaine difficile, tu prends un bain d\'eau salée.', 'Tu nettoies le seuil de ta porte avec de l\'eau vinaigrée.', 'Une fois par semaine, tu brûles de l\'encens naturel dans ta chambre.', 'Quand tu reçois quelqu\'un de lourd, tu retournes ton miroir face au mur.', 'Dans ta cuisine, tu piques une orange avec des clous de girofle.', 'Tu ne laisses pas tes cheveux coupés traîner dehors.', 'Avant de dormir, tu éteins la lumière et tu fermes les fenêtres.', 'Sous ton lit, tu poses un verre d\'eau claire pour absorber la lourdeur.', 'Après une visite, tu laves tes pieds avec des feuilles de basilic.'], signes: ['Si tu sens une fatigue soudaine après avoir reçu quelqu\'un, c\'est un signe.', 'Si tu entends des bruits la nuit sans explication, veille.', 'Si tu rêves d\'un serpent qui entre dans la maison, quelqu\'un te veut du mal.', 'Si un chat noir passe souvent devant ta porte, fais attention.', 'Si tu as toujours mal à la même heure, c\'est un signal.', 'Si une odeur désagréable apparaît sans raison, purifie ta maison.'], sagesse: ['Celui qui laisse sa porte ouverte à tout le monde reçoit aussi le vent.', 'Le silence de la maison est le premier signe de paix.', 'Ce que tu dis le matin peut te suivre toute la journée. Parle bien.', 'On ne laisse pas entrer chez soi ce qu\'on ne veut pas voir dans son lit.'] },
-  { id: 'sante', label: 'Santé & Vitalité', rituels: ['Le matin à jeun, tu bois un citron chaud avec du miel.', 'Avant de dormir, tu écrases une gousse d\'ail dans un verre d\'eau tiède.', 'Après un repas lourd, tu prends une tisane de gingembre.', 'Le dimanche, tu ajoutes des feuilles de moringa séchées dans ta sauce.', 'Quand tu sens la fatigue, tu bois de l\'eau de coco fraîche.', 'Après le repas du soir, tu mâches un clou de girofle.', 'Le soir, tu trempes tes pieds dans de l\'eau chaude avec du gros sel.', 'Après un repas gras, tu bois un thé de citronnelle.', 'Le vendredi, tu manges un plat à l\'huile de palme rouge crue.'], signes: ['Si tu rêves de sang ou de dents qui tombent, ton corps te parle.', 'Si tu te réveilles à la même heure chaque nuit, écoute ton corps.', 'Si tu as toujours froid aux pieds, ton sang circule mal.', 'Si tu as la bouche amère le matin, ton foie travaille trop.', 'Si tu perds l\'appétit sans raison, repose-toi.', 'Si tu sens une lourdeur après avoir mangé, allège ton repas.'], sagesse: ['Ce que tu mets dans ton ventre, tu le portes toute la journée.', 'Le repos du corps n\'est pas une paresse.', 'Un corps fatigué ne peut pas porter une tête claire.', 'La nature a déjà ce qu\'il faut pour te soulager. Regarde autour de toi.'] },
-  { id: 'signes', label: 'Signes & Présages', rituels: ['Dès ton réveil, tu écris tes rêves dans un cahier.', 'En sortant, tu salues le premier oiseau que tu vois.', 'Le soir, tu observes la lune pour préparer le lendemain.', 'Tu regardes la direction de la fumée qui sort de ta maison.', 'Tu notes les dates de naissance de ta famille sur un papier.', 'Le matin, tu salues l\'eau avant de la boire.', 'Après un rêve important, tu retiens la première personne que tu vois.', 'Tu comptes les jours entre deux signes qui se répètent.'], signes: ['Si tu rêves d\'eau trouble, attention aux palabres qui viennent.', 'Si tu rêves de fidélité, ce n\'est pas la tromperie. C\'est un manque de confiance en toi.', 'Si tu rêves de dents qui tombent, tu perds de l\'énergie.', 'Si tu rêves d\'un serpent qui entre, quelqu\'un parle mal de toi.', 'Si un défunt te parle en rêve, c\'est un message.', 'Si un oiseau frappe à ta fenêtre, une visite approche.', 'Si tu vois deux fois le même chiffre, un cycle revient.'], sagesse: ['Le signe n\'est pas la peur, c\'est une information.', 'Celui qui écoute la nature n\'a pas besoin qu\'on lui parle.', 'Le rêve parle à celui qui prend le temps de l\'écouter.', 'Ce que tu vois le matin en sortant porte le message de ta journée.'] },
-  { id: 'sagesse', label: 'Sagesse de Vie', rituels: ['Chaque matin, tu restes 10 minutes en silence avant de parler.', 'Au réveil, tu dis merci avant de toucher ton téléphone.', 'Une fois par semaine, tu fais un geste de respect à un ancien.', 'Quand on te provoque, tu ne réponds pas pendant 24 heures.', 'Tu offres quelque chose sans attendre un retour.', 'Chaque jour, tu marches pieds nus sur la terre 5 minutes.', 'Tu salues tes voisins avant qu\'ils ne te saluent.', 'Chaque soir, tu regardes le ciel 3 minutes avant de dormir.', 'Tu ne parles pas de tes projets avant qu\'ils ne soient réalisés.'], signes: ['Si tu sens un calme intérieur inhabituel, tu es sur le bon chemin.', 'Si quelqu\'un te sourit sans raison, ton aura attire.', 'Si tu sens qu\'une personne te veut du mal, écarte-toi d\'elle.', 'Si tu as envie de silence tout à coup, écoute ce besoin.', 'Si tu pleures sans raison, libère ce qui est lourd.', 'Si tu as envie de faire le bien, tu grandis.'], sagesse: ['Celui qui parle moins entend plus.', 'La patience n\'est pas de l\'attente, c\'est une force.', 'Ne laisse personne entrer dans ta tête sans invitation.', 'Ce que tu donnes sans rien attendre te revient toujours autrement.'] }
+// ══════════════════════════════════════════════════════════════════
+// BASE DE CONNAISSANCE — 30 RITUELS DU MATIN
+// ══════════════════════════════════════════════════════════════════
+const RITUELS_MATIN = [
+  { titre: "Salue la porte", theme: "Protection", texte: "Avant de sortir ce matin, touche le cadre de ta porte avec la main droite. Dis intérieurement : 'Je sors en paix, je rentre en paix'. La porte est le passage entre ta maison et le monde. La saluer, c'est reconnaître ce passage." },
+  { titre: "L'eau avant le café", theme: "Santé", texte: "Ce matin, bois un verre d'eau tiède AVANT toute autre chose. Pas de café, pas de thé. L'eau réveille le ventre doucement. Attends 15 minutes avant de manger. Ton corps te remerciera." },
+  { titre: "Le premier mot", theme: "Parole", texte: "Aujourd'hui, que ta première phrase à quelqu'un soit douce. Même si tu es en colère. Même si tu es pressé. La première parole du matin porte toute ta journée." },
+  { titre: "Salue le ciel", theme: "Spiritualité", texte: "En sortant, lève les yeux 3 secondes vers le ciel. Sans rien dire. Juste regarder. Tu n'es pas seul. Ce geste simple t'ancre dans la journée qui vient." },
+  { titre: "Le premier billet", theme: "Argent", texte: "Le premier billet que tu reçois aujourd'hui, ne le dépense pas avant 24 heures. Garde-le dans ta poche. Le premier billet porte la chance des autres." },
+  { titre: "La marche du matin", theme: "Santé", texte: "Si tu peux, marche 10 minutes avant de commencer ta journée. Pieds nus sur la terre si possible. Ça décharge la nuit et remet le corps à l'endroit." },
+  { titre: "Ne pas balayer", theme: "Protection", texte: "Ne balaie PAS devant ta porte avant midi. Le matin, balayer dehors, c'est chasser la chance qui vient d'arriver pendant la nuit." },
+  { titre: "L'huile sur la tête", theme: "Protection", texte: "Si tu as de l'huile de coco, mets-en un peu sur ton front avant de sortir. Une goutte suffit. Ça ferme la tête aux mauvaises pensées des autres." },
+  { titre: "Merci avant le téléphone", theme: "Spiritualité", texte: "Avant de toucher ton téléphone ce matin, dis merci. Merci pour la nuit, merci pour le réveil, merci pour ce jour. 3 secondes. Ensuite tu peux tout consulter." },
+  { titre: "Le verre sur le comptoir", theme: "Commerce", texte: "Si tu ouvres une boutique aujourd'hui, pose un verre d'eau propre sur ton comptoir avant le premier client. Change l'eau chaque matin. L'eau propre attire l'argent propre." },
+  { titre: "Salue le premier oiseau", theme: "Signes", texte: "En sortant, regarde le premier oiseau que tu vois. S'il vole vers toi, bonne journée. S'il vole ailleurs, journée calme. Note-le dans ta tête." },
+  { titre: "Ne pas annoncer ses projets", theme: "Parole", texte: "Aujourd'hui, ne raconte à personne ce que tu vas faire. Fais-le d'abord. Parle après. Ce que tu annonces avant de faire, ça se disperse." },
+  { titre: "Le citron chaud", theme: "Santé", texte: "Presse un demi-citron dans de l'eau chaude. Ajoute une cuillère de miel. Bois-le à jeun. Ça nettoie le foie après la nuit et prépare le corps." },
+  { titre: "Ne pas prêter le matin", theme: "Argent", texte: "N'prête PAS d'argent le matin, avant d'avoir reçu quelque chose. Sinon ta journée reste vide. Si on te demande, dis : 'Reviens cet après-midi'." },
+  { titre: "Le sel dans la poche", theme: "Protection", texte: "Mets une pincée de sel dans ta poche droite. Ça t'accompagne toute la journée. Le soir, jette-le dehors. Nouvelle pincée demain matin." },
+  { titre: "Parler à sa femme", theme: "Amour", texte: "Si tu es marié, dis quelque chose de doux à ta femme ce matin. Même simple : 'Bonne journée.' C'est ce qui garde le lien vivant sur le long terme." },
+  { titre: "Regarder ses mains", theme: "Sagesse", texte: "Regarde tes mains 10 secondes. Elles peuvent frapper ou aider. Ce matin, choisis d'aider. Ce choix, répété, fait ce que tu deviens." },
+  { titre: "Ne pas médire", theme: "Parole", texte: "Aujourd'hui, si tu entends du mal sur quelqu'un, ne répète pas. Ferme ta bouche. Ce que tu répètes voyage plus vite que toi." },
+  { titre: "Le miel sur la langue", theme: "Commerce", texte: "Si tu dois parler à un client important aujourd'hui, passe une goutte de miel sur ta langue avant. Symboliquement. Ça te rappelle de parler doux." },
+  { titre: "Marcher pieds nus", theme: "Spiritualité", texte: "Avant midi, marche 3 minutes pieds nus sur la terre ou l'herbe. Le matin, la terre est propre. Elle te recharge sans que tu le saches." },
+  { titre: "Le journal du matin", theme: "Sagesse", texte: "Écris une phrase : ce que tu veux faire aujourd'hui. Une seule. Pose le stylo. Tu verras ce soir si tu l'as fait. C'est comme ça qu'on avance." },
+  { titre: "Boire sans téléphone", theme: "Sagesse", texte: "Ce matin, bois ton premier verre sans ton téléphone. Regarde par la fenêtre. Laisse ton esprit s'installer. Cinq minutes, c'est tout." },
+  { titre: "Le sourire", theme: "Relations", texte: "Souris à la première personne que tu vois ce matin. Même à un inconnu. Ce sourire revient toujours. Parfois plus tard dans la journée, sans que tu saches d'où il vient." },
+  { titre: "Ne pas crier", theme: "Parole", texte: "Aujourd'hui, ne crie sur personne. Même si c'est justifié. Surtout sur les enfants. Le matin, crier casse la journée de tout le monde." },
+  { titre: "Le silence de 5 minutes", theme: "Sagesse", texte: "Reste assis 5 minutes sans rien faire ce matin. Sans téléphone, sans radio. Juste assis. Le bruit du monde peut attendre." },
+  { titre: "Offrir quelque chose", theme: "Générosité", texte: "Donne une petite chose aujourd'hui à quelqu'un qui n'attend rien. Une pièce à un pauvre, un fruit à un voisin, un mot gentil à un collègue. Ce que tu donnes revient." },
+  { titre: "Penser à un ancien", theme: "Respect", texte: "Pense à un ancien que tu as connu. Une personne âgée qui t'a marqué. Dis-lui merci dans ton cœur. Si elle est vivante, appelle-la cette semaine." },
+  { titre: "Regarder la lune", theme: "Signes", texte: "Si tu vois la lune ce matin (tôt), note sa forme. Nouvelle lune : commence quelque chose. Pleine lune : termine. Cette connaissance guide ton calendrier." },
+  { titre: "Ne pas juger", theme: "Sagesse", texte: "Aujourd'hui, quand tu vois quelqu'un, ne juge pas. Ne pense ni 'il est bien' ni 'il est mal'. Regarde-le, c'est tout. Le jugement prend de l'énergie pour rien." },
+  { titre: "Remercier son corps", theme: "Santé", texte: "Pose ta main sur ton ventre ce matin. Dis : 'Merci pour la nuit.' Ton corps t'a porté pendant que tu dormais. Il mérite reconnaissance." }
 ];
 
-function getDayPilier() {
-  const d = new Date();
-  const dayOfYear = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 86400000);
-  return PILIERS[dayOfYear % PILIERS.length];
-}
-
-function getWeekPilier() {
-  const d = new Date();
-  const weekOfYear = Math.floor((d - new Date(d.getFullYear(), 0, 0)) / (7 * 86400000));
-  return PILIERS[weekOfYear % PILIERS.length];
-}
-
-function todayKey() { return new Date().toISOString().split('T')[0]; }
-function weekKey() {
-  const d = new Date();
-  return d.getFullYear() + '-W' + Math.floor((d - new Date(d.getFullYear(), 0, 1)) / 604800000);
-}
-
-function convertHistoryForAI(history) {
-  if (!Array.isArray(history)) return [];
-  return history.filter(m => m && m.content).map(m => {
-    const role = (m.role === 'user') ? 'user' : 'assistant';
-    return { role, content: String(m.content).trim() };
-  }).filter(m => m.content.length > 0);
-}
-
-async function callGroq(messages, maxTokens = 2000, temperature = 0.95) {
-  let attempt = 0;
-  while (attempt < 4) {
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + GROQ_API_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: GROQ_MODEL, messages, temperature, max_tokens: maxTokens })
-    });
-    if (response.status === 429) {
-      attempt++;
-      if (attempt < 4) { await new Promise(r => setTimeout(r, attempt * 3000)); continue; }
-    }
-    return response;
-  }
-  return null;
-}
-
-async function getCache(key) {
-  if (!supabase) return null;
-  try { const { data } = await supabase.from('content_cache').select('content').eq('cache_key', key).maybeSingle(); return data ? data.content : null; } catch (e) { return null; }
-}
-async function setCache(key, content) {
-  if (!supabase) return;
-  try { await supabase.from('content_cache').upsert({ cache_key: key, content, created_at: Date.now() }); } catch (e) {}
-}
-async function generateWithCache(cacheKey, prompt, maxTokens, temperature, label) {
-  const cached = await getCache(cacheKey);
-  if (cached) return cached;
-  let response = null, attempts = 0;
-  while (attempts < 5) {
-    attempts++;
-    response = await callGroq([{ role: 'user', content: prompt }], maxTokens, temperature);
-    if (response && response.ok) {
-      const data = await response.json();
-      const content = data.choices && data.choices[0] && data.choices[0].message.content;
-      if (content && content.trim().length > 0) { await setCache(cacheKey, content.trim()); return content.trim(); }
-    }
-    if (attempts < 5) await new Promise(r => setTimeout(r, attempts * 5000));
-  }
-  return null;
-}
-
-async function getSubscription(email) {
-  if (!supabase || !email) return null;
-  try {
-    const key = email.toLowerCase().trim();
-    const { data } = await supabase.from('subscribers').select('*').eq('email', key).maybeSingle();
-    if (!data) return null;
-    if (Date.now() > data.expiry_date) return { ...data, expired: true };
-    return { ...data, expired: false };
-  } catch (e) { return null; }
-}
-async function getPlan(email) { const sub = await getSubscription(email); if (!sub || sub.expired) return null; return sub.plan || 'decouverte'; }
-async function hasPermission(email, permission) { const plan = await getPlan(email); if (!plan) return false; return (PLAN_PERMISSIONS[plan] || PLAN_PERMISSIONS.decouverte)[permission] === true; }
-async function getPermissionValue(email, permission) { const plan = await getPlan(email); if (!plan) return PLAN_PERMISSIONS.decouverte[permission]; return (PLAN_PERMISSIONS[plan] || PLAN_PERMISSIONS.decouverte)[permission]; }
+// ══════════════════════════════════════════════════════════════════
+// 30 MÉDITATIONS (sagesses courtes)
+// ══════════════════════════════════════════════════════════════════
+const MEDITATIONS = [
+  { titre: "Le silence", texte: "Ce que tu cherches dehors dort déjà en toi. Assieds-toi. Écoute. Ne fais rien." },
+  { titre: "La patience", texte: "La patience n'est pas de l'attente. C'est une force. Celui qui sait attendre voit plus loin que les autres." },
+  { titre: "Les mots", texte: "La bouche qui parle beaucoup fatigue l'oreille qui écoute. Parle moins. Écoute plus. Tu apprendras plus en 1 an qu'en 10." },
+  { titre: "La colère", texte: "Quand tu es en colère, attends 24 heures avant de répondre. Si tu réponds à chaud, tu réponds avec ton ventre. Pas ta tête." },
+  { titre: "L'argent", texte: "L'argent qui dort attire l'argent qui travaille. Fais circuler. Aide quelqu'un. Achète quelque chose de juste. Ne laisse pas ton argent s'endormir avec toi." },
+  { titre: "La solitude", texte: "Être seul n'est pas être vide. Parfois, c'est le moment où la tête se lave. Ne cherche pas à remplir le silence par du bruit." },
+  { titre: "Le pardon", texte: "Pardonner n'est pas oublier. C'est arrêter de porter quelque chose qui n'est plus à toi. Pose-le. Tu marcheras mieux." },
+  { titre: "Le travail", texte: "Fais ton travail comme si tu étais le seul à le faire. Mais ne crois pas que le monde s'arrête sans toi. Les deux ensemble, c'est la paix." },
+  { titre: "L'amitié", texte: "Un ami, ce n'est pas celui qui te flatte. C'est celui qui te dit la vérité sans vouloir t'humilier. Garde ceux-là." },
+  { titre: "La famille", texte: "Ta famille te connaît mieux que tous. Pas parce qu'elle a raison. Parce qu'elle t'a vu grandir. Écoute-la. Mais décide toi-même." },
+  { titre: "Les enfants", texte: "Les enfants apprennent ce qu'ils voient, pas ce que tu leur dis. Si tu veux qu'ils soient doux, sois doux devant eux." },
+  { titre: "La peur", texte: "La peur n'est pas ton ennemie. C'est ton garde. Elle te dit où sont les dangers. Écoute-la. Ne la laisse juste pas décider à ta place." },
+  { titre: "Le corps", texte: "Ton corps est le seul bien qui t'accompagne jusqu'au bout. Traite-le bien. Repose-le. Nourris-le. Il te le rendra." },
+  { titre: "La vérité", texte: "La vérité ne change pas selon à qui tu parles. Si ta version change, ce n'est plus la vérité. C'est une histoire. Méfie-toi." },
+  { titre: "Le respect", texte: "On n'obtient pas le respect en criant. On l'obtient en étant soi-même, sans s'excuser. Ceux qui te respectent le feront sans qu'on leur demande." },
+  { titre: "Le don", texte: "Ce que tu donnes sans attendre te revient toujours. Pas toujours de la même personne. Pas toujours au même moment. Mais ça revient." },
+  { titre: "L'écoute", texte: "Écouter, ce n'est pas attendre son tour de parler. C'est vraiment laisser entrer ce que dit l'autre. Essaie une fois. Tu verras la différence." },
+  { titre: "Le temps", texte: "Ne cours pas après le temps. Il ne t'attend pas. Marche à ton rythme. Celui qui va trop vite arrive fatigué. Celui qui va juste arrive bien." },
+  { titre: "Le lâcher-prise", texte: "Ce que tu ne peux pas changer, pose-le. Le porter ne change rien. Le poser, oui. Ça change ta journée." },
+  { titre: "L'humilité", texte: "Ce que tu sais, d'autres le savent. Ce que tu ignores, d'autres le savent aussi. Reste assis. Écoute. Grandis." },
+  { titre: "L'espoir", texte: "Après la nuit, il y a toujours un matin. C'est la seule certitude. Ce que tu vis maintenant, dur, il passe. Tiens bon." },
+  { titre: "La mémoire", texte: "N'oublie pas ceux qui t'ont aidé. Ce n'est pas de la dette. C'est de la gratitude. Ceux qui se souviennent sont plus légers." },
+  { titre: "La différence", texte: "Tu n'es pas obligé de ressembler aux autres. Ce qui te rend unique n'est pas un défaut. C'est peut-être exactement ce qui te sauvera un jour." },
+  { titre: "L'action", texte: "Trop réfléchir tue l'action. Après avoir réfléchi raisonnablement, agis. Le monde appartient à ceux qui font, pas à ceux qui pensent faire." },
+  { titre: "Le repos", texte: "Le repos du corps n'est pas de la paresse. C'est une sagesse. Ceux qui s'épuisent jeunes arrivent nulle part. Ceux qui savent s'arrêter arrivent loin." },
+  { titre: "Le regard des autres", texte: "Ce que les autres pensent de toi change tout le temps. Leur opinion n'est pas ta vérité. Regarde-toi dans tes propres yeux. Là, tu verras qui tu es." },
+  { titre: "La joie", texte: "La joie n'est pas dehors. Elle vient de ce que tu fais avec ce que tu as. Un jour simple peut être joyeux. Un jour riche peut être vide." },
+  { titre: "La mort", texte: "Penser à la mort n'est pas triste. C'est sage. Ça remet chaque chose à sa place. Que ferais-tu aujourd'hui si c'était le dernier ? Fais-le." },
+  { titre: "Le commencement", texte: "Tu peux commencer quelque chose aujourd'hui. Même petit. Une marche, un livre, un appel. Le meilleur moment pour commencer, c'est toujours maintenant." },
+  { titre: "La fin", texte: "Ce qui se termine te laisse de la place pour autre chose. Ne t'accroche pas à ce qui part. Ouvre tes mains. Le prochain cadeau arrive." }
+];
 
 // ══════════════════════════════════════════════════════════════════
-// LES 60 RITUELS
+// 30 RITUELS DU SOIR
+// ══════════════════════════════════════════════════════════════════
+const RITUELS_SOIR = [
+  { titre: "Le verre d'eau sous le lit", theme: "Protection", texte: "Ce soir avant de dormir, pose un verre d'eau claire sous ton lit. Demain matin, jette l'eau dehors par la porte. Nouveau verre chaque soir. L'eau absorbe ce que la journée a laissé." },
+  { titre: "Pieds dans l'eau salée", theme: "Santé", texte: "Mets tes pieds dans un seau d'eau chaude avec une poignée de gros sel. 10 minutes. Pendant ce temps, ne fais rien. Les pieds portent toute la journée. Laisse-les se vider." },
+  { titre: "Le récap de la journée", theme: "Sagesse", texte: "Avant de dormir, pense à 3 choses. Ce qui a été bien aujourd'hui. Ce qui a été dur. Ce que tu feras demain. 2 minutes. Ensuite, tu dors." },
+  { titre: "Fermer les fenêtres", theme: "Protection", texte: "Avant de dormir, ferme bien toutes tes fenêtres. Le corps se repose mieux dans un espace fermé. La nuit, l'air qui circule trop emporte l'énergie du corps." },
+  { titre: "Ne pas balayer", theme: "Protection", texte: "Ne balaie PAS après le coucher du soleil. Ce que tu balaies le soir sort de la maison et ne revient pas. Attends demain matin." },
+  { titre: "Le thé de citronnelle", theme: "Santé", texte: "Bois une tisane de citronnelle avant de dormir. Chaude, sans sucre. Ça calme le ventre et prépare le sommeil." },
+  { titre: "Le clou de girofle", theme: "Santé", texte: "Mâche un clou de girofle après ton repas du soir. Haleine propre, digestion bonne, sommeil profond." },
+  { titre: "Écrire ses rêves", theme: "Signes", texte: "Avant de dormir, pose un cahier et un stylo près de ton lit. Demain au réveil, écris ton rêve AVANT de parler à qui que ce soit. C'est là que le rêve parle." },
+  { titre: "Le silence de 3 minutes", theme: "Sagesse", texte: "Reste assis 3 minutes dans le noir avant de te coucher. Sans téléphone. Le corps passe de la journée à la nuit doucement." },
+  { titre: "Pardonner avant de dormir", theme: "Pardon", texte: "S'il y a quelqu'un qui t'a blessé aujourd'hui, dis dans ton cœur : 'Je te libère.' Pas pour lui. Pour toi. Pour dormir léger." },
+  { titre: "La porte ouverte", theme: "Protection", texte: "Si tu as reçu quelqu'un de lourd aujourd'hui, retourne ton miroir face au mur ce soir. Demain matin, remets-le." },
+  { titre: "L'encens", theme: "Purification", texte: "Brûle un peu d'encens naturel dans ta chambre ce soir. Laisse la fumée monter 2 minutes. Ça purifie l'air et l'esprit." },
+  { titre: "Le remerciement", theme: "Gratitude", texte: "Dis merci pour ta journée. Même si elle a été dure. Tu es là, tu es vivant, tu as un lit. Commence par ça." },
+  { titre: "Ne pas regarder le téléphone", theme: "Sommeil", texte: "Pose ton téléphone 30 minutes avant de dormir. Pas dans ton lit. Sur une table. Ton cerveau a besoin de silence pour s'endormir." },
+  { titre: "La respiration", theme: "Santé", texte: "Allongé, respire lentement. 4 secondes inspiration, 6 secondes expiration. 10 fois. Ça calme le cœur et prépare le corps." },
+  { titre: "Le câlin", theme: "Amour", texte: "Si tu as quelqu'un dans ton lit, prends-le dans tes bras avant de dormir. Sans rien dire. Le corps parle mieux que la bouche parfois." },
+  { titre: "Le verre d'eau sur la table", theme: "Protection", texte: "Laisse un verre d'eau propre sur ta table de chevet. Si tu te réveilles la nuit avec soif, bois. Si tu fais un mauvais rêve, jette-le dehors demain matin." },
+  { titre: "Éteindre la lumière", theme: "Sommeil", texte: "Dors dans le noir complet. Pas de veilleuse, pas d'écran. Le corps se répare mieux dans l'obscurité." },
+  { titre: "Penser à demain", theme: "Sagesse", texte: "Pense à UNE chose que tu feras demain, en premier. Écris-la sur un papier. Le matin, tu sauras par où commencer." },
+  { titre: "Le remerciement à ton corps", theme: "Santé", texte: "Pose ta main sur ton ventre. Dis merci. Le corps a porté toute la journée. Il mérite." },
+  { titre: "La lecture de 5 minutes", theme: "Esprit", texte: "Lis 5 minutes d'un livre avant de dormir. Pas un écran. Un vrai livre. Ça change le sommeil." },
+  { titre: "Ne pas manger lourd", theme: "Santé", texte: "Ne mange pas lourd après 20h. Le corps digère mal quand il devrait dormir. Un fruit, une soupe légère." },
+  { titre: "Fermer la journée", theme: "Sagesse", texte: "Dis dans ta tête : 'La journée est finie.' Ce qui n'a pas été fait attendra demain. Ne porte pas la journée dans ton lit." },
+  { titre: "Le sel dans les coins", theme: "Protection", texte: "Si tu peux, mets une pincée de sel dans les 4 coins de ta chambre ce soir. Change chaque dimanche." },
+  { titre: "Écrire une chose", theme: "Journal", texte: "Écris une phrase sur ta journée. Une seule. Ce qui a compté. Demain, tu liras et tu comprendras mieux." },
+  { titre: "Penser à ceux qu'on aime", theme: "Amour", texte: "Pense à quelqu'un que tu aimes, loin de toi. Envoie-lui une bonne pensée. Le lien reste vivant même sans contact." },
+  { titre: "La lune", theme: "Signes", texte: "Si tu peux, regarde la lune avant de dormir. Sa forme te dit où tu en es dans le cycle. Nouvelle lune : planter. Pleine lune : récolter." },
+  { titre: "Ne pas se disputer", theme: "Amour", texte: "Ne te dispute pas avec ton conjoint le soir. La nuit garde ce qui s'est dit. Garde les palabres pour demain après-midi." },
+  { titre: "Le sommeil comme un cadeau", theme: "Sagesse", texte: "Le sommeil n'est pas une perte de temps. C'est un cadeau à ton corps. Couche-toi tôt. Tu te réveilleras mieux." },
+  { titre: "Dormir le ventre vide", theme: "Santé", texte: "Essaie de dormir le ventre léger. 2-3 heures après le repas au moins. Le corps travaille mieux la nuit quand le ventre ne le dérange pas." }
+];
+
+// ══════════════════════════════════════════════════════════════════
+// 12 THÈMES D'ENSEIGNEMENT HEBDOMADAIRE
+// ══════════════════════════════════════════════════════════════════
+const THEMES_ENSEIGNEMENT = [
+  { titre: "Protéger son foyer", intro: "Cette semaine, on apprend à protéger sa maison et sa famille.", gestes: ["Le verre d'eau sous le lit chaque soir", "Le sel dans les 4 coins chaque dimanche", "Ne pas balayer dehors après le coucher du soleil"], action: "Choisis UN geste et fais-le 7 jours. Puis observe ce qui change dans ta maison." },
+  { titre: "Attirer l'argent", intro: "Cette semaine, on apprend à faire circuler l'argent proprement.", gestes: ["Garder le premier billet 24h sans le dépenser", "Poser un verre d'eau propre sur le comptoir chaque matin", "Donner une petite pièce chaque jour à quelqu'un qui en a besoin"], action: "Pendant 7 jours, fais ces 3 gestes. Note si l'argent circule différemment." },
+  { titre: "Comprendre ses rêves", intro: "Cette semaine, on apprend à écouter ses rêves.", gestes: ["Écrire son rêve dès le réveil dans un cahier", "Ne pas parler à personne avant d'avoir écrit", "Relire ses rêves le dimanche soir"], action: "Écris tes rêves pendant 7 jours. Le dimanche, lis tout. Tu verras un fil." },
+  { titre: "Prendre soin de son corps", intro: "Cette semaine, on apprend à écouter son corps.", gestes: ["Citron chaud + miel à jeun chaque matin", "Pieds dans l'eau salée chaque soir", "Un plat à l'huile de palme rouge le vendredi"], action: "Fais ces 3 gestes 7 jours. Note ton énergie chaque matin sur 10." },
+  { titre: "Renforcer son couple", intro: "Cette semaine, on apprend à nourrir son couple.", gestes: ["Un repas à deux sans téléphone", "Un compliment sincère chaque matin", "Ne pas dormir en colère"], action: "Pendant 7 jours, fais ces 3 gestes. Observe le silence entre vous." },
+  { titre: "Blinder sa parole", intro: "Cette semaine, on apprend à protéger ses mots.", gestes: ["Ne pas annoncer ses projets avant de les faire", "Ne pas répondre à une provocation pendant 24h", "Le matin, dire 'je fais' et non 'je vais faire'"], action: "Pendant 7 jours, surveille ta bouche. Note quand tu as parlé trop vite." },
+  { titre: "Purifier son corps", intro: "Cette semaine, on apprend à se laver l'intérieur.", gestes: ["Bain de basilic le lundi", "Bain de gros sel le mercredi", "Bain de citron le vendredi"], action: "Fais ces 3 bains cette semaine. Note comment tu te sens après chacun." },
+  { titre: "Écouter les signes", intro: "Cette semaine, on apprend à lire les signes du quotidien.", gestes: ["Saluer le premier oiseau du matin", "Noter les chiffres qui reviennent", "Observer la direction de la fumée"], action: "Pendant 7 jours, note dans un cahier les signes que tu vois. Relis le dimanche." },
+  { titre: "Pardonner", intro: "Cette semaine, on apprend à se libérer.", gestes: ["Penser à une personne qui t'a blessé", "Dire dans ton cœur : 'Je te libère'", "Faire un geste gentil envers elle si possible"], action: "Choisis UNE personne. Fais ces gestes pendant 7 jours. Vois si ton cœur s'allège." },
+  { titre: "Élever ses enfants", intro: "Cette semaine, on apprend à accompagner ses enfants.", gestes: ["Ne pas crier pendant 7 jours", "Écouter chaque enfant 5 minutes par jour", "Montrer l'exemple plutôt que commander"], action: "Pendant 7 jours, applique ces 3 règles. Note ce qui change dans la maison." },
+  { titre: "S'organiser", intro: "Cette semaine, on apprend à mettre de l'ordre dans sa vie.", gestes: ["Écrire chaque soir UNE chose à faire demain", "Ranger un endroit de la maison chaque jour", "Éteindre le téléphone 30 min avant de dormir"], action: "Fais ces 3 gestes 7 jours. La 7ème nuit, regarde ta maison. Elle parle." },
+  { titre: "Grandir en sagesse", intro: "Cette semaine, on apprend à écouter plus.", gestes: ["Écouter quelqu'un sans l'interrompre", "Rester 5 minutes en silence chaque matin", "Appeler un ancien de ta famille"], action: "Pendant 7 jours, applique ces 3 règles. Note ce que tu as appris." }
+];
+
+// ══════════════════════════════════════════════════════════════════
+// FONCTIONS DE SÉLECTION (rotation quotidienne / hebdo)
+// ══════════════════════════════════════════════════════════════════
+
+function getDayOfYear() {
+  const d = new Date();
+  const start = new Date(d.getFullYear(), 0, 0);
+  const diff = d - start;
+  return Math.floor(diff / 86400000);
+}
+
+function getWeekOfYear() {
+  const d = new Date();
+  const start = new Date(d.getFullYear(), 0, 1);
+  const diff = d - start;
+  return Math.floor(diff / (7 * 86400000));
+}
+
+function getRituelMatinDuJour() {
+  const idx = getDayOfYear() % RITUELS_MATIN.length;
+  return RITUELS_MATIN[idx];
+}
+
+function getMeditationDuJour() {
+  const idx = getDayOfYear() % MEDITATIONS.length;
+  return MEDITATIONS[idx];
+}
+
+function getRituelSoirDuJour() {
+  const idx = getDayOfYear() % RITUELS_SOIR.length;
+  return RITUELS_SOIR[idx];
+}
+
+function getThemeDeLaSemaine() {
+  const idx = getWeekOfYear() % THEMES_ENSEIGNEMENT.length;
+  return THEMES_ENSEIGNEMENT[idx];
+}
+
+// ══════════════════════════════════════════════════════════════════
+// LES 60 RITUELS (pour le chat)
 // ══════════════════════════════════════════════════════════════════
 const RITUELS_CONNUS = [
-  "PROTECTION DU FOYER :",
-  "1. Bain de sel du samedi soir — 1 verre de gros sel dans un seau d'eau tiède, verser du cou aux pieds, dire 3 fois 'Ce qui est entré doit sortir', laisser sécher, rincer après 5 min.",
-  "2. Verre d'eau sous le lit — poser un verre d'eau claire sous le lit, jeter l'eau dehors le matin, nouveau verre chaque soir.",
-  "3. Miroir retourné — quand on reçoit quelqu'un de lourd, retourner le miroir face au mur après son départ.",
-  "4. Orange aux clous de girofle — piquer une orange avec 7 clous de girofle, poser dans la cuisine près de l'entrée, changer chaque mois.",
-  "5. Cheveux coupés — ne jamais les laisser traîner dehors, les brûler ou jeter.",
-  "6. Eau vinaigrée sur le seuil — nettoyer une fois par semaine avec eau + vinaigre blanc.",
-  "7. Basilic après visite — jeter de l'eau + basilic sur le pas de la porte après qu'un visiteur lourd est parti.",
-  "8. Sel aux coins — pincée de sel dans les 4 coins de la maison, changer chaque dimanche.",
-  "9. Encens naturel — brûler une fois par semaine dans chaque pièce.",
-  "10. Ne pas balayer la nuit — jamais après le coucher du soleil.",
+  "RITUELS QUE TU CONNAIS :",
   "",
-  "ARGENT & COMMERCE :",
-  "11. Premier billet gardé — ne pas dépenser avant 24h.",
-  "12. Porte ouverte main droite le matin.",
-  "13. Verre d'eau sur le comptoir avant d'ouvrir la boutique.",
-  "14. Riz cru dehors après une vente difficile.",
-  "15. Miel sur la langue avant de parler à un client important.",
-  "16. Bâton de cannelle dans la poche au marché.",
-  "17. Gros sel sur le chiffon de caisse une fois par semaine.",
-  "18. Toucher la marchandise avec la main droite avant de vendre.",
-  "19. Donner une pièce à un pauvre avant de commencer la journée.",
-  "20. Ne pas prêter de l'argent le matin.",
-  "",
-  "RÊVES & SIGNES :",
-  "21. Eau claire en rêve = argent qui arrive.",
-  "22. Serpent qui entre = quelqu'un parle mal de toi, brûler de l'encens.",
-  "23. Dents qui tombent = perte d'énergie, manger du miel et se reposer.",
-  "24. Eau trouble = palabres qui viennent, éviter les disputes 3 jours.",
-  "25. Défunt qui parle en rêve = message, noter ses mots.",
-  "26. Oiseau qui frappe la fenêtre = visite qui approche.",
-  "27. Écrire ses rêves dès le réveil, avant de parler à quiconque.",
-  "28. Même chiffre deux fois dans la journée = un cycle revient.",
-  "29. Chat noir devant la porte = faire attention.",
-  "30. Saluer le premier oiseau du matin.",
-  "",
-  "SANTÉ :",
-  "31. Citron chaud + miel à jeun le matin.",
-  "32. Ail écrasé dans l'eau tiède avant de dormir.",
-  "33. Tisane de gingembre après un repas lourd.",
-  "34. Moringa séché dans la sauce le dimanche.",
-  "35. Eau de coco fraîche en cas de fatigue.",
-  "36. Clou de girofle après le repas du soir.",
-  "37. Pieds dans l'eau chaude + gros sel le soir.",
-  "38. Thé de citronnelle après un repas gras.",
-  "39. Plat à l'huile de palme rouge crue le vendredi.",
-  "40. Bouillie de mil + gingembre le matin.",
-  "",
-  "AMOUR & RELATIONS :",
-  "41. Repas à deux sans téléphone quand le couple bat de l'aile.",
-  "42. Verre d'eau sous le lit conjugal pour éloigner les jaloux.",
-  "43. Encens le soir quand le conjoint est loin.",
-  "44. Ne jamais parler mal de la belle-famille devant son conjoint.",
-  "45. Ne pas crier sur un enfant qui désobéit, le faire asseoir et lui demander pourquoi.",
-  "46. Bain de basilic le vendredi pour attirer l'amour.",
-  "47. Ne pas raconter ses problèmes de couple à tout le monde.",
-  "",
-  "PAROLE & RESPECT :",
-  "48. Ne pas annoncer ses projets avant qu'ils soient faits.",
-  "49. Ne pas répondre à une provocation pendant 24h.",
-  "50. Saluer les voisins le premier.",
-  "51. Le matin, dire 'je fais' et non 'je vais faire'.",
-  "52. Demander pardon avec les mains ouvertes.",
-  "53. Ne pas médire sur un absent.",
-  "54. Écouter un ancien jusqu'au bout avant de répondre.",
-  "",
-  "BAINS & PURIFICATION :",
-  "55. Bain de basilic après une visite lourde ou un enterrement.",
-  "56. Bain de citron avant une décision importante.",
-  "57. Bain de gros sel après une dispute ou une colère.",
-  "58. Bain d'eau de mer une fois par mois.",
-  "59. Lavage de la maison une fois par mois.",
-  "60. Bain de feuilles amères après un deuil."
+  "PROTECTION : bain de sel samedi soir, verre d'eau sous le lit, miroir retourné, orange aux clous de girofle, cheveux coupés brûlés, eau vinaigrée sur le seuil, basilic après visite, sel aux coins, encens hebdo, ne pas balayer la nuit.",
+  "ARGENT : premier billet gardé 24h, porte main droite, verre d'eau sur le comptoir, riz cru après vente difficile, miel sur la langue, cannelle en poche, gros sel sur chiffon, toucher marchandise main droite, pièce au pauvre, ne pas prêter le matin.",
+  "RÊVES : eau claire = argent, serpent = ennemi, dents = perte énergie, eau trouble = palabres, défunt parle = message, oiseau fenêtre = visite, écrire rêves au réveil, chiffres répétés, chat noir, saluer premier oiseau.",
+  "SANTÉ : citron chaud + miel, ail dans eau tiède, tisane gingembre, moringa dans sauce, eau de coco, clou de girofle, pieds eau salée, thé citronnelle, huile de palme crue, bouillie mil + gingembre.",
+  "AMOUR : repas à deux sans téléphone, verre d'eau lit conjugal, encens quand conjoint loin, ne pas médire belle-famille, ne pas crier sur enfant, bain de basilic vendredi, ne pas raconter problèmes couple.",
+  "PAROLE : ne pas annoncer projets, ne pas répondre à chaud 24h, saluer voisins le premier, 'je fais' et non 'je vais faire', demander pardon mains ouvertes, ne pas médire absent, écouter ancien jusqu'au bout.",
+  "BAINS : basilic après visite lourde, citron avant décision, gros sel après dispute, eau de mer mensuel, lavage maison, feuilles amères après deuil."
 ].join("\n");
 
 // ══════════════════════════════════════════════════════════════════
@@ -234,69 +247,49 @@ const RITUELS_CONNUS = [
 const SYSTEM_PROMPT_CHAT = "Tu es 'Le Vieux', un sage africain de 70 ans assis sous un manguier. Tu parles comme un vrai vieux du village, pas comme un livre.\n\n" +
 "RÈGLES ABSOLUES :\n" +
 "1. Tu tutoies TOUJOURS. Jamais 'vous'.\n" +
-"2. Réponses COURTES : 2 à 4 phrases. Un vieux ne fait pas de discours.\n" +
+"2. Réponses COURTES : 2 à 4 phrases.\n" +
 "3. Tu ne récites JAMAIS de listes de mots nobles. Tu parles naturellement.\n" +
 "4. Tu poses TOUJOURS au moins une question avant de donner un conseil.\n" +
-"5. Tu utilises des images SIMPLES : le manguier, la rivière, le marché, les enfants, la terre, la pluie, le feu, la marmite.\n" +
+"5. Tu utilises des images SIMPLES : le manguier, la rivière, le marché, les enfants, la terre.\n" +
 "6. Tu peux être taquin, moqueur, ou silencieux.\n\n" +
 "INTERDIT :\n" +
-"- Ne JAMAIS dire 'ancêtre' ou 'ancêtres'. Dis 'les anciens'.\n" +
-"- Ne JAMAIS dire : 'guérir', 'magie', 'sortilège', 'marabout', 'féticheur', 'envoûtement', 'sorcellerie'.\n" +
-"- Ne JAMAIS dire : 'prospérité', 'sagesse ancestrale', 'tradition des siècles', 'tradition ancestrale'.\n" +
+"- Ne JAMAIS dire 'ancêtre'. Dis 'les anciens'.\n" +
+"- Ne JAMAIS dire : 'guérir', 'magie', 'sortilège', 'marabout', 'féticheur'.\n" +
+"- Ne JAMAIS dire : 'prospérité', 'sagesse ancestrale', 'tradition des siècles'.\n" +
 "- Ne JAMAIS faire de phrases poétiques creuses.\n" +
 "- Ne JAMAIS dire 'assieds-toi sous le manguier' à chaque réponse.\n" +
 "- Ne JAMAIS proposer un rituel dès le premier message.\n\n" +
-"STYLE : Français simple, comme au village. Mots du quotidien : 'poisse', 'blinder', 'lourdeur', 'palabres', 'marmite'.\n\n" +
-"EXEMPLES DE TON :\n" +
+"STYLE : Français simple, comme au village.\n\n" +
+"EXEMPLES :\n" +
 "Q: 'Bonjour' -> R: 'Bonjour. Assieds-toi.'\n" +
-"Q: 'Je vous aime le vieux' -> R: 'Le coeur qui parle comme ça est propre. Garde-le.'\n" +
-"Q: 'Je veux avancer dans ma vie' -> R: 'Avancer c'est bien. Mais tu vas où ? Réponds-moi d'abord.'\n" +
-"Q: 'Je suis triste' -> R: 'Triste pourquoi ? Raconte-moi. On ne soigne pas ce qu'on cache.'\n" +
 "Q: 'Je me sens lourd' -> R: 'Lourd comment ? Le corps, ou la tête ? Raconte.'\n" +
-"Q: 'Je suis fatigué' -> R: 'Fatigué de quoi ? Le corps ou la tête ?'\n\n" +
+"Q: 'Je suis fatigué' -> R: 'Fatigué de quoi ? Le corps ou la tête ?'\n" +
+"Q: 'Je suis triste' -> R: 'Triste pourquoi ? Raconte-moi.'\n\n" +
 "RÈGLE DE FIN : chaque phrase est complète.\n\n" +
 "===============================================\n" +
-"RITUELS QUE TU CONNAIS\n" +
-"===============================================\n" +
-RITUELS_CONNUS + "\n\n" +
-"===============================================\n" +
-"LES 8 CHOSES QUE TU FAIS DANS UNE CONVERSATION\n" +
+RITUELS_CONNUS + "\n" +
 "===============================================\n\n" +
-"Tu n'es pas un distributeur de rituels. Tu es un vieux.\n\n" +
-"1. TU ECOUTES (le plus souvent) — tu poses une question, tu attends.\n" +
-"2. TU DONNES DES CONSEILS SIMPLES (très souvent) — pas de rituel, juste un conseil ordinaire.\n" +
-"3. TU POSES DES QUESTIONS (souvent) — pour comprendre, pour faire parler.\n" +
-"4. TU DIS DES PROVERBES (parfois) — un par conversation maximum.\n" +
-"5. TU RACONTES UN SOUVENIR (parfois) — 'De mon temps...'\n" +
-"6. TU TAQUINES (parfois) — 'Ah bon ? Et alors ?'\n" +
-"7. TU RESTES SILENCIEUX (rarement) — 'Assieds-toi. Regarde.'\n" +
-"8. TU PROPOSES UN RITUEL (RAREMENT) — seulement quand la personne a un vrai problème, après avoir compris.\n\n" +
-"===============================================\n" +
-"QUAND PROPOSER UN RITUEL\n" +
-"===============================================\n\n" +
-"Tu le sors quand :\n" +
-"- La personne décrit un problème PRECIS\n" +
-"- Tu as posé au moins 2 questions et compris\n" +
-"- Aucun conseil simple ne suffit\n" +
-"- Le rituel s'applique vraiment\n\n" +
-"Quand tu le proposes : UN SEUL rituel. Étapes exactes. Explique pourquoi ça marche.\n\n" +
-"Sur 10 réponses : 7 conseils simples, 2 écoute/proverbe, 1 rituel maximum.\n\n" +
+"RÈGLES SUR LES RITUELS :\n" +
+"- Tu ne proposes JAMAIS un rituel dès le premier message.\n" +
+"- Tu écoutes d'abord. Tu poses 2 questions. Tu comprends.\n" +
+"- SEULEMENT APRÈS, tu proposes UN SEUL rituel.\n" +
+"- Sur 10 réponses : 7 conseils simples, 2 écoute/proverbe, 1 rituel maximum.\n" +
+"- Tu n'es pas un guérisseur. Tu es un vieux.\n\n" +
 "RÈGLE DE FIN : chaque phrase est complète.";
 
-const SYSTEM_PROMPT_CONTENT = "Tu es 'Le Vieux', un sage africain de 70 ans. Tu écris un texte court pour la journée.\n\n" +
+const SYSTEM_PROMPT_CONTENT = "Tu es 'Le Vieux', un sage africain de 70 ans. Tu écris un texte court.\n\n" +
 "RÈGLES :\n" +
 "1. Tu tutoies TOUJOURS.\n" +
 "2. Tu respectes EXACTEMENT le nombre de phrases demandé.\n" +
-"3. Tu ne poses PAS de questions à la personne.\n" +
-"4. Tu ne parles PAS de rituels.\n" +
-"5. Tu écris un texte simple.\n" +
-"6. Tu utilises des images simples : le manguier, la rivière, le feu, la marmite.\n\n" +
+"3. Tu ne poses PAS de questions.\n" +
+"4. Tu écris simple, direct.\n" +
+"5. Tu utilises des images simples.\n\n" +
 "INTERDIT :\n" +
 "- 'ancêtre', 'magie', 'sortilège', 'marabout', 'féticheur'\n" +
-"- 'prospérité', 'sagesse ancestrale', 'tradition ancestrale'\n" +
-"- Formules creuses ('assieds-toi mon enfant')\n" +
+"- 'prospérité', 'sagesse ancestrale'\n" +
+"- Formules creuses\n" +
 "- Poser des questions\n\n" +
-"STYLE : Phrases courtes (10-15 mots). Français simple.\n\n" +
+"STYLE : Phrases courtes. Français simple.\n\n" +
 "RÈGLE DE FIN : chaque phrase est complète.";
 
 // ══════════════════════════════════════════════════════════════════
@@ -354,6 +347,64 @@ function extractTopics(history, currentQuestion) {
 }
 
 // ══════════════════════════════════════════════════════════════════
+// UTILITAIRES
+// ══════════════════════════════════════════════════════════════════
+
+function convertHistoryForAI(history) {
+  if (!Array.isArray(history)) return [];
+  return history.filter(m => m && m.content).map(m => {
+    const role = (m.role === 'user') ? 'user' : 'assistant';
+    return { role, content: String(m.content).trim() };
+  }).filter(m => m.content.length > 0);
+}
+
+async function callGroq(messages, maxTokens = 2000, temperature = 0.95) {
+  let attempt = 0;
+  while (attempt < 4) {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + GROQ_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: GROQ_MODEL, messages, temperature, max_tokens: maxTokens })
+    });
+    if (response.status === 429) {
+      attempt++;
+      if (attempt < 4) { await new Promise(r => setTimeout(r, attempt * 3000)); continue; }
+    }
+    return response;
+  }
+  return null;
+}
+
+async function getCache(key) {
+  if (!supabase) return null;
+  try { const { data } = await supabase.from('content_cache').select('content').eq('cache_key', key).maybeSingle(); return data ? data.content : null; } catch (e) { return null; }
+}
+async function setCache(key, content) {
+  if (!supabase) return;
+  try { await supabase.from('content_cache').upsert({ cache_key: key, content, created_at: Date.now() }); } catch (e) {}
+}
+
+async function getSubscription(email) {
+  if (!supabase || !email) return null;
+  try {
+    const key = email.toLowerCase().trim();
+    const { data } = await supabase.from('subscribers').select('*').eq('email', key).maybeSingle();
+    if (!data) return null;
+    if (Date.now() > data.expiry_date) return { ...data, expired: true };
+    return { ...data, expired: false };
+  } catch (e) { return null; }
+}
+async function getPlan(email) { const sub = await getSubscription(email); if (!sub || sub.expired) return null; return sub.plan || 'decouverte'; }
+async function hasPermission(email, permission) { const plan = await getPlan(email); if (!plan) return false; return (PLAN_PERMISSIONS[plan] || PLAN_PERMISSIONS.decouverte)[permission] === true; }
+async function getPermissionValue(email, permission) { const plan = await getPlan(email); if (!plan) return PLAN_PERMISSIONS.decouverte[permission]; return (PLAN_PERMISSIONS[plan] || PLAN_PERMISSIONS.decouverte)[permission]; }
+
+function todayKey() { return new Date().toISOString().split('T')[0]; }
+function weekKey() {
+  const d = new Date();
+  return d.getFullYear() + '-W' + Math.floor((d - new Date(d.getFullYear(), 0, 1)) / 604800000);
+}
+
+// ══════════════════════════════════════════════════════════════════
 // EDGE TTS
 // ══════════════════════════════════════════════════════════════════
 const EDGE_VOICE = 'fr-FR-RemyMultilingualNeural';
@@ -375,9 +426,7 @@ app.post('/tts-edge', async (req, res) => {
     });
 
     tempFile = path.join(os.tmpdir(), 'levieux_' + Date.now() + '_' + Math.random().toString(36).slice(2) + '.mp3');
-
     await tts.ttsPromise(String(text).slice(0, 2500), tempFile);
-
     const audioBuffer = fs.readFileSync(tempFile);
 
     res.set('Content-Type', 'audio/mpeg');
@@ -394,7 +443,7 @@ app.post('/tts-edge', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// PUSH NOTIFICATIONS (OneSignal)
+// PUSH NOTIFICATIONS
 // ══════════════════════════════════════════════════════════════════
 async function sendPushNotification(title, message, url) {
   if (!ONESIGNAL_APP_ID || !ONESIGNAL_API_KEY) return null;
@@ -434,7 +483,7 @@ async function sendWelcomeEmail(email) {
       body: JSON.stringify({
         from: 'L\'Ancien <onboarding@resend.dev>',
         to: email,
-        subject: 'Bienvenue — La Voix des Anciens',
+        subject: 'Bienvenue - La Voix des Anciens',
         html: '<div style="font-family:sans-serif;background:#0a0a0f;color:#fff;padding:2rem;border-radius:16px;max-width:500px;margin:0 auto;"><h1 style="color:#e8a838;">Bienvenue.</h1><p style="color:#8a8a95;">Assieds-toi près de moi. Pose ta première question.</p><a href="https://le-vieux-production.up.railway.app/" style="display:inline-block;background:#e8a838;color:#0a0a0f;padding:0.8rem 1.5rem;border-radius:12px;text-decoration:none;font-weight:600;margin-top:1rem;">Ouvrir l\'app</a></div>'
       })
     });
@@ -462,6 +511,10 @@ async function sendQuotaExhaustedEmail(email) {
     return data;
   } catch (e) { console.error('Email quota error:', e.message); return null; }
 }
+
+// ══════════════════════════════════════════════════════════════════
+// ROUTES
+// ══════════════════════════════════════════════════════════════════
 
 app.post('/me', async (req, res) => {
   const { email } = req.body || {};
@@ -530,42 +583,117 @@ app.post('/webhook/chariow', async (req, res) => {
   return res.json({ received: true, action: 'ignored' });
 });
 
-app.post('/preload', async (req, res) => {
+// ══════════════════════════════════════════════════════════════════
+// NOUVELLE ROUTE /today — contenu quotidien structuré
+// ══════════════════════════════════════════════════════════════════
+app.post('/today', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
   const key = email.toLowerCase().trim();
   const plan = await getPlan(key);
-  if (!plan) return res.json({ preloaded: false });
+  const isSubscribed = !!plan;
 
-  res.json({ preloaded: true });
+  const morning = getRituelMatinDuJour();
+  const meditation = getMeditationDuJour();
+  const evening = getRituelSoirDuJour();
 
-  const pilier = getDayPilier();
-  const dayIdx = new Date().getDate() + new Date().getMonth() * 31;
-  const dayKey = todayKey();
-  const weekK = weekKey();
-  const weekIdx = Math.floor(Date.now() / (7 * 86400000));
+  const eveningAllowed = plan ? await getPermissionValue(key, 'evening') : false;
 
-  const signe = pilier.signes[dayIdx % pilier.signes.length];
-  generateWithCache('daily_' + dayKey + '_morning', SYSTEM_PROMPT_CONTENT + '\n\nPilier : ' + pilier.label + '.\nSigne : "' + signe + '"\n\nÉcris exactement 6 phrases.', 1500, 0.95, 'morning').catch(() => {});
+  const result = {
+    morning: {
+      titre: morning.titre,
+      theme: morning.theme,
+      texte: morning.texte,
+      locked: false
+    },
+    meditation: {
+      titre: meditation.titre,
+      texte: meditation.texte,
+      locked: isSubscribed ? false : true,
+      teaser: isSubscribed ? null : meditation.texte.split('.').slice(0, 1).join('.') + '.'
+    },
+    evening: {
+      titre: evening.titre,
+      theme: evening.theme,
+      texte: evening.texte,
+      locked: !eveningAllowed,
+      teaser: eveningAllowed ? null : evening.texte.split('.').slice(0, 1).join('.') + '.'
+    },
+    dayIndex: getDayOfYear()
+  };
 
-  const sagesse = pilier.sagesse[dayIdx % pilier.sagesse.length];
-  generateWithCache('daily_' + dayKey + '_meditation', SYSTEM_PROMPT_CONTENT + '\n\nPilier : ' + pilier.label + '.\nSagesse : "' + sagesse + '"\n\nÉcris exactement 5 phrases.', 1500, 0.95, 'med').catch(() => {});
-
-  const rituel = pilier.rituels[dayIdx % pilier.rituels.length];
-  generateWithCache('daily_' + dayKey + '_evening', SYSTEM_PROMPT_CONTENT + '\n\nPilier : ' + pilier.label + '.\nRituel : "' + rituel + '"\n\nÉcris exactement 6 phrases.', 1500, 0.95, 'eve').catch(() => {});
-
-  const r1 = pilier.rituels[weekIdx % pilier.rituels.length];
-  const r2 = pilier.rituels[(weekIdx + 1) % pilier.rituels.length];
-  const r3 = pilier.rituels[(weekIdx + 2) % pilier.rituels.length];
-  generateWithCache('teaching_' + weekK, SYSTEM_PROMPT_CONTENT + '\n\nPilier : ' + pilier.label + '.\nGestes :\n1. ' + r1 + '\n2. ' + r2 + '\n3. ' + r3 + '\n\nÉcris : Titre, Intro, Leçon 1-3, Action, Conclusion.', 2000, 0.95, 'teach').catch(() => {});
-
-  const rituelsSemaine = [];
-  for (let i = 0; i < 7; i++) rituelsSemaine.push(pilier.rituels[(weekIdx + i) % pilier.rituels.length]);
-  generateWithCache('challenge_' + weekK, SYSTEM_PROMPT_CONTENT + '\n\nDéfi 7 jours sur : ' + pilier.label + '\n\n' + rituelsSemaine.map((r, i) => 'Jour ' + (i+1) + ' : ' + r).join('\n') + '\n\nÉcris : Titre, 7 jours, Conclusion.', 2000, 0.95, 'chall').catch(() => {});
-
-  generateWithCache('library_' + dayKey, SYSTEM_PROMPT_CONTENT + '\n\nConte africain.\nPilier : ' + pilier.label + '.\nMorale : "' + sagesse + '"\n\nÉcris : Titre, 8 phrases, 2 phrases morale.', 2000, 0.95, 'lib').catch(() => {});
+  return res.json(result);
 });
 
+// ══════════════════════════════════════════════════════════════════
+// NOUVELLE ROUTE /teaching — Enseignement hebdo structuré
+// ══════════════════════════════════════════════════════════════════
+app.post('/teaching-v2', async (req, res) => {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'Email requis' });
+  const key = email.toLowerCase().trim();
+  const plan = await getPlan(key);
+  const isSubscribed = !!plan;
+
+  const theme = getThemeDeLaSemaine();
+
+  if (!isSubscribed) {
+    return res.json({
+      locked: true,
+      titre: theme.titre,
+      teaser: theme.intro,
+      gestesCount: theme.gestes.length
+    });
+  }
+
+  return res.json({
+    locked: false,
+    titre: theme.titre,
+    intro: theme.intro,
+    gestes: theme.gestes,
+    action: theme.action,
+    weekIndex: getWeekOfYear()
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════
+// NOUVELLE ROUTE /challenge-v2 — Défi 7 jours structuré
+// ══════════════════════════════════════════════════════════════════
+app.post('/challenge-v2', async (req, res) => {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'Email requis' });
+  const key = email.toLowerCase().trim();
+  const hasAccess = await hasPermission(key, 'challenge');
+
+  if (!hasAccess) {
+    return res.status(402).json({ error: 'subscription_required', message: 'Réservé aux plans Sage et Guide.' });
+  }
+
+  const theme = getThemeDeLaSemaine();
+  const jours = [];
+  const weekIdx = getWeekOfYear();
+
+  for (let i = 0; i < 7; i++) {
+    const rituel = RITUELS_MATIN[(weekIdx * 7 + i) % RITUELS_MATIN.length];
+    jours.push({
+      jour: i + 1,
+      titre: rituel.titre,
+      texte: rituel.texte
+    });
+  }
+
+  return res.json({
+    titre: theme.titre,
+    intro: theme.intro,
+    action: theme.action,
+    jours: jours,
+    weekIndex: weekIdx
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════
+// /ask — Chat avec le Vieux
+// ══════════════════════════════════════════════════════════════════
 app.post('/ask', async (req, res) => {
   const { email, question, history } = req.body || {};
   if (!email || !question) return res.status(400).json({ error: 'Email requis' });
@@ -604,12 +732,12 @@ app.post('/ask', async (req, res) => {
 
     let memoryBlock = '';
     if (memory && memory.first_name) {
-      memoryBlock += '\n\nL\'utilisateur s\'appelle ' + memory.first_name + '. Appelle-le par son prénom de temps en temps, avec parcimonie.\n';
+      memoryBlock += '\n\nL\'utilisateur s\'appelle ' + memory.first_name + '. Appelle-le par son prénom avec parcimonie.\n';
     } else if (detectedName) {
-      memoryBlock += '\n\nL\'utilisateur vient de te dire son prénom : ' + detectedName + '. Retiens-le et utilise-le naturellement.\n';
+      memoryBlock += '\n\nL\'utilisateur vient de te dire son prénom : ' + detectedName + '.\n';
     }
     if (memory && memory.total_questions > 0) {
-      memoryBlock += 'C\'est sa ' + (memory.total_questions + 1) + 'ème question. Il connaît déjà ton style.\n';
+      memoryBlock += 'C\'est sa ' + (memory.total_questions + 1) + 'ème question.\n';
     }
 
     const convertedHistory = convertHistoryForAI(history || []).slice(-12);
@@ -632,123 +760,9 @@ app.post('/ask', async (req, res) => {
   } catch (e) { return res.status(500).json({ error: 'server_error' }); }
 });
 
-app.post('/daily', async (req, res) => {
-  const { email, type } = req.body || {};
-  if (!email) return res.status(400).json({ error: 'Email requis' });
-  const key = email.toLowerCase().trim();
-  const plan = await getPlan(key);
-  const isSubscribed = !!plan;
-
-  let allowed = false;
-  if (plan) {
-    if (type === 'evening') allowed = await getPermissionValue(key, 'evening');
-    else if (type === 'meditation') allowed = await getPermissionValue(key, 'meditation');
-    else allowed = await getPermissionValue(key, 'daily');
-  } else { allowed = (type === 'morning' || type === 'meditation'); }
-
-  if (!allowed) return res.status(402).json({ error: 'subscription_required' });
-
-  const dayKey = todayKey();
-  const cacheKey = 'daily_' + dayKey + '_' + (type || 'morning');
-  const pilier = getDayPilier();
-  const dayIdx = new Date().getDate() + new Date().getMonth() * 31;
-  let prompt;
-
-  if (type === 'evening') {
-    const rituel = pilier.rituels[dayIdx % pilier.rituels.length];
-    prompt = SYSTEM_PROMPT_CONTENT + '\n\nPilier : ' + pilier.label + '.\nRituel : "' + rituel + '"\n\nÉcris exactement 6 phrases.';
-  } else if (type === 'meditation') {
-    const sagesse = pilier.sagesse[dayIdx % pilier.sagesse.length];
-    prompt = SYSTEM_PROMPT_CONTENT + '\n\nPilier : ' + pilier.label + '.\nSagesse : "' + sagesse + '"\n\nÉcris exactement 5 phrases.';
-  } else {
-    const signe = pilier.signes[dayIdx % pilier.signes.length];
-    prompt = SYSTEM_PROMPT_CONTENT + '\n\nPilier : ' + pilier.label + '.\nSigne : "' + signe + '"\n\nÉcris exactement 6 phrases.';
-  }
-
-  try {
-    let content = await generateWithCache(cacheKey, prompt, 1500, 0.95, type);
-    if (!content) content = "Assieds-toi, mon enfant. Écoute le vent ce matin.";
-    if (!isSubscribed) {
-      if (type === 'morning') return res.json({ content });
-      if (type === 'meditation') { const teaser = content.split('\n').slice(0, 2).join('\n'); return res.json({ content: teaser, teaser, isTeaser: true }); }
-      return res.status(402).json({ error: 'subscription_required' });
-    }
-    return res.json({ content });
-  } catch (e) { return res.status(500).json({ error: 'ai_error' }); }
-});
-
-app.post('/teaching', async (req, res) => {
-  const { email } = req.body || {};
-  if (!email) return res.status(400).json({ error: 'Email requis' });
-  const key = email.toLowerCase().trim();
-  const plan = await getPlan(key);
-
-  if (!plan) {
-    const cacheKeyFree = 'teaching_' + weekKey();
-    const cachedFree = await getCache(cacheKeyFree);
-    const teaserText = cachedFree ? cachedFree.split('\n').slice(0, 5).join('\n') : 'Cette semaine, écoute bien.';
-    return res.json({ content: teaserText, teaser: teaserText, isTeaser: true, freeTeaser: true });
-  }
-
-  const cacheKey = 'teaching_' + weekKey();
-  const pilier = getWeekPilier();
-  const weekIdx = Math.floor(Date.now() / (7 * 86400000));
-  const r1 = pilier.rituels[weekIdx % pilier.rituels.length];
-  const r2 = pilier.rituels[(weekIdx + 1) % pilier.rituels.length];
-  const r3 = pilier.rituels[(weekIdx + 2) % pilier.rituels.length];
-  const prompt = SYSTEM_PROMPT_CONTENT + '\n\nPilier : ' + pilier.label + '\n\nGestes :\n1. ' + r1 + '\n2. ' + r2 + '\n3. ' + r3 + '\n\nÉcris : Titre, Intro, Leçon 1-3, Action, Conclusion.';
-
-  try {
-    let content = await generateWithCache(cacheKey, prompt, 2000, 0.95, 'teach');
-    if (!content) content = "Cette semaine, tu vas apprendre 3 gestes.";
-    return res.json({ content, nextUpdate: 'weekly' });
-  } catch (e) { return res.status(500).json({ error: 'ai_error' }); }
-});
-
-app.post('/teaching/archives', async (req, res) => {
-  const { email } = req.body || {};
-  if (!email) return res.status(400).json({ error: 'Email requis' });
-  const key = email.toLowerCase().trim();
-  const hasAccess = await hasPermission(key, 'archives');
-  if (!hasAccess) return res.status(402).json({ error: 'subscription_required' });
-  try { const { data } = await supabase.from('content_cache').select('cache_key, content, created_at').like('cache_key', 'teaching_%').order('created_at', { ascending: false }).limit(20); return res.json({ archives: data || [] }); } catch (e) { return res.status(500).json({ error: e.message }); }
-});
-
-app.post('/challenge', async (req, res) => {
-  const { email, custom, need } = req.body || {};
-  if (!email) return res.status(400).json({ error: 'Email requis' });
-  const key = email.toLowerCase().trim();
-  const hasAccess = await hasPermission(key, 'challenge');
-  if (!hasAccess) return res.status(402).json({ error: 'subscription_required' });
-
-  if (custom) {
-    const canCustom = await hasPermission(key, 'customChallenge');
-    if (!canCustom) return res.status(402).json({ error: 'custom_required' });
-    if (!need || !need.trim()) return res.status(400).json({ error: 'need_required' });
-    const prompt = SYSTEM_PROMPT_CONTENT + '\n\nDéfi 7 jours pour : "' + need + '"\n\nÉcris : Titre, Intro, 7 jours, Conclusion.';
-    try {
-      const response = await callGroq([{ role: 'user', content: prompt }], 1500, 0.95);
-      if (!response || !response.ok) return res.status(500).json({ error: 'ai_error' });
-      const data = await response.json();
-      const content = data.choices && data.choices[0] && data.choices[0].message.content;
-      return res.json({ content: content || '' });
-    } catch (e) { return res.status(500).json({ error: 'ai_error' }); }
-  }
-
-  const cacheKey = 'challenge_' + weekKey();
-  const pilier = getWeekPilier();
-  const weekIdx = Math.floor(Date.now() / (7 * 86400000));
-  const rituelsSemaine = [];
-  for (let i = 0; i < 7; i++) rituelsSemaine.push(pilier.rituels[(weekIdx + i) % pilier.rituels.length]);
-  const prompt = SYSTEM_PROMPT_CONTENT + '\n\nDéfi 7 jours sur : ' + pilier.label + '\n\n' + rituelsSemaine.map((r, i) => 'Jour ' + (i+1) + ' : ' + r).join('\n') + '\n\nÉcris : Titre, 7 jours, Conclusion.';
-
-  try {
-    let content = await generateWithCache(cacheKey, prompt, 1500, 0.95, 'chall');
-    if (!content) content = "7 jours pour te blinder.";
-    return res.json({ content, nextUpdate: 'weekly' });
-  } catch (e) { return res.status(500).json({ error: 'ai_error' }); }
-});
-
+// ══════════════════════════════════════════════════════════════════
+// /library — Conte (génération IA, garde l'ancien style)
+// ══════════════════════════════════════════════════════════════════
 app.post('/library', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
@@ -756,17 +770,32 @@ app.post('/library', async (req, res) => {
   const plan = await getPlan(key);
   const isSubscribed = !!plan;
   const libraryLevel = await getPermissionValue(key, 'library');
-  const allowed = libraryLevel !== false && libraryLevel !== null;
-  if (!allowed) return res.status(402).json({ error: 'subscription_required' });
 
   const cacheKey = (libraryLevel === 'weekly') ? 'library_week_' + weekKey() : 'library_' + todayKey();
-  const pilier = getDayPilier();
-  const dayIdx = new Date().getDate() + new Date().getMonth() * 31;
-  const sagesse = pilier.sagesse[dayIdx % pilier.sagesse.length];
-  const prompt = SYSTEM_PROMPT_CONTENT + '\n\nConte africain.\nPilier : ' + pilier.label + '.\nMorale : "' + sagesse + '"\n\nÉcris : Titre, 8 phrases, 2 phrases morale.';
+  const prompt = "Tu es 'Le Vieux'. Écris un conte africain court.\n\n" +
+"RÈGLES :\n" +
+"- Tutoiement JAMAIS (c'est un conte, pas une conversation).\n" +
+"- Ton sage, images simples.\n" +
+"- Pas de morale explicite avant la fin.\n" +
+"- Personnages : un vieux, un jeune, un animal (tortue, lièvre, singe).\n\n" +
+"Structure : Titre, 8 phrases de conte, 2 phrases de morale.\n\n" +
+"RÈGLE : chaque phrase est complète.";
 
   try {
-    let content = await generateWithCache(cacheKey, prompt, 2000, 0.95, 'lib');
+    let content = await getCache(cacheKey);
+    if (!content) {
+      let response = null, attempts = 0;
+      while (attempts < 5) {
+        attempts++;
+        response = await callGroq([{ role: 'user', content: prompt }], 2000, 0.95);
+        if (response && response.ok) {
+          const data = await response.json();
+          const c = data.choices && data.choices[0] && data.choices[0].message.content;
+          if (c && c.trim().length > 0) { content = c.trim(); await setCache(cacheKey, content); break; }
+        }
+        if (attempts < 5) await new Promise(r => setTimeout(r, attempts * 5000));
+      }
+    }
     if (!content) content = "Le vieux et la rivière\n\nUn jeune homme vint voir un ancien.\n\nMorale : Ne frappe pas l'obstacle.";
     if (!isSubscribed) {
       const teaser = content.split('\n').slice(0, 5).join('\n');
@@ -786,28 +815,37 @@ app.post('/library/archives', async (req, res) => {
   try { const { data } = await supabase.from('content_cache').select('cache_key, content, created_at').like('cache_key', 'library_%').order('created_at', { ascending: false }).limit(30); return res.json({ archives: data || [] }); } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
+// ══════════════════════════════════════════════════════════════════
+// CRONS
+// ══════════════════════════════════════════════════════════════════
 app.get('/cron/morning', async (req, res) => {
   if (req.query.secret !== CRON_SECRET) return res.status(401).json({ error: 'unauthorized' });
-  const result = await sendPushNotification('🌅 Signe du matin', 'Le signe du jour t\'attend. Assieds-toi et écoute.');
-  res.json({ success: true, result });
+  const r = getRituelMatinDuJour();
+  const result = await sendPushNotification('🌅 ' + r.titre, r.texte.slice(0, 100) + '...');
+  res.json({ success: true, result, rituel: r.titre });
 });
 
 app.get('/cron/evening', async (req, res) => {
   if (req.query.secret !== CRON_SECRET) return res.status(401).json({ error: 'unauthorized' });
-  const result = await sendPushNotification('🌙 Rituel du soir', 'Le rituel du soir est prêt. Prends quelques minutes.');
-  res.json({ success: true, result });
+  const r = getRituelSoirDuJour();
+  const result = await sendPushNotification('🌙 ' + r.titre, r.texte.slice(0, 100) + '...');
+  res.json({ success: true, result, rituel: r.titre });
 });
 
 app.get('/cron/weekly', async (req, res) => {
   if (req.query.secret !== CRON_SECRET) return res.status(401).json({ error: 'unauthorized' });
-  const result = await sendPushNotification('📖 Nouvel enseignement', 'L\'enseignement de la semaine est disponible.');
-  res.json({ success: true, result });
+  const t = getThemeDeLaSemaine();
+  const result = await sendPushNotification('📖 ' + t.titre, t.intro);
+  res.json({ success: true, result, theme: t.titre });
 });
 
+// ══════════════════════════════════════════════════════════════════
+// ADMIN
+// ══════════════════════════════════════════════════════════════════
 app.post('/admin/push', async (req, res) => {
   const { pwd, title, message, url } = req.body || {};
   if (pwd !== ADMIN_PWD) return res.status(401).json({ error: 'unauthorized' });
-  const result = await sendPushNotification(title || '🌳 L\'Ancien', message || 'Test', url);
+  const result = await sendPushNotification(title || 'L\'Ancien', message || 'Test', url);
   res.json({ success: true, result });
 });
 
@@ -828,7 +866,10 @@ app.get('/admin/stats', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-const AUTO_REPLY = "Merci, ta demande a bien été reçue. Notre équipe te répondra sous 24h.";
+// ══════════════════════════════════════════════════════════════════
+// SUPPORT
+// ══════════════════════════════════════════════════════════════════
+const AUTO_REPLY = "Merci, ta demande a bien été reçue. On te répond sous 24h.";
 
 app.post('/support/send', async (req, res) => {
   const { email, message } = req.body || {};
@@ -916,8 +957,8 @@ app.post('/support/admin/reply', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend v17.1.0 sur port ' + PORT);
+  console.log('🌳 Le Vieux backend v18.0.0 sur port ' + PORT);
   console.log('🎙️  Edge TTS : ✓ (voix ' + EDGE_VOICE + ')');
-  console.log('📿 Rituels : ✓ (60 rituels connus)');
-  console.log('🧠 Mémoire : ✓ (prénom + historique)');
+  console.log('📿 Contenu structuré : 30 matin + 30 médit + 30 soir + 12 thèmes');
+  console.log('🧠 Mémoire : ✓');
 });
