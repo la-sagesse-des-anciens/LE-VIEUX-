@@ -19,6 +19,7 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const CRON_SECRET = process.env.CRON_SECRET || 'levieux-cron-2026';
 
 const GROQ_MODEL = 'openai/gpt-oss-120b';
+const FREE_JOURNAL_LIMIT = 3;
 
 const supabase = (SUPABASE_URL && SUPABASE_KEY)
   ? createClient(SUPABASE_URL, SUPABASE_KEY)
@@ -46,7 +47,7 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'La Voix des Anciens Backend',
-    version: '18.0.0',
+    version: '19.1.0',
     model: GROQ_MODEL,
     freeLimit: FREE_LIMIT,
     tts: 'edge-tts',
@@ -58,13 +59,15 @@ app.get('/', (req, res) => {
     morning: 30,
     meditation: 30,
     evening: 30,
-    themes: 12
+    themes: 12,
+    journalFreeLimit: FREE_JOURNAL_LIMIT
   });
 });
 
 // ══════════════════════════════════════════════════════════════════
-// BASE DE CONNAISSANCE — 30 RITUELS DU MATIN
+// BASE DE CONNAISSANCE
 // ══════════════════════════════════════════════════════════════════
+
 const RITUELS_MATIN = [
   { titre: "Salue la porte", theme: "Protection", texte: "Avant de sortir ce matin, touche le cadre de ta porte avec la main droite. Dis intérieurement : 'Je sors en paix, je rentre en paix'. La porte est le passage entre ta maison et le monde. La saluer, c'est reconnaître ce passage." },
   { titre: "L'eau avant le café", theme: "Santé", texte: "Ce matin, bois un verre d'eau tiède AVANT toute autre chose. Pas de café, pas de thé. L'eau réveille le ventre doucement. Attends 15 minutes avant de manger. Ton corps te remerciera." },
@@ -79,7 +82,7 @@ const RITUELS_MATIN = [
   { titre: "Salue le premier oiseau", theme: "Signes", texte: "En sortant, regarde le premier oiseau que tu vois. S'il vole vers toi, bonne journée. S'il vole ailleurs, journée calme. Note-le dans ta tête." },
   { titre: "Ne pas annoncer ses projets", theme: "Parole", texte: "Aujourd'hui, ne raconte à personne ce que tu vas faire. Fais-le d'abord. Parle après. Ce que tu annonces avant de faire, ça se disperse." },
   { titre: "Le citron chaud", theme: "Santé", texte: "Presse un demi-citron dans de l'eau chaude. Ajoute une cuillère de miel. Bois-le à jeun. Ça nettoie le foie après la nuit et prépare le corps." },
-  { titre: "Ne pas prêter le matin", theme: "Argent", texte: "N'prête PAS d'argent le matin, avant d'avoir reçu quelque chose. Sinon ta journée reste vide. Si on te demande, dis : 'Reviens cet après-midi'." },
+  { titre: "Ne pas prêter le matin", theme: "Argent", texte: "Ne prête PAS d'argent le matin, avant d'avoir reçu quelque chose. Sinon ta journée reste vide. Si on te demande, dis : 'Reviens cet après-midi'." },
   { titre: "Le sel dans la poche", theme: "Protection", texte: "Mets une pincée de sel dans ta poche droite. Ça t'accompagne toute la journée. Le soir, jette-le dehors. Nouvelle pincée demain matin." },
   { titre: "Parler à sa femme", theme: "Amour", texte: "Si tu es marié, dis quelque chose de doux à ta femme ce matin. Même simple : 'Bonne journée.' C'est ce qui garde le lien vivant sur le long terme." },
   { titre: "Regarder ses mains", theme: "Sagesse", texte: "Regarde tes mains 10 secondes. Elles peuvent frapper ou aider. Ce matin, choisis d'aider. Ce choix, répété, fait ce que tu deviens." },
@@ -98,9 +101,6 @@ const RITUELS_MATIN = [
   { titre: "Remercier son corps", theme: "Santé", texte: "Pose ta main sur ton ventre ce matin. Dis : 'Merci pour la nuit.' Ton corps t'a porté pendant que tu dormais. Il mérite reconnaissance." }
 ];
 
-// ══════════════════════════════════════════════════════════════════
-// 30 MÉDITATIONS (sagesses courtes)
-// ══════════════════════════════════════════════════════════════════
 const MEDITATIONS = [
   { titre: "Le silence", texte: "Ce que tu cherches dehors dort déjà en toi. Assieds-toi. Écoute. Ne fais rien." },
   { titre: "La patience", texte: "La patience n'est pas de l'attente. C'est une force. Celui qui sait attendre voit plus loin que les autres." },
@@ -134,9 +134,6 @@ const MEDITATIONS = [
   { titre: "La fin", texte: "Ce qui se termine te laisse de la place pour autre chose. Ne t'accroche pas à ce qui part. Ouvre tes mains. Le prochain cadeau arrive." }
 ];
 
-// ══════════════════════════════════════════════════════════════════
-// 30 RITUELS DU SOIR
-// ══════════════════════════════════════════════════════════════════
 const RITUELS_SOIR = [
   { titre: "Le verre d'eau sous le lit", theme: "Protection", texte: "Ce soir avant de dormir, pose un verre d'eau claire sous ton lit. Demain matin, jette l'eau dehors par la porte. Nouveau verre chaque soir. L'eau absorbe ce que la journée a laissé." },
   { titre: "Pieds dans l'eau salée", theme: "Santé", texte: "Mets tes pieds dans un seau d'eau chaude avec une poignée de gros sel. 10 minutes. Pendant ce temps, ne fais rien. Les pieds portent toute la journée. Laisse-les se vider." },
@@ -170,9 +167,6 @@ const RITUELS_SOIR = [
   { titre: "Dormir le ventre vide", theme: "Santé", texte: "Essaie de dormir le ventre léger. 2-3 heures après le repas au moins. Le corps travaille mieux la nuit quand le ventre ne le dérange pas." }
 ];
 
-// ══════════════════════════════════════════════════════════════════
-// 12 THÈMES D'ENSEIGNEMENT HEBDOMADAIRE
-// ══════════════════════════════════════════════════════════════════
 const THEMES_ENSEIGNEMENT = [
   { titre: "Protéger son foyer", intro: "Cette semaine, on apprend à protéger sa maison et sa famille.", gestes: ["Le verre d'eau sous le lit chaque soir", "Le sel dans les 4 coins chaque dimanche", "Ne pas balayer dehors après le coucher du soleil"], action: "Choisis UN geste et fais-le 7 jours. Puis observe ce qui change dans ta maison." },
   { titre: "Attirer l'argent", intro: "Cette semaine, on apprend à faire circuler l'argent proprement.", gestes: ["Garder le premier billet 24h sans le dépenser", "Poser un verre d'eau propre sur le comptoir chaque matin", "Donner une petite pièce chaque jour à quelqu'un qui en a besoin"], action: "Pendant 7 jours, fais ces 3 gestes. Note si l'argent circule différemment." },
@@ -187,10 +181,6 @@ const THEMES_ENSEIGNEMENT = [
   { titre: "S'organiser", intro: "Cette semaine, on apprend à mettre de l'ordre dans sa vie.", gestes: ["Écrire chaque soir UNE chose à faire demain", "Ranger un endroit de la maison chaque jour", "Éteindre le téléphone 30 min avant de dormir"], action: "Fais ces 3 gestes 7 jours. La 7ème nuit, regarde ta maison. Elle parle." },
   { titre: "Grandir en sagesse", intro: "Cette semaine, on apprend à écouter plus.", gestes: ["Écouter quelqu'un sans l'interrompre", "Rester 5 minutes en silence chaque matin", "Appeler un ancien de ta famille"], action: "Pendant 7 jours, applique ces 3 règles. Note ce que tu as appris." }
 ];
-
-// ══════════════════════════════════════════════════════════════════
-// FONCTIONS DE SÉLECTION (rotation quotidienne / hebdo)
-// ══════════════════════════════════════════════════════════════════
 
 function getDayOfYear() {
   const d = new Date();
@@ -207,28 +197,21 @@ function getWeekOfYear() {
 }
 
 function getRituelMatinDuJour() {
-  const idx = getDayOfYear() % RITUELS_MATIN.length;
-  return RITUELS_MATIN[idx];
+  return RITUELS_MATIN[getDayOfYear() % RITUELS_MATIN.length];
 }
 
 function getMeditationDuJour() {
-  const idx = getDayOfYear() % MEDITATIONS.length;
-  return MEDITATIONS[idx];
+  return MEDITATIONS[getDayOfYear() % MEDITATIONS.length];
 }
 
 function getRituelSoirDuJour() {
-  const idx = getDayOfYear() % RITUELS_SOIR.length;
-  return RITUELS_SOIR[idx];
+  return RITUELS_SOIR[getDayOfYear() % RITUELS_SOIR.length];
 }
 
 function getThemeDeLaSemaine() {
-  const idx = getWeekOfYear() % THEMES_ENSEIGNEMENT.length;
-  return THEMES_ENSEIGNEMENT[idx];
+  return THEMES_ENSEIGNEMENT[getWeekOfYear() % THEMES_ENSEIGNEMENT.length];
 }
 
-// ══════════════════════════════════════════════════════════════════
-// LES 60 RITUELS (pour le chat)
-// ══════════════════════════════════════════════════════════════════
 const RITUELS_CONNUS = [
   "RITUELS QUE TU CONNAIS :",
   "",
@@ -241,9 +224,6 @@ const RITUELS_CONNUS = [
   "BAINS : basilic après visite lourde, citron avant décision, gros sel après dispute, eau de mer mensuel, lavage maison, feuilles amères après deuil."
 ].join("\n");
 
-// ══════════════════════════════════════════════════════════════════
-// PROMPT CHAT
-// ══════════════════════════════════════════════════════════════════
 const SYSTEM_PROMPT_CHAT = "Tu es 'Le Vieux', un sage africain de 70 ans assis sous un manguier. Tu parles comme un vrai vieux du village, pas comme un livre.\n\n" +
 "RÈGLES ABSOLUES :\n" +
 "1. Tu tutoies TOUJOURS. Jamais 'vous'.\n" +
@@ -291,10 +271,6 @@ const SYSTEM_PROMPT_CONTENT = "Tu es 'Le Vieux', un sage africain de 70 ans. Tu 
 "- Poser des questions\n\n" +
 "STYLE : Phrases courtes. Français simple.\n\n" +
 "RÈGLE DE FIN : chaque phrase est complète.";
-
-// ══════════════════════════════════════════════════════════════════
-// MÉMOIRE DU VIEUX
-// ══════════════════════════════════════════════════════════════════
 
 async function getMemory(email) {
   if (!supabase) return null;
@@ -345,10 +321,6 @@ function extractTopics(history, currentQuestion) {
   const userMessages = all.filter(m => typeof m === 'string' && m.length < 200);
   return userMessages.slice(-5).join(' | ').slice(0, 500);
 }
-
-// ══════════════════════════════════════════════════════════════════
-// UTILITAIRES
-// ══════════════════════════════════════════════════════════════════
 
 function convertHistoryForAI(history) {
   if (!Array.isArray(history)) return [];
@@ -404,9 +376,6 @@ function weekKey() {
   return d.getFullYear() + '-W' + Math.floor((d - new Date(d.getFullYear(), 0, 1)) / 604800000);
 }
 
-// ══════════════════════════════════════════════════════════════════
-// EDGE TTS
-// ══════════════════════════════════════════════════════════════════
 const EDGE_VOICE = 'fr-FR-RemyMultilingualNeural';
 
 app.post('/tts-edge', async (req, res) => {
@@ -442,9 +411,6 @@ app.post('/tts-edge', async (req, res) => {
   }
 });
 
-// ══════════════════════════════════════════════════════════════════
-// PUSH NOTIFICATIONS
-// ══════════════════════════════════════════════════════════════════
 async function sendPushNotification(title, message, url) {
   if (!ONESIGNAL_APP_ID || !ONESIGNAL_API_KEY) return null;
   try {
@@ -471,9 +437,6 @@ async function sendPushNotification(title, message, url) {
   } catch (e) { console.error('Push error:', e.message); return null; }
 }
 
-// ══════════════════════════════════════════════════════════════════
-// EMAIL (Resend)
-// ══════════════════════════════════════════════════════════════════
 async function sendWelcomeEmail(email) {
   if (!RESEND_API_KEY) return null;
   try {
@@ -511,10 +474,6 @@ async function sendQuotaExhaustedEmail(email) {
     return data;
   } catch (e) { console.error('Email quota error:', e.message); return null; }
 }
-
-// ══════════════════════════════════════════════════════════════════
-// ROUTES
-// ══════════════════════════════════════════════════════════════════
 
 app.post('/me', async (req, res) => {
   const { email } = req.body || {};
@@ -583,15 +542,11 @@ app.post('/webhook/chariow', async (req, res) => {
   return res.json({ received: true, action: 'ignored' });
 });
 
-// ══════════════════════════════════════════════════════════════════
-// NOUVELLE ROUTE /today — contenu quotidien structuré
-// ══════════════════════════════════════════════════════════════════
 app.post('/today', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
   const key = email.toLowerCase().trim();
   const plan = await getPlan(key);
-  const isSubscribed = !!plan;
 
   const morning = getRituelMatinDuJour();
   const meditation = getMeditationDuJour();
@@ -599,75 +554,42 @@ app.post('/today', async (req, res) => {
 
   const eveningAllowed = plan ? await getPermissionValue(key, 'evening') : false;
 
-  const result = {
-    morning: {
-      titre: morning.titre,
-      theme: morning.theme,
-      texte: morning.texte,
-      locked: false
-    },
-    meditation: {
-      titre: meditation.titre,
-      texte: meditation.texte,
-      locked: isSubscribed ? false : true,
-      teaser: isSubscribed ? null : meditation.texte.split('.').slice(0, 1).join('.') + '.'
-    },
+  return res.json({
+    morning: { titre: morning.titre, theme: morning.theme, texte: morning.texte, locked: false },
+    meditation: { titre: meditation.titre, texte: meditation.texte, locked: false },
     evening: {
-      titre: evening.titre,
-      theme: evening.theme,
-      texte: evening.texte,
+      titre: evening.titre, theme: evening.theme, texte: evening.texte,
       locked: !eveningAllowed,
       teaser: eveningAllowed ? null : evening.texte.split('.').slice(0, 1).join('.') + '.'
     },
     dayIndex: getDayOfYear()
-  };
-
-  return res.json(result);
+  });
 });
 
-// ══════════════════════════════════════════════════════════════════
-// NOUVELLE ROUTE /teaching — Enseignement hebdo structuré
-// ══════════════════════════════════════════════════════════════════
 app.post('/teaching-v2', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
   const key = email.toLowerCase().trim();
   const plan = await getPlan(key);
   const isSubscribed = !!plan;
-
   const theme = getThemeDeLaSemaine();
 
   if (!isSubscribed) {
-    return res.json({
-      locked: true,
-      titre: theme.titre,
-      teaser: theme.intro,
-      gestesCount: theme.gestes.length
-    });
+    return res.json({ locked: true, titre: theme.titre, teaser: theme.intro, gestesCount: theme.gestes.length });
   }
 
   return res.json({
-    locked: false,
-    titre: theme.titre,
-    intro: theme.intro,
-    gestes: theme.gestes,
-    action: theme.action,
-    weekIndex: getWeekOfYear()
+    locked: false, titre: theme.titre, intro: theme.intro,
+    gestes: theme.gestes, action: theme.action, weekIndex: getWeekOfYear()
   });
 });
 
-// ══════════════════════════════════════════════════════════════════
-// NOUVELLE ROUTE /challenge-v2 — Défi 7 jours structuré
-// ══════════════════════════════════════════════════════════════════
 app.post('/challenge-v2', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
   const key = email.toLowerCase().trim();
   const hasAccess = await hasPermission(key, 'challenge');
-
-  if (!hasAccess) {
-    return res.status(402).json({ error: 'subscription_required', message: 'Réservé aux plans Sage et Guide.' });
-  }
+  if (!hasAccess) return res.status(402).json({ error: 'subscription_required', message: 'Réservé aux plans Sage et Guide.' });
 
   const theme = getThemeDeLaSemaine();
   const jours = [];
@@ -675,25 +597,75 @@ app.post('/challenge-v2', async (req, res) => {
 
   for (let i = 0; i < 7; i++) {
     const rituel = RITUELS_MATIN[(weekIdx * 7 + i) % RITUELS_MATIN.length];
-    jours.push({
-      jour: i + 1,
-      titre: rituel.titre,
-      texte: rituel.texte
-    });
+    jours.push({ jour: i + 1, titre: rituel.titre, texte: rituel.texte });
   }
 
   return res.json({
-    titre: theme.titre,
-    intro: theme.intro,
-    action: theme.action,
-    jours: jours,
-    weekIndex: weekIdx
+    titre: theme.titre, intro: theme.intro, action: theme.action,
+    jours: jours, weekIndex: weekIdx
   });
 });
 
-// ══════════════════════════════════════════════════════════════════
-// /ask — Chat avec le Vieux
-// ══════════════════════════════════════════════════════════════════
+app.post('/library', async (req, res) => {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'Email requis' });
+  const key = email.toLowerCase().trim();
+  const plan = await getPlan(key);
+  const isSubscribed = !!plan;
+  const libraryLevel = await getPermissionValue(key, 'library');
+
+  const dayIdx = getDayOfYear();
+  const freeConteAvailable = !isSubscribed && (dayIdx % 3 === 0);
+
+  const cacheKey = (libraryLevel === 'weekly') ? 'library_week_' + weekKey() : 'library_' + todayKey();
+  const prompt = "Tu es 'Le Vieux'. Écris un conte africain court.\n\n" +
+"RÈGLES :\n" +
+"- Tutoiement JAMAIS (c'est un conte).\n" +
+"- Ton sage, images simples.\n" +
+"- Personnages : un vieux, un jeune, un animal.\n\n" +
+"Structure : Titre, 8 phrases, 2 phrases de morale.\n\n" +
+"RÈGLE : chaque phrase est complète.";
+
+  try {
+    let content = await getCache(cacheKey);
+    if (!content) {
+      let response = null, attempts = 0;
+      while (attempts < 5) {
+        attempts++;
+        response = await callGroq([{ role: 'user', content: prompt }], 2000, 0.95);
+        if (response && response.ok) {
+          const data = await response.json();
+          const c = data.choices && data.choices[0] && data.choices[0].message.content;
+          if (c && c.trim().length > 0) { content = c.trim(); await setCache(cacheKey, content); break; }
+        }
+        if (attempts < 5) await new Promise(r => setTimeout(r, attempts * 5000));
+      }
+    }
+    if (!content) content = "Le vieux et la rivière\n\nUn jeune homme vint voir un ancien.\n\nMorale : Ne frappe pas l'obstacle.";
+
+    if (isSubscribed) {
+      const nextUpdate = (libraryLevel === 'weekly') ? 'weekly' : 'daily';
+      return res.json({ content, nextUpdate, isFreePreview: false });
+    }
+
+    if (freeConteAvailable) {
+      return res.json({ content, nextUpdate: 'free_today', isFreePreview: true, fullAccess: true });
+    }
+
+    const teaser = content.split('\n').slice(0, 5).join('\n');
+    return res.json({ content: teaser, teaser, isTeaser: true, nextFreeIn: (3 - (dayIdx % 3)) });
+  } catch (e) { return res.status(500).json({ error: 'ai_error' }); }
+});
+
+app.post('/library/archives', async (req, res) => {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'Email requis' });
+  const key = email.toLowerCase().trim();
+  const hasAccess = await hasPermission(key, 'archives');
+  if (!hasAccess) return res.status(402).json({ error: 'subscription_required' });
+  try { const { data } = await supabase.from('content_cache').select('cache_key, content, created_at').like('cache_key', 'library_%').order('created_at', { ascending: false }).limit(30); return res.json({ archives: data || [] }); } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
 app.post('/ask', async (req, res) => {
   const { email, question, history } = req.body || {};
   if (!email || !question) return res.status(400).json({ error: 'Email requis' });
@@ -761,63 +733,83 @@ app.post('/ask', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════
-// /library — Conte (génération IA, garde l'ancien style)
+// JOURNAL — 3 entrées gratuites puis payant
 // ══════════════════════════════════════════════════════════════════
-app.post('/library', async (req, res) => {
+
+app.post('/journal/list', async (req, res) => {
   const { email } = req.body || {};
   if (!email) return res.status(400).json({ error: 'Email requis' });
+  if (!supabase) return res.status(500).json({ error: 'db_unavailable' });
   const key = email.toLowerCase().trim();
-  const plan = await getPlan(key);
-  const isSubscribed = !!plan;
-  const libraryLevel = await getPermissionValue(key, 'library');
-
-  const cacheKey = (libraryLevel === 'weekly') ? 'library_week_' + weekKey() : 'library_' + todayKey();
-  const prompt = "Tu es 'Le Vieux'. Écris un conte africain court.\n\n" +
-"RÈGLES :\n" +
-"- Tutoiement JAMAIS (c'est un conte, pas une conversation).\n" +
-"- Ton sage, images simples.\n" +
-"- Pas de morale explicite avant la fin.\n" +
-"- Personnages : un vieux, un jeune, un animal (tortue, lièvre, singe).\n\n" +
-"Structure : Titre, 8 phrases de conte, 2 phrases de morale.\n\n" +
-"RÈGLE : chaque phrase est complète.";
-
   try {
-    let content = await getCache(cacheKey);
-    if (!content) {
-      let response = null, attempts = 0;
-      while (attempts < 5) {
-        attempts++;
-        response = await callGroq([{ role: 'user', content: prompt }], 2000, 0.95);
-        if (response && response.ok) {
-          const data = await response.json();
-          const c = data.choices && data.choices[0] && data.choices[0].message.content;
-          if (c && c.trim().length > 0) { content = c.trim(); await setCache(cacheKey, content); break; }
-        }
-        if (attempts < 5) await new Promise(r => setTimeout(r, attempts * 5000));
-      }
-    }
-    if (!content) content = "Le vieux et la rivière\n\nUn jeune homme vint voir un ancien.\n\nMorale : Ne frappe pas l'obstacle.";
-    if (!isSubscribed) {
-      const teaser = content.split('\n').slice(0, 5).join('\n');
-      return res.json({ content: teaser, teaser, isTeaser: true });
-    }
-    const nextUpdate = (libraryLevel === 'weekly') ? 'weekly' : 'daily';
-    return res.json({ content, nextUpdate });
-  } catch (e) { return res.status(500).json({ error: 'ai_error' }); }
+    const { data } = await supabase.from('journal_entries')
+      .select('id, content, created_at')
+      .eq('email', key)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    const plan = await getPlan(key);
+    const isSubscribed = !!plan;
+    const entries = data || [];
+    const canWrite = isSubscribed || entries.length < FREE_JOURNAL_LIMIT;
+
+    return res.json({
+      entries,
+      canWrite,
+      count: entries.length,
+      freeLimit: FREE_JOURNAL_LIMIT,
+      isSubscribed
+    });
+  } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
-app.post('/library/archives', async (req, res) => {
-  const { email } = req.body || {};
-  if (!email) return res.status(400).json({ error: 'Email requis' });
+app.post('/journal/save', async (req, res) => {
+  const { email, content } = req.body || {};
+  if (!email || !content || !content.trim()) return res.status(400).json({ error: 'Contenu requis' });
+  if (!supabase) return res.status(500).json({ error: 'db_unavailable' });
   const key = email.toLowerCase().trim();
-  const hasAccess = await hasPermission(key, 'archives');
-  if (!hasAccess) return res.status(402).json({ error: 'subscription_required' });
-  try { const { data } = await supabase.from('content_cache').select('cache_key, content, created_at').like('cache_key', 'library_%').order('created_at', { ascending: false }).limit(30); return res.json({ archives: data || [] }); } catch (e) { return res.status(500).json({ error: e.message }); }
+
+  try {
+    const { data: existing } = await supabase.from('journal_entries')
+      .select('id')
+      .eq('email', key);
+    const count = (existing && existing.length) || 0;
+
+    const plan = await getPlan(key);
+    const isSubscribed = !!plan;
+
+    if (!isSubscribed && count >= FREE_JOURNAL_LIMIT) {
+      return res.status(402).json({
+        error: 'journal_limit',
+        message: 'Tu as utilisé tes ' + FREE_JOURNAL_LIMIT + ' entrées gratuites. Abonne-toi pour continuer.'
+      });
+    }
+
+    const { error } = await supabase.from('journal_entries').insert({
+      email: key,
+      content: content.trim().slice(0, 5000),
+      created_at: Date.now()
+    });
+    if (error) throw error;
+
+    return res.json({ success: true, count: count + 1, freeLimit: FREE_JOURNAL_LIMIT, isSubscribed });
+  } catch (e) { return res.status(500).json({ error: e.message }); }
+});
+
+app.post('/journal/delete', async (req, res) => {
+  const { email, id } = req.body || {};
+  if (!email || !id) return res.status(400).json({ error: 'ID requis' });
+  if (!supabase) return res.status(500).json({ error: 'db_unavailable' });
+  try {
+    await supabase.from('journal_entries').delete().eq('email', email.toLowerCase().trim()).eq('id', id);
+    return res.json({ success: true });
+  } catch (e) { return res.status(500).json({ error: e.message }); }
 });
 
 // ══════════════════════════════════════════════════════════════════
 // CRONS
 // ══════════════════════════════════════════════════════════════════
+
 app.get('/cron/morning', async (req, res) => {
   if (req.query.secret !== CRON_SECRET) return res.status(401).json({ error: 'unauthorized' });
   const r = getRituelMatinDuJour();
@@ -842,6 +834,7 @@ app.get('/cron/weekly', async (req, res) => {
 // ══════════════════════════════════════════════════════════════════
 // ADMIN
 // ══════════════════════════════════════════════════════════════════
+
 app.post('/admin/push', async (req, res) => {
   const { pwd, title, message, url } = req.body || {};
   if (pwd !== ADMIN_PWD) return res.status(401).json({ error: 'unauthorized' });
@@ -869,6 +862,7 @@ app.get('/admin/stats', async (req, res) => {
 // ══════════════════════════════════════════════════════════════════
 // SUPPORT
 // ══════════════════════════════════════════════════════════════════
+
 const AUTO_REPLY = "Merci, ta demande a bien été reçue. On te répond sous 24h.";
 
 app.post('/support/send', async (req, res) => {
@@ -957,8 +951,10 @@ app.post('/support/admin/reply', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend v18.0.0 sur port ' + PORT);
+  console.log('🌳 Le Vieux backend v19.1.0 sur port ' + PORT);
   console.log('🎙️  Edge TTS : ✓ (voix ' + EDGE_VOICE + ')');
-  console.log('📿 Contenu structuré : 30 matin + 30 médit + 30 soir + 12 thèmes');
-  console.log('🧠 Mémoire : ✓');
+  console.log('📿 Contenu : 30 matin + 30 médit + 30 soir + 12 thèmes');
+  console.log('📔 Journal : ' + FREE_JOURNAL_LIMIT + ' entrées gratuites');
+  console.log('🎁 Méditation : gratuite');
+  console.log('📖 Conte : gratuit tous les 3 jours');
 });
