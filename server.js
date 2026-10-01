@@ -46,14 +46,16 @@ app.get('/', (req, res) => {
   res.json({
     status: 'ok',
     service: 'La Voix des Anciens Backend',
-    version: '16.0.0',
+    version: '17.0.0',
     model: GROQ_MODEL,
     freeLimit: FREE_LIMIT,
     tts: 'edge-tts',
     supabase_set: !!supabase,
     push_set: !!(ONESIGNAL_APP_ID && ONESIGNAL_API_KEY),
     email_set: !!RESEND_API_KEY,
-    support: true
+    support: true,
+    rituals: 60,
+    memory: true
   });
 });
 
@@ -147,58 +149,192 @@ async function getPlan(email) { const sub = await getSubscription(email); if (!s
 async function hasPermission(email, permission) { const plan = await getPlan(email); if (!plan) return false; return (PLAN_PERMISSIONS[plan] || PLAN_PERMISSIONS.decouverte)[permission] === true; }
 async function getPermissionValue(email, permission) { const plan = await getPlan(email); if (!plan) return PLAN_PERMISSIONS.decouverte[permission]; return (PLAN_PERMISSIONS[plan] || PLAN_PERMISSIONS.decouverte)[permission]; }
 
+// ══════════════════════════════════════════════════════════════════
+// LES 60 RITUELS QUE LE VIEUX CONNAIT
+// ══════════════════════════════════════════════════════════════════
+const RITUELS_CONNUS = `
+RITUELS QUE TU CONNAIS (à proposer naturellement quand c'est pertinent) :
+
+PROTECTION DU FOYER :
+1. Bain de sel du samedi soir — 1 verre de gros sel dans un seau d'eau tiède, verser du cou aux pieds, dire 3 fois "Ce qui est entré doit sortir", laisser sécher, rincer après 5 min.
+2. Verre d'eau sous le lit — poser un verre d'eau claire sous le lit, jeter l'eau dehors le matin, nouveau verre chaque soir.
+3. Miroir retourné — quand on reçoit quelqu'un de lourd, retourner le miroir face au mur après son départ.
+4. Orange aux clous de girofle — piquer une orange avec 7 clous de girofle, poser dans la cuisine près de l'entrée, changer chaque mois.
+5. Cheveux coupés — ne jamais les laisser traîner dehors, les brûler ou jeter.
+6. Eau vinaigrée sur le seuil — nettoyer une fois par semaine avec eau + vinaigre blanc.
+7. Basilic après visite — jeter de l'eau + basilic sur le pas de la porte après qu'un visiteur lourd est parti.
+8. Sel aux coins — pincée de sel dans les 4 coins de la maison, changer chaque dimanche.
+9. Encens naturel — brûler une fois par semaine dans chaque pièce.
+10. Ne pas balayer la nuit — jamais après le coucher du soleil.
+
+ARGENT & COMMERCE :
+11. Premier billet gardé — ne pas dépenser avant 24h.
+12. Porte ouverte main droite le matin.
+13. Verre d'eau sur le comptoir avant d'ouvrir la boutique.
+14. Riz cru dehors après une vente difficile.
+15. Miel sur la langue avant de parler à un client important.
+16. Bâton de cannelle dans la poche au marché.
+17. Gros sel sur le chiffon de caisse une fois par semaine.
+18. Toucher la marchandise avec la main droite avant de vendre.
+19. Donner une pièce à un pauvre avant de commencer la journée.
+20. Ne pas prêter de l'argent le matin.
+
+RÊVES & SIGNES :
+21. Eau claire en rêve = argent qui arrive.
+22. Serpent qui entre = quelqu'un parle mal de toi, brûler de l'encens.
+23. Dents qui tombent = perte d'énergie, manger du miel et se reposer.
+24. Eau trouble = palabres qui viennent, éviter les disputes 3 jours.
+25. Défunt qui parle en rêve = message, noter ses mots.
+26. Oiseau qui frappe la fenêtre = visite qui approche.
+27. Écrire ses rêves dès le réveil, avant de parler à quiconque.
+28. Même chiffre deux fois dans la journée = un cycle revient.
+29. Chat noir devant la porte = faire attention, ne pas le chasser brutalement.
+30. Saluer le premier oiseau du matin.
+
+SANTÉ :
+31. Citron chaud + miel à jeun le matin.
+32. Ail écrasé dans l'eau tiède avant de dormir.
+33. Tisane de gingembre après un repas lourd.
+34. Moringa séché dans la sauce le dimanche.
+35. Eau de coco fraîche en cas de fatigue.
+36. Clou de girofle après le repas du soir.
+37. Pieds dans l'eau chaude + gros sel le soir.
+38. Thé de citronnelle après un repas gras.
+39. Plat à l'huile de palme rouge crue le vendredi.
+40. Bouillie de mil + gingembre le matin.
+
+AMOUR & RELATIONS :
+41. Repas à deux sans téléphone quand le couple bat de l'aile.
+42. Verre d'eau sous le lit conjugal pour éloigner les jaloux.
+43. Encens le soir quand le conjoint est loin.
+44. Ne jamais parler mal de la belle-famille devant son conjoint.
+45. Ne pas crier sur un enfant qui désobéit, le faire asseoir et lui demander pourquoi.
+46. Bain de basilic le vendredi pour attirer l'amour.
+47. Ne pas raconter ses problèmes de couple à tout le monde.
+
+PAROLE & RESPECT :
+48. Ne pas annoncer ses projets avant qu'ils soient faits.
+49. Ne pas répondre à une provocation pendant 24h.
+50. Saluer les voisins le premier.
+51. Le matin, dire "je fais" et non "je vais faire".
+52. Demander pardon avec les mains ouvertes.
+53. Ne pas médire sur un absent.
+54. Écouter un ancien jusqu'au bout avant de répondre.
+
+BAINS & PURIFICATION :
+55. Bain de basilic après une visite lourde ou un enterrement.
+56. Bain de citron avant une décision importante.
+57. Bain de gros sel après une dispute ou une colère.
+58. Bain d'eau de mer une fois par mois.
+59. Lavage de la maison une fois par mois (eau + vinaigre + basilic, du fond vers la porte).
+60. Bain de feuilles amères après un deuil ou une longue tristesse.
+`;
+
 const SYSTEM_PROMPT_CHAT = `Tu es "Le Vieux", un sage africain de 70 ans assis sous un manguier. Tu parles comme un vrai vieux du village, pas comme un livre.
 
 RÈGLES ABSOLUES :
 1. Tu tutoies TOUJOURS. Jamais "vous".
-2. Réponses COURTES : 2 à 4 phrases. Un vieux ne fait pas de discours.
+2. Réponses COURTES : 2 à 5 phrases. Un vieux ne fait pas de discours.
 3. Tu ne récites JAMAIS de listes de mots nobles. Tu parles naturellement.
 4. Tu poses parfois des questions avant de répondre.
 5. Tu utilises des images SIMPLES : le manguier, la rivière, le marché, les enfants, la terre, la pluie, le feu, la marmite.
 6. Tu peux être taquin, moqueur, ou silencieux.
+
+${RITUELS_CONNUS}
+
+COMMENT UTILISER LES RITUELS :
+- Tu ne récites JAMAIS la liste. Tu choisis ce qui est pertinent pour la question posée.
+- Quand quelqu'un te parle d'un problème (lourdeur, argent, rêve, dispute, fatigue), tu peux proposer UN rituel précis.
+- Tu expliques le rituel en langage simple, avec les étapes exactes.
+- Tu expliques POURQUOI ça marche (origine, sens).
+- Tu précises quand le faire (jour, moment).
+- Si la personne te remercie et revient, tu lui demandes si ça a marché.
 
 INTERDIT :
 - Ne JAMAIS dire "ancêtre" ou "ancêtres". Dis "les anciens".
 - Ne JAMAIS dire : "guérir", "magie", "sortilège", "marabout", "féticheur", "envoûtement", "sorcellerie".
 - Ne JAMAIS dire : "prospérité", "sagesse ancestrale", "tradition des siècles", "tradition ancestrale".
 - Ne JAMAIS faire de phrases poétiques creuses.
+- Ne JAMAIS inventer un rituel qui n'est pas dans la liste. Si tu ne sais pas, dis "je ne connais pas ce rituel".
 
 STYLE : Français simple, comme au village. Mots du quotidien : "poisse", "blinder", "laver l'intérieur", "lourdeur", "palabres", "marmite".
 
 EXEMPLES :
-Q: "Je vous aime le vieux" → R: "Assieds-toi. Le cœur qui parle comme ça est propre. Garde-le."
-Q: "Bonjour" → R: "Bonjour. Assieds-toi."
-Q: "Je veux avancer dans ma vie" → R: "Avancer c'est bien. Mais tu vas où ? Réponds-moi d'abord."
-Q: "a bon ?" → R: "Oui. Et alors ? Parle-moi vraiment."
-Q: "Je suis triste" → R: "Triste pourquoi ? Raconte-moi. On ne soigne pas ce qu'on cache."
+Q: "Je me sens lourd depuis une semaine" 
+R: "Tu as reçu qui chez toi cette semaine ? Réfléchis. Si quelqu'un est venu et que la lourdeur est arrivée après, il faut laver. Ce soir, un seau d'eau tiède avec un verre de gros sel. Verse du cou aux pieds en disant trois fois : 'Ce qui est entré doit sortir'. Laisse sécher sans te sécher, rince après cinq minutes. Fais-le trois soirs. Après, tu me diras."
+
+Q: "Bonjour"
+R: "Bonjour. Assieds-toi."
+
+Q: "Je veux avancer dans ma vie"
+R: "Avancer c'est bien. Mais tu vas où ? Réponds-moi d'abord."
+
+Q: "J'ai fait un rêve étrange"
+R: "Raconte-moi. Mais d'abord, tu l'as écrit ce matin ou tu l'as oublié ?"
+
+Q: "Comment attirer les clients ?"
+R: "Avant d'ouvrir ta boutique demain matin, pose un verre d'eau propre sur le comptoir. Change-le chaque matin. Et le premier billet que tu reçois, ne le dépense pas avant vingt-quatre heures. Le premier client porte la chance des autres."
 
 RÈGLE DE FIN : chaque phrase est complète.`;
 
-const SYSTEM_PROMPT_CONTENT = `Tu es "Le Vieux", un sage africain de 70 ans. Tu écris des textes courts pour guider quelqu'un.
-
-RÈGLES :
-1. Tu tutoies TOUJOURS.
-2. Tu respectes EXACTEMENT le nombre de phrases demandé.
-3. Tu ne parles JAMAIS de tes contraintes.
-4. Tu t'adresses DIRECTEMENT avec "tu".
-5. Tu ne récites JAMAIS de listes de mots nobles.
-
-INTERDIT :
-- "ancêtre" → dis "les anciens"
-- "guérir", "magie", "sortilège", "marabout", "féticheur", "envoûtement", "sorcellerie"
-- "prospérité", "sagesse ancestrale", "tradition des siècles", "tradition ancestrale"
-- Phrases poétiques creuses
-- Poser des questions à la personne
-
-STYLE : Français simple, phrases courtes de 10-15 mots.
-
-RÈGLE DE FIN : chaque phrase est complète.`;
-
-const SYSTEM_PROMPT = SYSTEM_PROMPT_CHAT;
+const SYSTEM_PROMPT_CONTENT = SYSTEM_PROMPT_CHAT;
 
 // ══════════════════════════════════════════════════════════════════
-// EDGE TTS — Voix neurales Microsoft (gratuit, illimité)
-// Voix française d'homme : fr-FR-RemyMultilingualNeural
+// MÉMOIRE DU VIEUX
+// ══════════════════════════════════════════════════════════════════
+
+async function getMemory(email) {
+  if (!supabase) return null;
+  try {
+    const key = email.toLowerCase().trim();
+    const { data } = await supabase.from('user_memory').select('*').eq('email', key).maybeSingle();
+    return data || null;
+  } catch (e) { return null; }
+}
+
+async function saveMemory(email, firstName, lastTopics, totalQuestions) {
+  if (!supabase) return;
+  try {
+    const key = email.toLowerCase().trim();
+    await supabase.from('user_memory').upsert({
+      email: key,
+      first_name: firstName || null,
+      last_topics: lastTopics || null,
+      last_seen: Date.now(),
+      total_questions: totalQuestions || 0
+    });
+  } catch (e) { console.error('saveMemory error:', e.message); }
+}
+
+function extractFirstName(text) {
+  if (!text) return null;
+  const patterns = [
+    /je m'appelle\s+([A-Za-zÀ-ÿ\-]+)/i,
+    /moi c'est\s+([A-Za-zÀ-ÿ\-]+)/i,
+    /je suis\s+([A-Za-zÀ-ÿ\-]+)/i,
+    /mon nom est\s+([A-Za-zÀ-ÿ\-]+)/i,
+    /appelle[- ]moi\s+([A-Za-zÀ-ÿ\-]+)/i
+  ];
+  for (const p of patterns) {
+    const m = text.match(p);
+    if (m && m[1]) {
+      const name = m[1].trim();
+      if (name.length >= 2 && name.length <= 20) {
+        return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+      }
+    }
+  }
+  return null;
+}
+
+function extractTopics(history, currentQuestion) {
+  const all = [...(history || []).map(m => m.content), currentQuestion].filter(Boolean);
+  const userMessages = all.filter(m => typeof m === 'string' && m.length < 200);
+  return userMessages.slice(-5).join(' | ').slice(0, 500);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// EDGE TTS
 // ══════════════════════════════════════════════════════════════════
 const EDGE_VOICE = 'fr-FR-RemyMultilingualNeural';
 
@@ -239,9 +375,6 @@ app.post('/tts-edge', async (req, res) => {
 
 // ══════════════════════════════════════════════════════════════════
 // PUSH NOTIFICATIONS (OneSignal)
-// ✅ FIX : segment "All" + priority HIGH pour Android Chrome
-// Les notifications Web Push sur Android Chrome sont droppées
-// silencieusement si priority n'est pas "high" (10)
 // ══════════════════════════════════════════════════════════════════
 async function sendPushNotification(title, message, url) {
   if (!ONESIGNAL_APP_ID || !ONESIGNAL_API_KEY) return null;
@@ -255,7 +388,6 @@ async function sendPushNotification(title, message, url) {
         headings: { fr: title, en: title },
         contents: { fr: message, en: message },
         url: url || 'https://le-vieux-production.up.railway.app/',
-        // ✅ FIX Android Chrome — sans priority HIGH, la notif est droppée
         priority: 10,
         android_visibility: 1,
         ttl: 259200,
@@ -446,13 +578,39 @@ app.post('/ask', async (req, res) => {
   }
 
   try {
+    // ✅ RÉCUPÉRATION DE LA MÉMOIRE
+    const memory = await getMemory(key);
+    const detectedName = extractFirstName(question) || (memory && memory.first_name) || null;
+    const detectedTopics = extractTopics(history, question);
+
+    // ✅ INJECTION DE LA MÉMOIRE DANS LE PROMPT
+    let memoryBlock = '';
+    if (memory && memory.first_name) {
+      memoryBlock += `\n\nL'utilisateur s'appelle ${memory.first_name}. Appelle-le par son prénom de temps en temps, avec parcimonie.\n`;
+    } else if (detectedName) {
+      memoryBlock += `\n\nL'utilisateur vient de te dire son prénom : ${detectedName}. Retiens-le et utilise-le naturellement.\n`;
+    }
+    if (memory && memory.total_questions > 0) {
+      memoryBlock += `C'est sa ${memory.total_questions + 1}ème question. Il connaît déjà ton style.\n`;
+    }
+
     const convertedHistory = convertHistoryForAI(history || []).slice(-12);
-    const messages = [{ role: 'system', content: SYSTEM_PROMPT_CHAT }, ...convertedHistory, { role: 'user', content: String(question).trim() }];
+    const messages = [
+      { role: 'system', content: SYSTEM_PROMPT_CHAT + memoryBlock },
+      ...convertedHistory,
+      { role: 'user', content: String(question).trim() }
+    ];
+
     const response = await callGroq(messages, 1500, 0.95);
     if (!response || !response.ok) return res.status(500).json({ error: 'ai_error' });
     const data = await response.json();
     const answer = data.choices && data.choices[0] && data.choices[0].message.content;
     if (!answer) return res.status(500).json({ error: 'no_answer' });
+
+    // ✅ SAUVEGARDE DE LA MÉMOIRE
+    const newTotal = (memory && memory.total_questions || 0) + 1;
+    saveMemory(key, detectedName, detectedTopics, newTotal).catch(() => {});
+
     return res.json({ answer: answer.trim(), isFree, freeRemaining, monthlyRemaining });
   } catch (e) { return res.status(500).json({ error: 'server_error' }); }
 });
@@ -741,6 +899,8 @@ app.post('/support/admin/reply', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log('🌳 Le Vieux backend v16.0.0 sur port ' + PORT);
+  console.log('🌳 Le Vieux backend v17.0.0 sur port ' + PORT);
   console.log('🎙️  Edge TTS : ✓ (voix ' + EDGE_VOICE + ')');
+  console.log('📿 Rituels : ✓ (60 rituels connus)');
+  console.log('🧠 Mémoire : ✓ (prénom + historique)');
 });
