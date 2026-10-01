@@ -14,7 +14,6 @@
 <meta name="application-name" content="L'Ancien">
 <title>La Voix des Anciens</title>
 
-<!-- ✅ Préchargement Chariow (accélère l'ouverture du checkout) -->
 <link rel="dns-prefetch" href="https://ton-eveil-maintenant.mychariow.shop">
 <link rel="preconnect" href="https://ton-eveil-maintenant.mychariow.shop" crossorigin>
 
@@ -378,17 +377,25 @@
     .plan-card ul li.excluded { opacity: 0.35; }
     .plan-card ul li.excluded::before { content: '✕'; color: var(--ink-faint); }
 
-    /* ✅ Logos de paiement */
+    /* ✅ Badges paiement colorés */
     .payment-logos {
-        display: flex; gap: 0.5rem; justify-content: center; align-items: center;
-        margin: 0.8rem 0 0.6rem; flex-wrap: wrap;
+        display: flex; gap: 0.4rem; justify-content: center; align-items: center;
+        margin: 0.9rem 0 0.7rem; flex-wrap: wrap;
     }
     .payment-logos-label {
         font-size: 0.65rem; color: var(--ink-faint);
-        width: 100%; text-align: center; margin-bottom: 0.2rem;
+        width: 100%; text-align: center; margin-bottom: 0.35rem;
+        letter-spacing: 0.04em;
     }
-    .payment-logos img { height: 20px; opacity: 0.85; }
-    .payment-logos img:hover { opacity: 1; }
+    .pay-badge {
+        font-size: 0.65rem;
+        font-weight: 700;
+        padding: 0.32rem 0.6rem;
+        border-radius: 6px;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
 
     .profile-avatar {
         width: 90px; height: 90px; border-radius: 50%;
@@ -717,14 +724,13 @@
                     <li class="excluded">Défi 7 jours</li>
                     <li class="excluded">Journal</li>
                 </ul>
-                <!-- ✅ Logos paiement -->
                 <div class="payment-logos">
                     <span class="payment-logos-label">💳 Paiement sécurisé</span>
-                    <img src="https://cdn.simpleicons.org/orange/FF7900" alt="Orange Money" loading="lazy">
-                    <img src="https://cdn.simpleicons.org/mtn/FFCC00" alt="MTN" loading="lazy">
-                    <img src="https://cdn.simpleicons.org/wave/1DC3F3" alt="Wave" loading="lazy">
-                    <img src="https://cdn.simpleicons.org/visa/1A1F71" alt="Visa" loading="lazy">
-                    <img src="https://cdn.simpleicons.org/mastercard/EB001B" alt="Mastercard" loading="lazy">
+                    <span class="pay-badge" style="background:#FF7900; color:#fff;">Orange Money</span>
+                    <span class="pay-badge" style="background:#FFCC00; color:#000;">MTN MoMo</span>
+                    <span class="pay-badge" style="background:#1DC3F3; color:#fff;">Wave</span>
+                    <span class="pay-badge" style="background:#0054A6; color:#fff;">Visa</span>
+                    <span class="pay-badge" style="background:#EB001B; color:#fff;">Mastercard</span>
                 </div>
                 <button class="btn btn-secondary" style="width:100%;" onclick="openChariow(1)">Choisir Découverte</button>
             </div>
@@ -744,11 +750,11 @@
                 </ul>
                 <div class="payment-logos">
                     <span class="payment-logos-label">💳 Paiement sécurisé</span>
-                    <img src="https://cdn.simpleicons.org/orange/FF7900" alt="Orange Money" loading="lazy">
-                    <img src="https://cdn.simpleicons.org/mtn/FFCC00" alt="MTN" loading="lazy">
-                    <img src="https://cdn.simpleicons.org/wave/1DC3F3" alt="Wave" loading="lazy">
-                    <img src="https://cdn.simpleicons.org/visa/1A1F71" alt="Visa" loading="lazy">
-                    <img src="https://cdn.simpleicons.org/mastercard/EB001B" alt="Mastercard" loading="lazy">
+                    <span class="pay-badge" style="background:#FF7900; color:#fff;">Orange Money</span>
+                    <span class="pay-badge" style="background:#FFCC00; color:#000;">MTN MoMo</span>
+                    <span class="pay-badge" style="background:#1DC3F3; color:#fff;">Wave</span>
+                    <span class="pay-badge" style="background:#0054A6; color:#fff;">Visa</span>
+                    <span class="pay-badge" style="background:#EB001B; color:#fff;">Mastercard</span>
                 </div>
                 <button class="btn btn-primary" style="width:100%;" onclick="openChariow(2)"><span>Choisir Sage</span></button>
             </div>
@@ -765,11 +771,11 @@
                 </ul>
                 <div class="payment-logos">
                     <span class="payment-logos-label">💳 Paiement sécurisé</span>
-                    <img src="https://cdn.simpleicons.org/orange/FF7900" alt="Orange Money" loading="lazy">
-                    <img src="https://cdn.simpleicons.org/mtn/FFCC00" alt="MTN" loading="lazy">
-                    <img src="https://cdn.simpleicons.org/wave/1DC3F3" alt="Wave" loading="lazy">
-                    <img src="https://cdn.simpleicons.org/visa/1A1F71" alt="Visa" loading="lazy">
-                    <img src="https://cdn.simpleicons.org/mastercard/EB001B" alt="Mastercard" loading="lazy">
+                    <span class="pay-badge" style="background:#FF7900; color:#fff;">Orange Money</span>
+                    <span class="pay-badge" style="background:#FFCC00; color:#000;">MTN MoMo</span>
+                    <span class="pay-badge" style="background:#1DC3F3; color:#fff;">Wave</span>
+                    <span class="pay-badge" style="background:#0054A6; color:#fff;">Visa</span>
+                    <span class="pay-badge" style="background:#EB001B; color:#fff;">Mastercard</span>
                 </div>
                 <button class="btn btn-secondary" style="width:100%;" onclick="openChariow(3)">Choisir Guide</button>
             </div>
@@ -1339,7 +1345,6 @@ function showScreen(name) {
     if (profileBtn) profileBtn.classList.toggle('active', name === 'profile');
     state.currentScreen = name;
 
-    // ✅ Préchargement des liens Chariow quand on ouvre l'écran S'abonner
     if (name === 'subscribe') {
         [1, 2, 3].forEach(plan => {
             const link = document.createElement('link');
