@@ -13,6 +13,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="application-name" content="L'Ancien">
 <title>La Voix des Anciens</title>
+
+<!-- ✅ Préchargement Chariow (accélère l'ouverture du checkout) -->
+<link rel="dns-prefetch" href="https://ton-eveil-maintenant.mychariow.shop">
+<link rel="preconnect" href="https://ton-eveil-maintenant.mychariow.shop" crossorigin>
+
 <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
 <script>
   window.OneSignalDeferred = window.OneSignalDeferred || [];
@@ -373,6 +378,18 @@
     .plan-card ul li.excluded { opacity: 0.35; }
     .plan-card ul li.excluded::before { content: '✕'; color: var(--ink-faint); }
 
+    /* ✅ Logos de paiement */
+    .payment-logos {
+        display: flex; gap: 0.5rem; justify-content: center; align-items: center;
+        margin: 0.8rem 0 0.6rem; flex-wrap: wrap;
+    }
+    .payment-logos-label {
+        font-size: 0.65rem; color: var(--ink-faint);
+        width: 100%; text-align: center; margin-bottom: 0.2rem;
+    }
+    .payment-logos img { height: 20px; opacity: 0.85; }
+    .payment-logos img:hover { opacity: 1; }
+
     .profile-avatar {
         width: 90px; height: 90px; border-radius: 50%;
         background: linear-gradient(135deg, var(--panel-2), var(--panel-3));
@@ -685,6 +702,7 @@
         <div class="screen-content">
             <h2 style="text-align:center; font-size:1.4rem; font-weight:600; margin-bottom:0.3rem;">Choisis ton chemin</h2>
             <p style="text-align:center; color:var(--ink-dim); font-size:0.85rem; margin-bottom:1.5rem;">Accède à la sagesse ancestrale complète</p>
+
             <div class="plan-card">
                 <h3>Découverte</h3>
                 <div class="plan-price">5 000 <small>FCFA / mois</small></div>
@@ -699,8 +717,18 @@
                     <li class="excluded">Défi 7 jours</li>
                     <li class="excluded">Journal</li>
                 </ul>
+                <!-- ✅ Logos paiement -->
+                <div class="payment-logos">
+                    <span class="payment-logos-label">💳 Paiement sécurisé</span>
+                    <img src="https://cdn.simpleicons.org/orange/FF7900" alt="Orange Money" loading="lazy">
+                    <img src="https://cdn.simpleicons.org/mtn/FFCC00" alt="MTN" loading="lazy">
+                    <img src="https://cdn.simpleicons.org/wave/1DC3F3" alt="Wave" loading="lazy">
+                    <img src="https://cdn.simpleicons.org/visa/1A1F71" alt="Visa" loading="lazy">
+                    <img src="https://cdn.simpleicons.org/mastercard/EB001B" alt="Mastercard" loading="lazy">
+                </div>
                 <button class="btn btn-secondary" style="width:100%;" onclick="openChariow(1)">Choisir Découverte</button>
             </div>
+
             <div class="plan-card popular">
                 <div class="popular-badge">Populaire</div>
                 <h3>Sage</h3>
@@ -714,8 +742,17 @@
                     <li>Journal personnel</li>
                     <li>1 conte / jour</li>
                 </ul>
+                <div class="payment-logos">
+                    <span class="payment-logos-label">💳 Paiement sécurisé</span>
+                    <img src="https://cdn.simpleicons.org/orange/FF7900" alt="Orange Money" loading="lazy">
+                    <img src="https://cdn.simpleicons.org/mtn/FFCC00" alt="MTN" loading="lazy">
+                    <img src="https://cdn.simpleicons.org/wave/1DC3F3" alt="Wave" loading="lazy">
+                    <img src="https://cdn.simpleicons.org/visa/1A1F71" alt="Visa" loading="lazy">
+                    <img src="https://cdn.simpleicons.org/mastercard/EB001B" alt="Mastercard" loading="lazy">
+                </div>
                 <button class="btn btn-primary" style="width:100%;" onclick="openChariow(2)"><span>Choisir Sage</span></button>
             </div>
+
             <div class="plan-card">
                 <h3>Guide</h3>
                 <div class="plan-price">15 000 <small>FCFA / mois</small></div>
@@ -726,6 +763,14 @@
                     <li><strong>Archives complètes</strong></li>
                     <li><strong>Défi sur mesure</strong></li>
                 </ul>
+                <div class="payment-logos">
+                    <span class="payment-logos-label">💳 Paiement sécurisé</span>
+                    <img src="https://cdn.simpleicons.org/orange/FF7900" alt="Orange Money" loading="lazy">
+                    <img src="https://cdn.simpleicons.org/mtn/FFCC00" alt="MTN" loading="lazy">
+                    <img src="https://cdn.simpleicons.org/wave/1DC3F3" alt="Wave" loading="lazy">
+                    <img src="https://cdn.simpleicons.org/visa/1A1F71" alt="Visa" loading="lazy">
+                    <img src="https://cdn.simpleicons.org/mastercard/EB001B" alt="Mastercard" loading="lazy">
+                </div>
                 <button class="btn btn-secondary" style="width:100%;" onclick="openChariow(3)">Choisir Guide</button>
             </div>
         </div>
@@ -817,7 +862,6 @@ function preloadImages() {
     });
 }
 
-// ✅ FIX apostrophes : suppression
 function cleanTextForSpeech(text) {
     if (!text) return '';
     let c = String(text);
@@ -864,7 +908,6 @@ function splitIntoPhrases(text) {
 
 const ttsCache = new Map();
 
-// ✅ FIX apostrophes (sécurité)
 async function fetchTTSBlob(text) {
     const safeText = String(text || '')
         .replace(/[''`´]/g, '')
@@ -1295,6 +1338,17 @@ function showScreen(name) {
     const profileBtn = document.getElementById('profile-btn');
     if (profileBtn) profileBtn.classList.toggle('active', name === 'profile');
     state.currentScreen = name;
+
+    // ✅ Préchargement des liens Chariow quand on ouvre l'écran S'abonner
+    if (name === 'subscribe') {
+        [1, 2, 3].forEach(plan => {
+            const link = document.createElement('link');
+            link.rel = 'prefetch';
+            link.href = CHARIOW_LINKS[plan];
+            document.head.appendChild(link);
+        });
+    }
+
     loadContentForScreen(name);
 }
 
@@ -1305,7 +1359,6 @@ function toggleProfile() {
 
 async function loadContentForScreen(name) {
     if (!state.email) return;
-    // ✅ Badge : marquer "Aujourd'hui" comme vu quand on ouvre cet écran
     if (name === 'today') {
         markTodayAsSeen();
     }
@@ -1658,7 +1711,6 @@ async function refreshMe() {
         updateArchivesButtons();
         preloadAll();
         checkSupportUnread();
-        // ✅ Badge : vérifier le contenu non lu
         checkForNewContent();
     } catch (e) {}
 }
@@ -2111,8 +2163,6 @@ async function sendAdminReply() {
 
 // ══════════════════════════════════════════════════════════════════
 // BADGE SUR L'ICÔNE (PWA)
-// Affiche un chiffre rouge sur l'icône de l'app quand il y a du nouveau
-// Supporté sur Android Chrome + Windows + macOS Safari 16+
 // ══════════════════════════════════════════════════════════════════
 
 function supportsBadge() {
@@ -2237,9 +2287,7 @@ async function init() {
     if (state.email) {
         startSupportPolling();
         checkSupportUnread();
-        // ✅ Badge : vérifier au démarrage
         setTimeout(() => checkForNewContent(), 2000);
-        // ✅ Badge : vérifier toutes les heures
         setInterval(checkForNewContent, 60 * 60 * 1000);
     }
 }
