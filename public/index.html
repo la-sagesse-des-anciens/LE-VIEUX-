@@ -149,6 +149,39 @@
     .card .text { font-size: 0.92rem; line-height: 1.65; color: var(--ink); word-wrap: break-word; }
     .card .text strong { color: var(--accent-bright); font-weight: 600; }
 
+    /* ✅ Compteur de rituel */
+    .ritual-counter {
+        display: inline-flex; align-items: center; gap: 0.3rem;
+        font-size: 0.68rem; color: var(--accent);
+        padding: 0.3rem 0.7rem; background: var(--accent-soft);
+        border-radius: 20px; font-weight: 600;
+        letter-spacing: 0.03em;
+        margin-bottom: 0.6rem;
+    }
+
+    /* ✅ Titre du rituel */
+    .ritual-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: var(--ink);
+        line-height: 1.3;
+        margin-bottom: 0.5rem;
+    }
+
+    /* ✅ Thème (badge) */
+    .ritual-theme {
+        display: inline-block;
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--accent);
+        background: var(--accent-soft);
+        padding: 0.2rem 0.6rem;
+        border-radius: 12px;
+        margin-bottom: 0.8rem;
+    }
+
     .countdown {
         display: inline-flex; align-items: center; gap: 0.3rem;
         font-size: 0.68rem; color: var(--ink-faint);
@@ -377,7 +410,6 @@
     .plan-card ul li.excluded { opacity: 0.35; }
     .plan-card ul li.excluded::before { content: '✕'; color: var(--ink-faint); }
 
-    /* ✅ Badges paiement colorés */
     .payment-logos {
         display: flex; gap: 0.4rem; justify-content: center; align-items: center;
         margin: 0.9rem 0 0.7rem; flex-wrap: wrap;
@@ -1378,165 +1410,247 @@ async function loadContentForScreen(name) {
     if (name === 'support') await loadSupport();
 }
 
-function renderCountdown(type) {
-    type = type || 'daily';
-    if (type === 'weekly') {
-        const now = new Date();
-        const nextMonday = new Date(now);
-        const daysUntilMonday = (8 - now.getDay()) % 7 || 7;
-        nextMonday.setDate(now.getDate() + daysUntilMonday);
-        nextMonday.setHours(0, 0, 0, 0);
-        const diff = nextMonday - now;
-        const d = Math.floor(diff / 86400000);
-        const h = Math.floor((diff % 86400000) / 3600000);
-        return '<div class="countdown">⏱️ Nouveau dans <strong>' + d + 'j ' + h + 'h</strong> (1 par semaine)</div>';
-    }
-    const now = new Date();
-    const tomorrow = new Date(now);
-    tomorrow.setHours(24, 0, 0, 0);
-    const diff = tomorrow - now;
-    const h = Math.floor(diff / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    return '<div class="countdown">⏱️ Nouveau contenu dans <strong>' + h + 'h ' + m + 'min</strong></div>';
-}
-
-function renderContent(icon, title, content, countdownType) {
-    return '<div class="card-header">' + icon + '<h2>' + title + '</h2></div>' +
-        '<div class="text">' + formatMarkdown(content) + '</div>' +
-        '<button class="audio-btn" onclick="toggleAudio(this)" data-text="' + esc(content).replace(/"/g, '&quot;') + '">' +
-            '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter</button>' +
-        (countdownType !== false ? renderCountdown(countdownType || 'daily') : '');
-}
-
-function renderContentWithTeaser(icon, title, content, teaser, countdownType) {
-    return '<div class="card-header">' + icon + '<h2>' + title + '</h2></div>' +
-        '<div style="position:relative;"><div class="teaser-content"><div class="text">' + formatMarkdown(teaser) + '</div></div><div class="teaser-fade"></div></div>' +
-        '<div class="paywall-box"><div class="paywall-lock">🔒</div>' +
-        '<div class="paywall-title">Réservé aux abonnés</div>' +
-        '<div class="paywall-text">Abonne-toi pour lire la suite.</div>' +
-        '<button class="btn btn-primary" style="width:100%;" onclick="showScreen(\'subscribe\')"><span>Voir les offres</span></button></div>' +
-        renderCountdown(countdownType || 'daily');
-}
-
-async function preloadAll() {
-    if (!state.email || !state.me) return;
-    fetch(BACKEND_URL + '/preload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: state.email }) }).catch(() => {});
-    ['morning', 'meditation', 'evening'].forEach(type => {
-        fetch(BACKEND_URL + '/daily', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: state.email, type }) })
-            .then(r => r.json()).then(d => { if (d.content) state.preloaded[type] = d; }).catch(() => {});
-    });
-    fetch(BACKEND_URL + '/teaching', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: state.email }) })
-        .then(r => r.json()).then(d => { if (d.content) state.preloaded.teaching = d; }).catch(() => {});
-    fetch(BACKEND_URL + '/challenge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: state.email }) })
-        .then(r => r.json()).then(d => { if (d.content) state.preloaded.challenge = d; }).catch(() => {});
-    fetch(BACKEND_URL + '/library', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: state.email }) })
-        .then(r => r.json()).then(d => { if (d.content) state.preloaded.library = d; }).catch(() => {});
-}
-
+// ✅ NOUVELLE FONCTION — charge /today et affiche les rituels formatés
 async function loadToday() {
-    const icons = {
-        morning: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>',
-        meditation: '<svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
-        evening: '<svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>'
-    };
-    document.getElementById('card-morning').innerHTML = '<div class="loading-block"><span class="spinner"></span>Chargement…</div>';
-    document.getElementById('card-meditation').innerHTML = '<div class="loading-block"><span class="spinner"></span>Chargement…</div>';
-    document.getElementById('card-evening').innerHTML = '<div class="loading-block"><span class="spinner"></span>Chargement…</div>';
-    await Promise.all([
-        loadDailyCard('card-morning', 'morning', 'Signe du matin', icons.morning),
-        loadDailyCard('card-meditation', 'meditation', 'Méditation du matin', icons.meditation),
-        loadDailyCard('card-evening', 'evening', 'Rituel du soir', icons.evening)
-    ]);
-}
+    const cardMorning = document.getElementById('card-morning');
+    const cardMeditation = document.getElementById('card-meditation');
+    const cardEvening = document.getElementById('card-evening');
 
-async function loadDailyCard(cardId, type, title, icon) {
-    const card = document.getElementById(cardId);
-    const isFree = !state.me || !state.me.subscribed;
-    if (isFree && type === 'evening') {
-        card.innerHTML = '<div class="card-header">' + icon + '<h2>' + title + '</h2></div>' +
-            '<div class="paywall-box"><div class="paywall-lock">🔒</div><div class="paywall-title">Réservé aux abonnés</div><div class="paywall-text">Abonne-toi pour accéder au rituel du soir.</div><button class="btn btn-primary" style="width:100%;" onclick="showScreen(\'subscribe\')"><span>Voir les offres</span></button></div>' + renderCountdown('daily');
-        return;
-    }
-    const pre = state.preloaded[type];
-    if (pre && pre.content) {
-        if (pre.isTeaser && pre.teaser) card.innerHTML = renderContentWithTeaser(icon, title, pre.content, pre.teaser);
-        else card.innerHTML = renderContent(icon, title, pre.content);
-        return;
-    }
-    card.innerHTML = '<div class="card-header">' + icon + '<h2>' + title + '</h2></div><div class="loading-block"><span class="spinner"></span>Chargement…</div>';
+    cardMorning.innerHTML = '<div class="loading-block"><span class="spinner"></span>Chargement…</div>';
+    cardMeditation.innerHTML = '<div class="loading-block"><span class="spinner"></span>Chargement…</div>';
+    cardEvening.innerHTML = '<div class="loading-block"><span class="spinner"></span>Chargement…</div>';
+
     try {
-        const res = await fetch(BACKEND_URL + '/daily', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: state.email, type }) });
+        const res = await fetch(BACKEND_URL + '/today', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: state.email })
+        });
         const data = await res.json();
-        if (data.isTeaser && data.teaser) { card.innerHTML = renderContentWithTeaser(icon, title, data.content, data.teaser); return; }
-        if (data.content) { card.innerHTML = renderContent(icon, title, data.content); return; }
-        card.innerHTML = '<div class="card-header">' + icon + '<h2>' + title + '</h2></div>' +
-            '<div class="paywall-box"><div class="paywall-lock">🔒</div><div class="paywall-title">' + (res.status === 402 ? 'Réservé aux abonnés' : 'Indisponible') + '</div><button class="btn btn-primary" style="width:100%; margin-top:0.5rem;" onclick="showScreen(\'subscribe\')"><span>Voir les offres</span></button></div>' + renderCountdown('daily');
-    } catch (e) { card.innerHTML = '<div class="loading-block">Erreur de connexion.</div>'; }
+
+        // Morning
+        if (data.morning) {
+            const dayNum = (data.dayIndex || 0) + 1;
+            cardMorning.innerHTML =
+                '<div class="card-header">' +
+                    '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>' +
+                    '<h2>Signe du matin</h2>' +
+                '</div>' +
+                '<div class="ritual-counter">📿 Rituel n°' + dayNum + '</div>' +
+                '<div class="ritual-title">' + esc(data.morning.titre) + '</div>' +
+                (data.morning.theme ? '<div class="ritual-theme">' + esc(data.morning.theme) + '</div>' : '') +
+                '<div class="text">' + formatMarkdown(data.morning.texte) + '</div>' +
+                '<button class="audio-btn" onclick="toggleAudio(this)" data-text="' + esc(data.morning.titre + '. ' + data.morning.texte).replace(/"/g, '&quot;') + '">' +
+                    '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter' +
+                '</button>';
+        }
+
+        // Meditation
+        if (data.meditation) {
+            if (data.meditation.locked) {
+                cardMeditation.innerHTML =
+                    '<div class="card-header">' +
+                        '<svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>' +
+                        '<h2>Méditation du matin</h2>' +
+                    '</div>' +
+                    '<div class="paywall-box">' +
+                        '<div class="paywall-lock">🔒</div>' +
+                        '<div class="paywall-title">Réservé aux abonnés</div>' +
+                        '<div class="paywall-text">Abonne-toi pour accéder à la méditation complète.</div>' +
+                        '<button class="btn btn-primary" style="width:100%;" onclick="showScreen(\'subscribe\')"><span>Voir les offres</span></button>' +
+                    '</div>';
+            } else {
+                cardMeditation.innerHTML =
+                    '<div class="card-header">' +
+                        '<svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>' +
+                        '<h2>Méditation du matin</h2>' +
+                    '</div>' +
+                    '<div class="ritual-title">' + esc(data.meditation.titre) + '</div>' +
+                    '<div class="text">' + formatMarkdown(data.meditation.texte) + '</div>' +
+                    '<button class="audio-btn" onclick="toggleAudio(this)" data-text="' + esc(data.meditation.titre + '. ' + data.meditation.texte).replace(/"/g, '&quot;') + '">' +
+                        '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter' +
+                    '</button>';
+            }
+        }
+
+        // Evening
+        if (data.evening) {
+            if (data.evening.locked) {
+                cardEvening.innerHTML =
+                    '<div class="card-header">' +
+                        '<svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>' +
+                        '<h2>Rituel du soir</h2>' +
+                    '</div>' +
+                    '<div class="paywall-box">' +
+                        '<div class="paywall-lock">🔒</div>' +
+                        '<div class="paywall-title">Réservé aux abonnés</div>' +
+                        '<div class="paywall-text">Abonne-toi pour accéder au rituel du soir.</div>' +
+                        '<button class="btn btn-primary" style="width:100%;" onclick="showScreen(\'subscribe\')"><span>Voir les offres</span></button>' +
+                    '</div>';
+            } else {
+                cardEvening.innerHTML =
+                    '<div class="card-header">' +
+                        '<svg viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>' +
+                        '<h2>Rituel du soir</h2>' +
+                    '</div>' +
+                    '<div class="ritual-title">' + esc(data.evening.titre) + '</div>' +
+                    (data.evening.theme ? '<div class="ritual-theme">' + esc(data.evening.theme) + '</div>' : '') +
+                    '<div class="text">' + formatMarkdown(data.evening.texte) + '</div>' +
+                    '<button class="audio-btn" onclick="toggleAudio(this)" data-text="' + esc(data.evening.titre + '. ' + data.evening.texte).replace(/"/g, '&quot;') + '">' +
+                        '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter' +
+                    '</button>';
+            }
+        }
+
+    } catch (e) {
+        console.error('Erreur loadToday:', e);
+        cardMorning.innerHTML = '<div class="loading-block">Erreur de connexion.</div>';
+        cardMeditation.innerHTML = '<div class="loading-block">Erreur de connexion.</div>';
+        cardEvening.innerHTML = '<div class="loading-block">Erreur de connexion.</div>';
+    }
 }
 
+// ✅ NOUVELLE FONCTION — charge /teaching-v2
 async function loadTeaching() {
     const loading = document.getElementById('teaching-loading');
     const content = document.getElementById('teaching-content');
-    const icon = '<svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>';
-    const isFree = !state.me || !state.me.subscribed;
-    if (isFree) {
-        const pre = state.preloaded.teaching;
-        if (pre && pre.teaser) {
-            loading.style.display = 'none'; content.style.display = 'block';
-            content.innerHTML = renderContentWithTeaser(icon, 'Enseignement de la semaine', pre.content, pre.teaser, 'weekly');
-            return;
-        }
-        loading.style.display = 'none'; content.style.display = 'block';
-        content.innerHTML = '<div class="paywall-box"><div class="paywall-lock">🔒</div><div class="paywall-title">Réservé aux abonnés</div><div class="paywall-text">Abonne-toi pour lire l\'enseignement complet.</div><button class="btn btn-primary" style="width:100%;" onclick="showScreen(\'subscribe\')"><span>Voir les offres</span></button></div>' + renderCountdown('weekly');
-        return;
-    }
-    if (state.preloaded.teaching && state.preloaded.teaching.content) {
-        loading.style.display = 'none'; content.style.display = 'block';
-        content.innerHTML = renderContent(icon, 'Enseignement de la semaine', state.preloaded.teaching.content, 'weekly');
-        return;
-    }
-    loading.style.display = 'block'; loading.innerHTML = '<span class="spinner"></span>Chargement…';
+
+    loading.style.display = 'block';
+    loading.innerHTML = '<span class="spinner"></span>Chargement…';
     content.style.display = 'none';
+
     try {
-        const res = await fetch(BACKEND_URL + '/teaching', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: state.email }) });
-        loading.style.display = 'none'; content.style.display = 'block';
+        const res = await fetch(BACKEND_URL + '/teaching-v2', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: state.email })
+        });
         const data = await res.json();
-        if (data.isTeaser && data.teaser) { content.innerHTML = renderContentWithTeaser(icon, 'Enseignement de la semaine', data.content, data.teaser, 'weekly'); return; }
-        if (data.content) content.innerHTML = renderContent(icon, 'Enseignement de la semaine', data.content, 'weekly');
-        else content.innerHTML = '<div class="paywall-box"><div class="paywall-lock">🔒</div><div class="paywall-title">Réservé aux abonnés</div><button class="btn btn-primary" style="width:100%;" onclick="showScreen(\'subscribe\')"><span>Voir les offres</span></button></div>' + renderCountdown('weekly');
-    } catch (e) { loading.style.display = 'none'; content.style.display = 'block'; content.innerHTML = '<div class="loading-block">Erreur.</div>'; }
+
+        loading.style.display = 'none';
+        content.style.display = 'block';
+
+        if (data.locked) {
+            content.innerHTML =
+                '<div class="card-header">' +
+                    '<svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>' +
+                    '<h2>Enseignement de la semaine</h2>' +
+                '</div>' +
+                '<div class="ritual-title">' + esc(data.titre) + '</div>' +
+                '<div class="text" style="opacity:0.7;">' + esc(data.teaser) + '</div>' +
+                '<div class="paywall-box">' +
+                    '<div class="paywall-lock">🔒</div>' +
+                    '<div class="paywall-title">Réservé aux abonnés</div>' +
+                    '<div class="paywall-text">Abonne-toi pour lire l\'enseignement complet avec les ' + (data.gestesCount || 3) + ' gestes de la semaine.</div>' +
+                    '<button class="btn btn-primary" style="width:100%;" onclick="showScreen(\'subscribe\')"><span>Voir les offres</span></button>' +
+                '</div>';
+        } else {
+            const gestesHTML = (data.gestes || []).map((g, i) =>
+                '<li style="padding:0.5rem 0; color:var(--ink); display:flex; gap:0.6rem; align-items:flex-start;">' +
+                    '<span style="color:var(--accent); font-weight:700; min-width:20px;">' + (i+1) + '.</span>' +
+                    '<span>' + esc(g) + '</span>' +
+                '</li>'
+            ).join('');
+
+            content.innerHTML =
+                '<div class="card-header">' +
+                    '<svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>' +
+                    '<h2>Enseignement de la semaine</h2>' +
+                '</div>' +
+                '<div class="ritual-title">' + esc(data.titre) + '</div>' +
+                '<div class="text" style="margin-bottom:1rem;">' + esc(data.intro) + '</div>' +
+                '<div style="font-size:0.72rem; color:var(--ink-dim); font-weight:600; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.6rem;">Les 3 gestes de la semaine</div>' +
+                '<ul style="list-style:none; margin:0 0 1rem 0; padding:0; border-left:2px solid var(--accent); padding-left:1rem;">' + gestesHTML + '</ul>' +
+                '<div style="background:var(--bg-elevated); padding:0.9rem; border-radius:12px; margin-top:1rem;">' +
+                    '<div style="font-size:0.72rem; color:var(--accent); font-weight:600; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.4rem;">🎯 Ton action</div>' +
+                    '<div style="font-size:0.9rem; line-height:1.6;">' + esc(data.action) + '</div>' +
+                '</div>' +
+                '<button class="audio-btn" onclick="toggleAudio(this)" data-text="' + esc(data.titre + '. ' + data.intro + '. Les 3 gestes : ' + (data.gestes || []).join('. ')).replace(/"/g, '&quot;') + '">' +
+                    '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter' +
+                '</button>';
+        }
+
+    } catch (e) {
+        loading.style.display = 'none';
+        content.style.display = 'block';
+        content.innerHTML = '<div class="loading-block">Erreur de connexion.</div>';
+    }
 }
 
+// ✅ NOUVELLE FONCTION — charge /challenge-v2
 async function loadChallenge() {
     const loading = document.getElementById('challenge-loading');
     const content = document.getElementById('challenge-content');
-    const icon = '<svg viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>';
+
     const isFree = !state.me || !state.me.subscribed;
     if (isFree) {
-        loading.style.display = 'none'; content.style.display = 'block';
-        content.innerHTML = '<div class="paywall-box"><div class="paywall-lock">🔒</div><div class="paywall-title">Réservé aux plans Sage et Guide</div><div class="paywall-text">Abonne-toi pour accéder au défi de 7 jours.</div><button class="btn btn-primary" style="width:100%;" onclick="showScreen(\'subscribe\')"><span>Voir les offres</span></button></div>';
+        loading.style.display = 'none';
+        content.style.display = 'block';
+        content.innerHTML =
+            '<div class="paywall-box">' +
+                '<div class="paywall-lock">🔒</div>' +
+                '<div class="paywall-title">Réservé aux plans Sage et Guide</div>' +
+                '<div class="paywall-text">Abonne-toi pour accéder au défi de 7 jours.</div>' +
+                '<button class="btn btn-primary" style="width:100%;" onclick="showScreen(\'subscribe\')"><span>Voir les offres</span></button>' +
+            '</div>';
         return;
     }
-    if (state.preloaded.challenge && state.preloaded.challenge.content) {
-        loading.style.display = 'none'; content.style.display = 'block';
-        content.innerHTML = renderContent(icon, 'Défi de la semaine', state.preloaded.challenge.content, 'weekly');
-        const cc = document.getElementById('custom-challenge-card');
-        if (state.me && state.me.permissions && state.me.permissions.customChallenge) cc.style.display = 'block';
-        return;
-    }
-    loading.style.display = 'block'; loading.innerHTML = '<span class="spinner"></span>Chargement…';
+
+    loading.style.display = 'block';
+    loading.innerHTML = '<span class="spinner"></span>Chargement…';
     content.style.display = 'none';
+
     try {
-        const res = await fetch(BACKEND_URL + '/challenge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: state.email }) });
-        loading.style.display = 'none'; content.style.display = 'block';
+        const res = await fetch(BACKEND_URL + '/challenge-v2', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: state.email })
+        });
+
+        if (!res.ok) {
+            loading.style.display = 'none';
+            content.style.display = 'block';
+            const d = await res.json();
+            content.innerHTML = '<div class="paywall-box"><div class="paywall-lock">🔒</div><div class="paywall-title">' + esc(d.message || 'Réservé') + '</div><button class="btn btn-primary" style="width:100%;" onclick="showScreen(\'subscribe\')"><span>Voir les offres</span></button></div>';
+            return;
+        }
+
         const data = await res.json();
-        if (data.content) content.innerHTML = renderContent(icon, 'Défi de la semaine', data.content, 'weekly');
-        else content.innerHTML = '<div class="paywall-box"><div class="paywall-lock">🔒</div><div class="paywall-title">Réservé aux plans Sage et Guide</div><button class="btn btn-primary" style="width:100%;" onclick="showScreen(\'subscribe\')"><span>Voir les offres</span></button></div>';
+        loading.style.display = 'none';
+        content.style.display = 'block';
+
+        const joursHTML = (data.jours || []).map(j =>
+            '<div style="padding:0.9rem; background:var(--panel-2); border-radius:12px; margin-bottom:0.5rem; border-left:3px solid var(--accent);">' +
+                '<div style="font-size:0.72rem; color:var(--accent); font-weight:700; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.3rem;">JOUR ' + j.jour + '</div>' +
+                '<div style="font-size:1rem; font-weight:600; margin-bottom:0.3rem;">' + esc(j.titre) + '</div>' +
+                '<div style="font-size:0.85rem; color:var(--ink-dim); line-height:1.5;">' + esc(j.texte) + '</div>' +
+            '</div>'
+        ).join('');
+
+        content.innerHTML =
+            '<div class="card-header">' +
+                '<svg viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>' +
+                '<h2>Défi 7 jours</h2>' +
+            '</div>' +
+            '<div class="ritual-title">' + esc(data.titre) + '</div>' +
+            '<div class="text" style="margin-bottom:1rem;">' + esc(data.intro) + '</div>' +
+            joursHTML +
+            '<div style="background:var(--bg-elevated); padding:0.9rem; border-radius:12px; margin-top:1rem;">' +
+                '<div style="font-size:0.72rem; color:var(--accent); font-weight:600; text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.4rem;">🎯 Ton action</div>' +
+                '<div style="font-size:0.9rem; line-height:1.6;">' + esc(data.action) + '</div>' +
+            '</div>';
+
         const cc = document.getElementById('custom-challenge-card');
         if (state.me && state.me.permissions && state.me.permissions.customChallenge) cc.style.display = 'block';
-    } catch (e) { loading.style.display = 'none'; content.style.display = 'block'; content.innerHTML = '<div class="loading-block">Erreur.</div>'; }
+
+    } catch (e) {
+        loading.style.display = 'none';
+        content.style.display = 'block';
+        content.innerHTML = '<div class="loading-block">Erreur de connexion.</div>';
+    }
 }
 
+// /library — inchangé
 async function loadLibrary() {
     const loading = document.getElementById('library-loading');
     const content = document.getElementById('library-content');
@@ -1661,6 +1775,53 @@ function updateFreeCounter() {
         return;
     }
     c.innerHTML = '⚠️ Questions offertes épuisées · <a href="#" onclick="showScreen(\'subscribe\');return false;">S\'abonner</a>';
+}
+
+function renderCountdown(type) {
+    type = type || 'daily';
+    if (type === 'weekly') {
+        const now = new Date();
+        const nextMonday = new Date(now);
+        const daysUntilMonday = (8 - now.getDay()) % 7 || 7;
+        nextMonday.setDate(now.getDate() + daysUntilMonday);
+        nextMonday.setHours(0, 0, 0, 0);
+        const diff = nextMonday - now;
+        const d = Math.floor(diff / 86400000);
+        const h = Math.floor((diff % 86400000) / 3600000);
+        return '<div class="countdown">⏱️ Nouveau dans <strong>' + d + 'j ' + h + 'h</strong> (1 par semaine)</div>';
+    }
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setHours(24, 0, 0, 0);
+    const diff = tomorrow - now;
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    return '<div class="countdown">⏱️ Nouveau contenu dans <strong>' + h + 'h ' + m + 'min</strong></div>';
+}
+
+function renderContent(icon, title, content, countdownType) {
+    return '<div class="card-header">' + icon + '<h2>' + title + '</h2></div>' +
+        '<div class="text">' + formatMarkdown(content) + '</div>' +
+        '<button class="audio-btn" onclick="toggleAudio(this)" data-text="' + esc(content).replace(/"/g, '&quot;') + '">' +
+            '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter</button>' +
+        (countdownType !== false ? renderCountdown(countdownType || 'daily') : '');
+}
+
+function renderContentWithTeaser(icon, title, content, teaser, countdownType) {
+    return '<div class="card-header">' + icon + '<h2>' + title + '</h2></div>' +
+        '<div style="position:relative;"><div class="teaser-content"><div class="text">' + formatMarkdown(teaser) + '</div></div><div class="teaser-fade"></div></div>' +
+        '<div class="paywall-box"><div class="paywall-lock">🔒</div>' +
+        '<div class="paywall-title">Réservé aux abonnés</div>' +
+        '<div class="paywall-text">Abonne-toi pour lire la suite.</div>' +
+        '<button class="btn btn-primary" style="width:100%;" onclick="showScreen(\'subscribe\')"><span>Voir les offres</span></button></div>' +
+        renderCountdown(countdownType || 'daily');
+}
+
+async function preloadAll() {
+    if (!state.email || !state.me) return;
+    fetch(BACKEND_URL + '/preload', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: state.email }) }).catch(() => {});
+    fetch(BACKEND_URL + '/library', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: state.email }) })
+        .then(r => r.json()).then(d => { if (d.content) state.preloaded.library = d; }).catch(() => {});
 }
 
 document.querySelectorAll('.nav-item').forEach(i => i.addEventListener('click', () => showScreen(i.dataset.screen)));
@@ -1853,70 +2014,10 @@ document.getElementById('custom-challenge-btn').addEventListener('click', async 
         const res = await fetch(BACKEND_URL + '/challenge', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: state.email, custom: true, need }) });
         const data = await res.json();
         if (data.content) {
-            const icon = '<svg viewBox="0 0 24 24"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/></svg>';
-            content.innerHTML = renderContent(icon, 'Ton défi sur mesure', data.content, false);
+            content.innerHTML = '<div class="card-header"><h2>Ton défi sur mesure</h2></div><div class="text">' + formatMarkdown(data.content) + '</div>';
         }
     } catch (e) { content.innerHTML = '<div class="loading-block">Erreur.</div>'; }
 });
-
-function formatArchiveTitle(cacheKey) {
-    if (cacheKey.startsWith('teaching_')) return '📖 Enseignement · Semaine ' + cacheKey.replace('teaching_', '');
-    if (cacheKey.startsWith('library_')) return '📚 Conte · ' + cacheKey.replace('library_', '').replace('week_', 'Semaine ');
-    return cacheKey;
-}
-
-document.getElementById('teaching-archives-btn').addEventListener('click', async () => {
-    if (!canAccessArchives()) { showArchivesPaywall('teaching-content', 'teaching'); document.getElementById('teaching-loading').style.display = 'none'; return; }
-    const content = document.getElementById('teaching-content');
-    content.style.display = 'block';
-    content.innerHTML = '<div class="loading-block"><span class="spinner"></span>Chargement des archives…</div>';
-    try {
-        const res = await fetch(BACKEND_URL + '/teaching/archives', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: state.email }) });
-        const data = await res.json();
-        if (data.archives && data.archives.length > 0) {
-            content.innerHTML = '<div class="card-header"><h2>📖 Archives des enseignements</h2></div>' +
-                data.archives.map(a => {
-                    const title = formatArchiveTitle(a.cache_key);
-                    const excerpt = (a.content || '').replace(/\*\*/g, '').replace(/\n/g, ' ').slice(0, 160);
-                    return '<div class="archive-item" onclick="showArchive(this)" data-content="' + esc(a.content || '').replace(/"/g, '&quot;') + '" data-title="' + esc(title) + '">' +
-                        '<div class="arch-title">' + esc(title) + '</div>' +
-                        '<div class="arch-text">' + esc(excerpt) + '...</div></div>';
-                }).join('');
-        } else { content.innerHTML = '<div class="loading-block">Aucune archive pour le moment.</div>'; }
-    } catch (e) { content.innerHTML = '<div class="loading-block">Erreur.</div>'; }
-});
-
-document.getElementById('library-archives-btn').addEventListener('click', async () => {
-    if (!canAccessArchives()) { showArchivesPaywall('library-content', 'library'); document.getElementById('library-loading').style.display = 'none'; return; }
-    const content = document.getElementById('library-content');
-    content.style.display = 'block';
-    content.innerHTML = '<div class="loading-block"><span class="spinner"></span>Chargement des archives…</div>';
-    try {
-        const res = await fetch(BACKEND_URL + '/library/archives', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: state.email }) });
-        const data = await res.json();
-        if (data.archives && data.archives.length > 0) {
-            content.innerHTML = '<div class="card-header"><h2>📚 Archives des contes</h2></div>' +
-                data.archives.map(a => {
-                    const title = formatArchiveTitle(a.cache_key);
-                    const excerpt = (a.content || '').replace(/\*\*/g, '').replace(/\n/g, ' ').slice(0, 160);
-                    return '<div class="archive-item" onclick="showArchive(this)" data-content="' + esc(a.content || '').replace(/"/g, '&quot;') + '" data-title="' + esc(title) + '">' +
-                        '<div class="arch-title">' + esc(title) + '</div>' +
-                        '<div class="arch-text">' + esc(excerpt) + '...</div></div>';
-                }).join('');
-        } else { content.innerHTML = '<div class="loading-block">Aucune archive pour le moment.</div>'; }
-    } catch (e) { content.innerHTML = '<div class="loading-block">Erreur.</div>'; }
-});
-
-window.showArchive = function(el) {
-    const content = el.dataset.content;
-    const title = el.dataset.title || 'Archive';
-    const parent = el.parentNode;
-    parent.innerHTML = '<div class="card-header"><h2>' + esc(title) + '</h2></div>' +
-        '<button class="btn btn-secondary" style="width:100%; margin-bottom:1rem;" onclick="location.reload()">← Retour aux archives</button>' +
-        '<div class="text">' + formatMarkdown(content) + '</div>' +
-        '<button class="audio-btn" onclick="toggleAudio(this)" data-text="' + esc(content).replace(/"/g, '&quot;') + '">' +
-            '<svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>Écouter</button>';
-};
 
 let supportPollingInterval = null;
 
@@ -2035,6 +2136,7 @@ function startSupportPolling() {
 
 document.getElementById('support-send-btn').addEventListener('click', sendSupportMessage);
 
+// ADMIN
 let adminPwd = null;
 let adminCurrentEmail = null;
 let adminPollingInterval = null;
@@ -2167,128 +2269,80 @@ async function sendAdminReply() {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// BADGE SUR L'ICÔNE (PWA)
+// BADGE SUR L'ICÔNE
 // ══════════════════════════════════════════════════════════════════
 
-function supportsBadge() {
-    return 'setAppBadge' in navigator;
-}
-
+function supportsBadge() { return 'setAppBadge' in navigator; }
 function getSeenContent() {
-    try {
-        const raw = localStorage.getItem('levieux_seen_content');
-        return raw ? JSON.parse(raw) : {};
-    } catch (e) { return {}; }
+    try { const raw = localStorage.getItem('levieux_seen_content'); return raw ? JSON.parse(raw) : {}; } catch (e) { return {}; }
 }
-
 function saveSeenContent(obj) {
     try { localStorage.setItem('levieux_seen_content', JSON.stringify(obj)); } catch (e) {}
 }
-
-function todayBadgeKey() {
-    return new Date().toISOString().split('T')[0];
-}
-
+function todayBadgeKey() { return new Date().toISOString().split('T')[0]; }
 function getWeekKey() {
     const d = new Date();
     const dayOfYear = Math.floor((d - new Date(d.getFullYear(), 0, 1)) / 86400000);
-    const week = Math.floor(dayOfYear / 7);
-    return d.getFullYear() + '-W' + week;
+    return d.getFullYear() + '-W' + Math.floor(dayOfYear / 7);
 }
-
 function getAvailableContentKeys() {
     const day = todayBadgeKey();
-    const keys = [];
-    keys.push('morning_' + day);
-    keys.push('meditation_' + day);
-
+    const keys = ['morning_' + day, 'meditation_' + day];
     if (state.me && state.me.subscribed && state.me.permissions && state.me.permissions.evening) {
         keys.push('evening_' + day);
     }
-
-    const isMonday = new Date().getDay() === 1;
-    if (isMonday) {
-        const week = getWeekKey();
-        keys.push('teaching_' + week);
-    }
-
+    if (new Date().getDay() === 1) keys.push('teaching_' + getWeekKey());
     return keys;
 }
-
 function computeUnreadCount() {
     const available = getAvailableContentKeys();
     const seen = getSeenContent();
     return available.filter(k => !seen[k]).length;
 }
-
 async function updateAppBadge() {
     if (!supportsBadge()) return;
     const count = computeUnreadCount();
     try {
-        if (count > 0) {
-            await navigator.setAppBadge(count);
-            console.log('🔴 Badge set:', count);
-        } else {
-            await navigator.clearAppBadge();
-            console.log('⚪ Badge cleared');
-        }
-    } catch (e) {
-        console.warn('Badge error:', e.message);
-    }
+        if (count > 0) await navigator.setAppBadge(count);
+        else await navigator.clearAppBadge();
+    } catch (e) {}
 }
-
 function markContentAsSeen(key) {
     const seen = getSeenContent();
     seen[key] = Date.now();
     const cutoff = Date.now() - (30 * 86400000);
-    Object.keys(seen).forEach(k => {
-        if (seen[k] < cutoff) delete seen[k];
-    });
+    Object.keys(seen).forEach(k => { if (seen[k] < cutoff) delete seen[k]; });
     saveSeenContent(seen);
     updateAppBadge();
 }
-
 function markTodayAsSeen() {
     const day = todayBadgeKey();
-    const week = getWeekKey();
     markContentAsSeen('morning_' + day);
     markContentAsSeen('meditation_' + day);
     if (state.me && state.me.subscribed && state.me.permissions && state.me.permissions.evening) {
         markContentAsSeen('evening_' + day);
     }
-    if (new Date().getDay() === 1) {
-        markContentAsSeen('teaching_' + week);
-    }
+    if (new Date().getDay() === 1) markContentAsSeen('teaching_' + getWeekKey());
     updateAppBadge();
 }
-
 function checkForNewContent() {
     const available = getAvailableContentKeys();
     const seen = getSeenContent();
-    const hasNew = available.some(k => !seen[k]);
-    if (hasNew) updateAppBadge();
+    if (available.some(k => !seen[k])) updateAppBadge();
 }
 
 async function init() {
     preloadImages();
-    try {
-        const saved = localStorage.getItem('levieux_autospeak');
-        state.autoSpeak = saved === null ? true : saved === '1';
-    } catch (e) {}
+    try { const saved = localStorage.getItem('levieux_autospeak'); state.autoSpeak = saved === null ? true : saved === '1'; } catch (e) {}
     updateAutoSpeakBtn();
     initSpeechRecognition();
     try { state.email = localStorage.getItem('levieux_email'); } catch (e) {}
     showScreen('home');
     if (!state.email) document.getElementById('email-modal').classList.add('visible');
-    else {
-        await refreshMe();
-        loadChatHistory();
-    }
+    else { await refreshMe(); loadChatHistory(); }
     updateSendButton();
 
-    if (window.location.search.includes('admin=1')) {
-        setTimeout(openAdmin, 500);
-    }
+    if (window.location.search.includes('admin=1')) setTimeout(openAdmin, 500);
     if (state.email) {
         startSupportPolling();
         checkSupportUnread();
@@ -2299,9 +2353,7 @@ async function init() {
 
 init();
 
-// ══════════════════════════════════════════════════════════════════
-// POPUP POUR ACTIVER LES NOTIFICATIONS
-// ══════════════════════════════════════════════════════════════════
+// NOTIFICATIONS POPUP
 function showNotificationPrompt() {
     if (localStorage.getItem('levieux_notif_prompt_shown') === '1') return;
     try {
@@ -2312,20 +2364,14 @@ function showNotificationPrompt() {
     setTimeout(() => {
         const modal = document.createElement('div');
         modal.id = 'notif-prompt-modal';
-        modal.style.cssText = `position:fixed;inset:0;z-index:4500;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:1rem;animation:fadeIn 0.3s ease;`;
-
-        modal.innerHTML = `
-            <div style="background:var(--panel);border-radius:20px;padding:1.8rem 1.5rem;max-width:400px;width:100%;text-align:center;animation:fadeInUp 0.4s ease;position:relative;">
-                <div style="font-size:2.5rem;margin-bottom:1rem;">🔔</div>
-                <h2 style="font-size:1.15rem;font-weight:700;margin-bottom:0.6rem;color:var(--ink);">Active les notifications</h2>
-                <p style="color:var(--ink-dim);font-size:0.88rem;line-height:1.6;margin-bottom:1.5rem;">
-                    Reçois le <strong style="color:var(--accent);">signe du matin</strong> et le <strong style="color:var(--accent);">rituel du soir</strong>.<br>
-                    Tu peux désactiver à tout moment.
-                </p>
-                <button id="notif-yes" class="btn btn-primary" style="width:100%;margin-bottom:0.6rem;"><span>Activer les notifications</span></button>
-                <button id="notif-later" style="background:transparent;border:none;color:var(--ink-faint);cursor:pointer;font-size:0.82rem;padding:0.6rem;font-family:inherit;width:100%;">Plus tard</button>
-            </div>
-        `;
+        modal.style.cssText = 'position:fixed;inset:0;z-index:4500;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:1rem;';
+        modal.innerHTML = '<div style="background:var(--panel);border-radius:20px;padding:1.8rem 1.5rem;max-width:400px;width:100%;text-align:center;">' +
+            '<div style="font-size:2.5rem;margin-bottom:1rem;">🔔</div>' +
+            '<h2 style="font-size:1.15rem;font-weight:700;margin-bottom:0.6rem;">Active les notifications</h2>' +
+            '<p style="color:var(--ink-dim);font-size:0.88rem;line-height:1.6;margin-bottom:1.5rem;">Reçois le <strong style="color:var(--accent);">rituel du matin</strong> et du <strong style="color:var(--accent);">soir</strong>.</p>' +
+            '<button id="notif-yes" class="btn btn-primary" style="width:100%;margin-bottom:0.6rem;"><span>Activer</span></button>' +
+            '<button id="notif-later" style="background:transparent;border:none;color:var(--ink-faint);cursor:pointer;font-size:0.82rem;padding:0.6rem;width:100%;">Plus tard</button>' +
+        '</div>';
         document.body.appendChild(modal);
 
         document.getElementById('notif-yes').addEventListener('click', async () => {
@@ -2333,10 +2379,8 @@ function showNotificationPrompt() {
             try {
                 if (window.OneSignal && window.OneSignal.Notifications) {
                     await window.OneSignal.Notifications.requestPermission();
-                    if (window.OneSignal.Notifications.permission) showToast('✓ Notifications activées', 'success');
                 } else if ('Notification' in window) {
-                    const perm = await Notification.requestPermission();
-                    if (perm === 'granted') showToast('✓ Notifications activées', 'success');
+                    await Notification.requestPermission();
                 }
             } catch (e) {}
         });
@@ -2344,20 +2388,16 @@ function showNotificationPrompt() {
     }, 1500);
 }
 
-// ══════════════════════════════════════════════════════════════════
 // PWA
-// ══════════════════════════════════════════════════════════════════
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').then(reg => {
-            console.log('✅ SW enregistré:', reg.scope);
-        }).catch(err => console.warn('⚠️ SW échec:', err));
+        navigator.serviceWorker.register('/sw.js').catch(() => {});
     });
 }
 
 function isInAppBrowser() {
     const ua = navigator.userAgent || navigator.vendor || window.opera;
-    return (ua.indexOf('FBAN') > -1 || ua.indexOf('FBAV') > -1 || ua.indexOf('Instagram') > -1 || ua.indexOf('BytedanceWebview') > -1 || ua.indexOf('TikTok') > -1 || ua.indexOf('Twitter') > -1 || ua.indexOf('Line') > -1 || (ua.indexOf('Android') > -1 && ua.indexOf('wv') > -1) || (ua.indexOf('iPhone') > -1 && ua.indexOf('Safari') === -1 && ua.indexOf('CriOS') === -1));
+    return (ua.indexOf('FBAN') > -1 || ua.indexOf('FBAV') > -1 || ua.indexOf('Instagram') > -1 || ua.indexOf('BytedanceWebview') > -1 || ua.indexOf('TikTok') > -1);
 }
 function isIOS() { return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream; }
 function isStandalone() { return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true; }
@@ -2366,70 +2406,28 @@ let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    if (localStorage.getItem('levieux_install_dismissed') !== '1') showInstallBanner();
 });
 
 function handleInstallClick() {
-    if (isStandalone()) { showToast('L\'app est déjà installée ✓', 'success'); return; }
-    if (isInAppBrowser()) { showInAppBrowserGuide(); return; }
+    if (isStandalone()) { showToast('App déjà installée ✓', 'success'); return; }
     if (deferredPrompt) {
         deferredPrompt.prompt();
         deferredPrompt.userChoice.then(({ outcome }) => {
             deferredPrompt = null;
-            hideInstallBanner();
             if (outcome === 'accepted') showToast('✓ Installation lancée', 'success');
         });
         return;
     }
-    if (isIOS()) showIOSGuide();
-    else showAndroidGuide();
+    if (isIOS()) showGuideModal({title:'📱 Installer sur iPhone',steps:['Ouvre dans Safari','Bouton Partager','"Sur l\'écran d\'accueil"','Ajouter']});
+    else showGuideModal({title:'📱 Installer sur Android',steps:['Ouvre dans Chrome','Menu ⋮','"Installer l\'application"','Confirme']});
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    const installBtn = document.getElementById('install-app-btn');
-    const installProfileBtn = document.getElementById('install-profile-btn');
-    if (installBtn) installBtn.addEventListener('click', handleInstallClick);
-    if (installProfileBtn) installProfileBtn.addEventListener('click', handleInstallClick);
+    const b1 = document.getElementById('install-app-btn');
+    const b2 = document.getElementById('install-profile-btn');
+    if (b1) b1.addEventListener('click', handleInstallClick);
+    if (b2) b2.addEventListener('click', handleInstallClick);
 });
-
-function showInstallBanner() {
-    if (isStandalone() || isInAppBrowser()) return;
-    if (localStorage.getItem('levieux_install_dismissed') === '1') return;
-    if (document.getElementById('install-banner')) return;
-
-    const banner = document.createElement('div');
-    banner.id = 'install-banner';
-    banner.style.cssText = `position:fixed;bottom:80px;left:16px;right:16px;background:var(--panel);border:1px solid var(--accent);border-radius:16px;padding:1rem;z-index:1500;display:flex;gap:0.8rem;align-items:center;box-shadow:0 10px 40px rgba(0,0,0,0.5);animation:fadeInUp 0.5s ease;max-width:480px;margin:0 auto;`;
-    banner.innerHTML = `
-        <div style="width:48px;height:48px;border-radius:12px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <svg viewBox="0 0 24 24" style="width:26px;height:26px;stroke:var(--accent);fill:none;stroke-width:1.8;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>
-        </div>
-        <div style="flex:1;min-width:0;">
-            <div style="font-size:0.85rem;font-weight:600;margin-bottom:0.15rem;">Installer l'app</div>
-            <div style="font-size:0.72rem;color:var(--ink-dim);line-height:1.4;">Accès rapide depuis ton écran d'accueil</div>
-        </div>
-        <button id="install-btn" class="btn btn-primary" style="width:auto;padding:0.5rem 0.9rem;font-size:0.8rem;"><span>Installer</span></button>
-        <button id="install-close" style="background:transparent;border:none;color:var(--ink-faint);cursor:pointer;padding:0.3rem;font-size:1.3rem;line-height:1;">×</button>
-    `;
-    document.body.appendChild(banner);
-
-    document.getElementById('install-btn').addEventListener('click', async () => {
-        if (!deferredPrompt) { if (isIOS()) showIOSGuide(); else showAndroidGuide(); return; }
-        deferredPrompt.prompt();
-        const { outcome } = await deferredPrompt.userChoice;
-        deferredPrompt = null;
-        banner.remove();
-    });
-    document.getElementById('install-close').addEventListener('click', () => {
-        banner.remove();
-        try { localStorage.setItem('levieux_install_dismissed', '1'); } catch (e) {}
-    });
-}
-
-function hideInstallBanner() {
-    const banner = document.getElementById('install-banner');
-    if (banner) banner.remove();
-}
 
 function showInstallPromptAfterSignup() {
     if (isStandalone()) return;
@@ -2438,97 +2436,37 @@ function showInstallPromptAfterSignup() {
 
     setTimeout(() => {
         const modal = document.createElement('div');
-        modal.id = 'install-prompt-modal';
-        modal.style.cssText = `position:fixed;inset:0;z-index:4000;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:1rem;animation:fadeIn 0.3s ease;`;
-
-        modal.innerHTML = `
-            <div style="background:var(--panel);border-radius:20px;padding:1.8rem 1.5rem;max-width:400px;width:100%;text-align:center;animation:fadeInUp 0.4s ease;position:relative;">
-                <div style="width:90px;height:90px;border-radius:50%;background:var(--panel-2);border:2px solid var(--accent);overflow:hidden;margin:0 auto 1rem;animation:pulse 3s ease-in-out infinite;">
-                    <img src="https://le-vieux-production.up.railway.app/bg-subscribe.png" alt="" style="width:100%;height:100%;object-fit:cover;object-position:40% 45%;transform:scale(1.3);">
-                </div>
-                <h2 style="font-size:1.15rem;font-weight:700;margin-bottom:0.5rem;color:var(--ink);">Installe l'app sur ton téléphone</h2>
-                <p style="color:var(--ink-dim);font-size:0.85rem;line-height:1.55;margin-bottom:1.5rem;">Accès rapide depuis ton écran d'accueil.<br>Comme une vraie app. Gratuit.</p>
-                <button id="install-prompt-yes" class="btn btn-primary" style="width:100%;margin-bottom:0.6rem;">
-                    <svg viewBox="0 0 24 24" style="width:18px;height:18px;margin-right:0.4rem;stroke:currentColor;fill:none;stroke-width:2;display:inline-block;vertical-align:middle;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>
-                    <span>Installer maintenant</span>
-                </button>
-                <button id="install-prompt-later" style="background:transparent;border:none;color:var(--ink-faint);cursor:pointer;font-size:0.82rem;padding:0.6rem;font-family:inherit;width:100%;">Plus tard</button>
-            </div>
-        `;
+        modal.style.cssText = 'position:fixed;inset:0;z-index:4000;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:1rem;';
+        modal.innerHTML = '<div style="background:var(--panel);border-radius:20px;padding:1.8rem 1.5rem;max-width:400px;width:100%;text-align:center;">' +
+            '<div style="width:90px;height:90px;border-radius:50%;background:var(--panel-2);border:2px solid var(--accent);overflow:hidden;margin:0 auto 1rem;">' +
+                '<img src="https://le-vieux-production.up.railway.app/bg-subscribe.png" style="width:100%;height:100%;object-fit:cover;object-position:40% 45%;transform:scale(1.3);">' +
+            '</div>' +
+            '<h2 style="font-size:1.15rem;font-weight:700;margin-bottom:0.5rem;">Installe l\'app</h2>' +
+            '<p style="color:var(--ink-dim);font-size:0.85rem;margin-bottom:1.5rem;">Accès rapide depuis ton écran d\'accueil.</p>' +
+            '<button id="install-yes" class="btn btn-primary" style="width:100%;margin-bottom:0.6rem;"><span>Installer</span></button>' +
+            '<button id="install-later" style="background:transparent;border:none;color:var(--ink-faint);cursor:pointer;font-size:0.82rem;padding:0.6rem;width:100%;">Plus tard</button>' +
+        '</div>';
         document.body.appendChild(modal);
-
-        document.getElementById('install-prompt-yes').addEventListener('click', () => {
-            modal.remove();
-            handleInstallClick();
-        });
-        document.getElementById('install-prompt-later').addEventListener('click', () => modal.remove());
+        document.getElementById('install-yes').addEventListener('click', () => { modal.remove(); handleInstallClick(); });
+        document.getElementById('install-later').addEventListener('click', () => modal.remove());
     }, 800);
-}
-
-function showIOSGuide() {
-    showGuideModal({
-        title: '📱 Installer sur iPhone',
-        steps: [
-            'Ouvre l\'app dans <strong>Safari</strong> (pas Chrome)',
-            'Appuie sur le bouton <strong>Partager</strong> en bas',
-            'Fais défiler et choisis <strong>"Sur l\'écran d\'accueil"</strong>',
-            'Appuie sur <strong>"Ajouter"</strong> en haut à droite',
-            'L\'icône du sage apparaît sur ton écran d\'accueil 🌅'
-        ]
-    });
-}
-
-function showAndroidGuide() {
-    showGuideModal({
-        title: '📱 Installer sur Android',
-        steps: [
-            'Ouvre l\'app dans <strong>Chrome</strong>',
-            'Appuie sur le menu <strong>⋮</strong> en haut à droite',
-            'Choisis <strong>"Installer l\'application"</strong>',
-            'Confirme en appuyant sur <strong>"Installer"</strong>',
-            'L\'icône du sage apparaît sur ton écran d\'accueil 🌅'
-        ]
-    });
-}
-
-function showInAppBrowserGuide() {
-    showGuideModal({
-        title: '⚠️ Ouvre dans ton navigateur',
-        message: 'Tu es dans le navigateur de Facebook/TikTok. Pour installer l\'app, ouvre-la dans Chrome ou Safari.',
-        steps: [
-            isIOS() ? 'Appuie sur <strong>⋯</strong> ou <strong>Partager</strong> en haut' : 'Appuie sur le menu <strong>⋮</strong> en haut à droite',
-            'Choisis <strong>"Ouvrir dans Chrome"</strong> ou <strong>"Ouvrir dans Safari"</strong>',
-            'Une fois dans ton navigateur, appuie sur <strong>⬇️ Installer</strong> en haut de l\'app'
-        ]
-    });
 }
 
 function showGuideModal({ title, message, steps }) {
     const existing = document.getElementById('install-guide-modal');
     if (existing) existing.remove();
-
     const modal = document.createElement('div');
     modal.id = 'install-guide-modal';
-    modal.style.cssText = `position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:1rem;animation:fadeIn 0.3s ease;`;
-
-    const stepsHTML = steps.map((s, i) => `
-        <div style="display:flex;gap:0.8rem;margin-bottom:0.8rem;align-items:flex-start;">
-            <div style="width:26px;height:26px;border-radius:50%;background:var(--accent);color:#0a0a0f;font-weight:700;font-size:0.8rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${i+1}</div>
-            <div style="font-size:0.85rem;color:var(--ink);line-height:1.5;flex:1;">${s}</div>
-        </div>
-    `).join('');
-
-    modal.innerHTML = `
-        <div style="background:var(--panel);border-radius:20px;padding:1.5rem;max-width:400px;width:100%;max-height:80vh;overflow-y:auto;animation:fadeInUp 0.4s ease;">
-            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:1rem;">
-                <h3 style="font-size:1.05rem;font-weight:600;margin:0;">${title}</h3>
-                <button id="close-guide" style="background:transparent;border:none;color:var(--ink-faint);cursor:pointer;font-size:1.5rem;padding:0;line-height:1;">×</button>
-            </div>
-            ${message ? '<p style="color:var(--ink-dim);font-size:0.85rem;margin-bottom:1rem;">' + message + '</p>' : ''}
-            ${stepsHTML}
-            <button id="guide-ok" class="btn btn-primary" style="width:100%;margin-top:1rem;"><span>J'ai compris</span></button>
-        </div>
-    `;
+    modal.style.cssText = 'position:fixed;inset:0;z-index:5000;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:1rem;';
+    const stepsHTML = steps.map((s, i) => '<div style="display:flex;gap:0.8rem;margin-bottom:0.8rem;align-items:flex-start;"><div style="width:26px;height:26px;border-radius:50%;background:var(--accent);color:#0a0a0f;font-weight:700;font-size:0.8rem;display:flex;align-items:center;justify-content:center;flex-shrink:0;">' + (i+1) + '</div><div style="font-size:0.85rem;line-height:1.5;flex:1;">' + s + '</div></div>').join('');
+    modal.innerHTML = '<div style="background:var(--panel);border-radius:20px;padding:1.5rem;max-width:400px;width:100%;max-height:80vh;overflow-y:auto;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:1rem;">' +
+            '<h3 style="font-size:1.05rem;font-weight:600;margin:0;">' + title + '</h3>' +
+            '<button id="close-guide" style="background:transparent;border:none;color:var(--ink-faint);cursor:pointer;font-size:1.5rem;padding:0;line-height:1;">×</button>' +
+        '</div>' +
+        stepsHTML +
+        '<button id="guide-ok" class="btn btn-primary" style="width:100%;margin-top:1rem;"><span>Compris</span></button>' +
+    '</div>';
     document.body.appendChild(modal);
     document.getElementById('close-guide').addEventListener('click', () => modal.remove());
     document.getElementById('guide-ok').addEventListener('click', () => modal.remove());
@@ -2537,9 +2475,7 @@ function showGuideModal({ title, message, steps }) {
 
 window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
-    hideInstallBanner();
-    try { localStorage.setItem('levieux_install_dismissed', '1'); } catch (e) {}
-    showToast('✓ App installée avec succès !', 'success');
+    showToast('✓ App installée !', 'success');
 });
 </script>
 
